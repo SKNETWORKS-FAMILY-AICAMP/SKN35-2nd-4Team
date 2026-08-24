@@ -5,6 +5,22 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "lightgbm>=4.7.0",
     "numpy>=2.5.2",
     "pandas>=3.0.5",
+    "plotly>=6.9.0",
+    "psycopg2-binary>=2.9.12",
+    "pyarrow>=25.0.1",
+    "python-dotenv>=1.2.3",
+    "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.0",
+    "sqlalchemy>=2.0.52",
+    "streamlit>=1.62.0",
+    "xgboost>=3.4.1",
+]
+
+[dependency-groups]
+dev = [
+    "nbstripout>=0.9.1",
+    "ruff>=0.16.4",
 ]
