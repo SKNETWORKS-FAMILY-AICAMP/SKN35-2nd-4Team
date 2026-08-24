@@ -1,11 +1,3 @@
-data/raw/
-data/processed/*
-!data/processed/.gitkeep
-!data/processed/features_v1.parquet
-models/*.pkl
-models/*.h5
-models/*.keras
-!models/release/
 .env
 .ipynb_checkpoints/
 __pycache__/
