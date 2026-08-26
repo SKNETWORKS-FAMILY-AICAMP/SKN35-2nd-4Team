@@ -201,10 +201,31 @@ class StrengthXGB(BaseModel):
         ).sort_values(ascending=False)
 
 
-# ── DL: LSTM ───────────────────────────────────────────────────────
+# ── DL: LSTM (PyTorch) ────────────────────────────────────────────
 # 최근 5시즌의 흐름을 순서대로 보고 다음 시즌 전력을 예측
+#
+# torch 는 이 파일 최상단이 아니라 _fit/_predict 안에서 지연 임포트한다 (아래 참고).
+# nn.Module 정의는 _torch_lstm_net.py 로 분리했다 — 이유 2가지:
+#   1. torch.save() 는 내부적으로 pickle 을 쓰는데 함수 안 closure 클래스는 저장이 안 된다.
+#   2. torch 를 xgboost 보다 먼저 이 프로세스에 로드하면 macOS(arm64)에서 두 라이브러리의
+#      OpenMP/Accelerate 초기화가 충돌해 세그폴트가 난다. StrengthXGB 가 먼저 xgboost 를
+#      쓴 뒤에만 torch 가 들어오도록, import 시점을 여기(실제 fit 호출 시점)까지 미룬다.
+#
+# 순서를 미뤄도 xgboost 와 torch 가 각자 멀티스레드 BLAS/OpenMP 를 같이 쓰면 여전히
+# 데드락이 난다(같은 프로세스, macOS arm64에서 재현됨). torch 쪽 스레드를 1개로 고정해
+# 충돌을 피한다 — LSTM 자체가 가벼워서 성능 손해는 거의 없다.
+_torch_threads_limited = False
+
+
+def _limit_torch_threads(torch) -> None:
+    global _torch_threads_limited
+    if not _torch_threads_limited:
+        torch.set_num_threads(1)
+        _torch_threads_limited = True
+
+
 class StrengthLSTM(BaseModel):
-    """최근 SEQ_LEN 시즌을 시퀀스로 읽는 회귀 모델.
+    """최근 SEQ_LEN 시즌을 시퀀스로 읽는 회귀 모델 (PyTorch).
 
     입력이 3D 라 fit/predict 에 DataFrame 이 아닌 ndarray 를 넘긴다.
     build_sequences() 로 만든 X 를 그대로 사용한다.
@@ -213,48 +234,79 @@ class StrengthLSTM(BaseModel):
     name, task, kind, owner = "strength_lstm", "strength", "dl", "D"
 
     def _fit(self, X, y):
-        from tensorflow import keras
-        from tensorflow.keras import layers
+        import torch
+        import torch.nn as nn
+
+        from ._torch_lstm_net import MaskedLSTMNet
+
+        _limit_torch_threads(torch)
 
         X = np.asarray(X, dtype="float32")
-        seq_len, n_feat = X.shape[1], X.shape[2]
+        y = np.asarray(y, dtype="float32")
+        n_feat = X.shape[2]
+        units = self.params.get("units", 32)
+        dropout = self.params.get("dropout", 0.2)
+        epochs = self.params.get("epochs", 40)
+        batch_size = self.params.get("batch_size", 64)
+        patience = self.params.get("patience", 5)
 
-        self.model = keras.Sequential(
-            [
-                keras.Input(shape=(seq_len, n_feat)),
-                # 패딩된 0 을 무시한다. 이게 없으면 신인의 빈 시즌을 실제 0점으로 학습한다
-                layers.Masking(mask_value=0.0),
-                layers.LSTM(self.params.get("units", 32)),
-                layers.Dropout(self.params.get("dropout", 0.2)),
-                layers.Dense(16, activation="relu"),
-                layers.Dense(1),
-            ]
-        )
-        self.model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        # validation_split=0.15 와 동일 — 뒤쪽 15% 를 검증에 쓴다
+        n_val = max(1, int(len(X) * 0.15))
+        Xtr, Xva = torch.tensor(X[:-n_val]), torch.tensor(X[-n_val:])
+        ytr, yva = torch.tensor(y[:-n_val]), torch.tensor(y[-n_val:])
 
-        cb = [keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)]
-        self.history = self.model.fit(
-            X,
-            np.asarray(y, dtype="float32"),
-            epochs=self.params.get("epochs", 40),
-            batch_size=self.params.get("batch_size", 64),
-            validation_split=0.15,
-            callbacks=cb,
-            verbose=self.params.get("verbose", 0),
-        )
+        self.model = MaskedLSTMNet(n_feat, units, dropout)
+        opt = torch.optim.Adam(self.model.parameters())
+        loss_fn = nn.MSELoss()
+
+        best_state, best_val, bad_epochs = None, float("inf"), 0
+        for _ in range(epochs):
+            self.model.train()
+            perm = torch.randperm(len(Xtr))
+            for i in range(0, len(Xtr), batch_size):
+                idx = perm[i : i + batch_size]
+                opt.zero_grad()
+                pred = self.model(Xtr[idx])
+                loss = loss_fn(pred, ytr[idx])
+                loss.backward()
+                opt.step()
+
+            self.model.eval()
+            with torch.no_grad():
+                val_loss = loss_fn(self.model(Xva), yva).item()
+
+            # EarlyStopping(patience=5, restore_best_weights=True) 와 동일한 로직
+            if val_loss < best_val:
+                best_val, bad_epochs = val_loss, 0
+                best_state = {k: v.clone() for k, v in self.model.state_dict().items()}
+            else:
+                bad_epochs += 1
+                if bad_epochs >= patience:
+                    break
+
+        if best_state is not None:
+            self.model.load_state_dict(best_state)
+        self.model.eval()
 
     def _predict(self, X):
-        return self.model.predict(np.asarray(X, dtype="float32"), verbose=0).ravel()
+        import torch
+
+        _limit_torch_threads(torch)
+
+        self.model.eval()
+        with torch.no_grad():
+            X = torch.tensor(np.asarray(X, dtype="float32"))
+            return self.model(X).numpy().ravel()
 
     def _align(self, X):
         # 3D 입력은 컬럼 정렬 개념이 없다
         return X
 
 
-# ── DL 폴백: tensorflow 설치 실패 시 ────────────────────────────────
-# tensorflow를 사용할 수 없으면 MLP를 대체 모델로 사용
+# ── DL 폴백: torch 설치 실패 시 ──────────────────────────────────────
+# torch 를 사용할 수 없으면 MLP를 대체 모델로 사용
 class StrengthMLP(BaseModel):
-    """tensorflow 를 못 쓸 때의 대체 DL 모델. 2D lag 피처를 그대로 쓴다."""
+    """torch 를 못 쓸 때의 대체 DL 모델. 2D lag 피처를 그대로 쓴다."""
 
     name, task, kind, owner = "strength_mlp", "strength", "dl", "D"
 

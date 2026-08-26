@@ -56,6 +56,11 @@ def _is_keras(model) -> bool:
     return type(model).__module__.split(".")[0] in ("keras", "tensorflow")
 
 
+def _is_torch(model) -> bool:
+    """torch.nn.Module 인지 판정 (MRO 로 검사 — torch 미설치 환경에서도 안전하다)."""
+    return any(c.__module__.split(".")[0] == "torch" for c in type(model).__mro__)
+
+
 class BaseModel:
     """모든 모델의 부모.
 
@@ -157,10 +162,21 @@ class BaseModel:
 
         # kind 가 아니라 실제 객체 타입으로 판단한다.
         # DL 이어도 sklearn MLP 같은 폴백 모델은 pickle 로 저장해야 한다.
-        fmt = "keras" if _is_keras(self.model) else "pickle"
+        if _is_keras(self.model):
+            fmt = "keras"
+        elif _is_torch(self.model):
+            fmt = "torch"
+        else:
+            fmt = "pickle"
+
         if fmt == "keras":
             path = MODEL_DIR / f"{self.name}.keras"
             self.model.save(path)
+        elif fmt == "torch":
+            import torch
+
+            path = MODEL_DIR / f"{self.name}.pt"
+            torch.save(self.model, path)
         else:
             path = MODEL_DIR / f"{self.name}.pkl"
             with open(path, "wb") as f:
@@ -209,6 +225,11 @@ class BaseModel:
             from tensorflow import keras
 
             obj.model = keras.models.load_model(path)
+        elif fmt == "torch":
+            import torch
+
+            obj.model = torch.load(path, weights_only=False)
+            obj.model.eval()
         else:
             with open(path, "rb") as f:
                 obj.model = pickle.load(f)

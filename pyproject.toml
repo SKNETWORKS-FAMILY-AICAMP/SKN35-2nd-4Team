@@ -16,6 +16,7 @@ dependencies = [
     "scikit-learn>=1.9.0",
     "sqlalchemy>=2.0.52",
     "streamlit>=1.62.0",
+    "torch>=2.13.0",
     "xgboost>=3.4.1",
 ]
 
