@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단장 모드 — 전력 시뮬레이터 목업</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+__MOCKUP_CSS__
+</style>
+</head>
+<body data-screen="{{SCREEN}}">
+
+<!-- ═══════ 팀 선택 ═══════ -->
+<section class="enter" id="enter">
+  <div class="enter-in">
+    <div class="e-kicker">GENERAL MANAGER MODE</div>
+    <h1 class="e-title">당신이 맡을 구단을 선택하세요</h1>
+    <p class="e-desc">선택한 구단의 이탈 위험을 진단하고, 대체 영입으로 순위를 지켜내는 것이 목표입니다.</p>
+
+    <div class="e-lg">
+      <button class="lg-btn is-on">MLB</button>
+      <button class="lg-btn" disabled title="데이터 확보 후 지원">KBO</button>
+    </div>
+
+    <div class="div-lab">AL EAST</div>
+    <div class="teams">
+      <button class="tcard" data-team="NYY"><div class="tc-ab">NYY</div><div class="tc-n">Yankees</div><div class="tc-r">3위 · 62승</div></button>
+      <button class="tcard" data-team="BAL"><div class="tc-ab">BAL</div><div class="tc-n">Orioles</div><div class="tc-r">5위 · 58승</div></button>
+      <button class="tcard" data-team="BOS"><div class="tc-ab">BOS</div><div class="tc-n">Red Sox</div><div class="tc-r">8위 · 54승</div></button>
+      <button class="tcard" data-team="TBR"><div class="tc-ab">TBR</div><div class="tc-n">Rays</div><div class="tc-r">11위 · 51승</div></button>
+      <button class="tcard" data-team="TOR"><div class="tc-ab">TOR</div><div class="tc-n">Blue Jays</div><div class="tc-r">14위 · 48승</div></button>
+    </div>
+
+    <div class="div-lab">NL WEST</div>
+    <div class="teams">
+      <button class="tcard" data-team="LAD"><div class="tc-ab">LAD</div><div class="tc-n">Dodgers</div><div class="tc-r">1위 · 71승</div></button>
+      <button class="tcard" data-team="SDP"><div class="tc-ab">SDP</div><div class="tc-n">Padres</div><div class="tc-r">4위 · 60승</div></button>
+      <button class="tcard" data-team="ARI"><div class="tc-ab">ARI</div><div class="tc-n">D-backs</div><div class="tc-r">9위 · 53승</div></button>
+      <button class="tcard" data-team="SFG"><div class="tc-ab">SFG</div><div class="tc-n">Giants</div><div class="tc-r">12위 · 50승</div></button>
+      <button class="tcard" data-team="COL"><div class="tc-ab">COL</div><div class="tc-n">Rockies</div><div class="tc-r">28위 · 38승</div></button>
+    </div>
+
+    <div class="div-lab">기타 지구</div>
+    <div class="teams">
+      <button class="tcard" data-team="PHI"><div class="tc-ab">PHI</div><div class="tc-n">Phillies</div><div class="tc-r">2위 · 66승</div></button>
+      <button class="tcard" data-team="ATL"><div class="tc-ab">ATL</div><div class="tc-n">Braves</div><div class="tc-r">6위 · 57승</div></button>
+      <button class="tcard" data-team="CLE"><div class="tc-ab">CLE</div><div class="tc-n">Guardians</div><div class="tc-r">7위 · 56승</div></button>
+      <button class="tcard" data-team="HOU"><div class="tc-ab">HOU</div><div class="tc-n">Astros</div><div class="tc-r">10위 · 52승</div></button>
+      <button class="tcard" data-team="MIL"><div class="tc-ab">MIL</div><div class="tc-n">Brewers</div><div class="tc-r">13위 · 49승</div></button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 앱 ═══════ -->
+<div class="app" id="app">
+<div class="top">
+  <div class="top-in">
+    <button class="myteam" id="btnChange">
+      <span class="mt-ab" id="mtAb">{{TEAM_CODE}}</span>
+      <span><span class="mt-n" id="mtName">{{TEAM_NAME}}</span><br><span class="mt-s">구단 변경</span></span>
+    </button>
+    <div class="tabs">
+      <button class="tab is-on" data-go="war">구단 상황실</button>
+      <button class="tab" data-go="report">선수 리포트</button>
+      <button class="tab" data-go="about">모델 정보</button>
+    </div>
+    <div class="top-r"><div class="tr-l">시즌 예상 승률</div><div class="tr-v">61.3%</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- 구단 상황실 -->
+<section class="screen is-on" id="war">
+  <h1 class="h">구단 상황실</h1>
+  <p class="hd">2026년 8월 26일 · 정규시즌 113경기 소화</p>
+
+  <div class="standing">
+    <div class="st-box"><div class="st-lab">현재 순위</div><div class="st-rank">3<span style="font-size:17px">위</span></div><div class="st-sub">62승 50패</div></div>
+    <div class="st-arrow">→</div>
+    <div class="st-box"><div class="st-lab">이탈 발생 시</div><div class="st-rank" style="color:var(--risk)">6<span style="font-size:17px">위</span></div><div class="st-sub">−5.5%p</div></div>
+    <div class="st-msg">
+      이탈 위험 선수 <b>2명</b>이 모두 빠질 경우 <b>포스트시즌 진출권 밖</b>으로 밀려납니다.
+      대체 영입 시 3위를 유지할 수 있습니다.
+    </div>
+  </div>
+
+  <div class="sec"><span>이탈 위험 로스터</span><span style="font-weight:400;color:var(--faint)">전력 순</span></div>
+  <div class="card">
+    <div class="player" data-open="report">
+      <div class="p-av hot">GC</div>
+      <div class="p-n">G. Cole<div class="p-s">SP · 36세 · 계약 마지막 해</div></div>
+      <div class="p-str">94.1</div>
+      <div class="p-risk"><span class="tag t-risk">61%</span><div class="rbar"><i style="width:61%;background:var(--risk)"></i></div></div>
+    </div>
+    <div class="player" data-open="report">
+      <div class="p-av hot">AJ</div>
+      <div class="p-n">A. Judge<div class="p-s">RF · 34세 · 계약 마지막 해</div></div>
+      <div class="p-str">91.2</div>
+      <div class="p-risk"><span class="tag t-risk">78%</span><div class="rbar"><i style="width:78%;background:var(--risk)"></i></div></div>
+    </div>
+    <div class="player" data-open="report">
+      <div class="p-av">AV</div>
+      <div class="p-n">A. Volpe<div class="p-s">SS · 25세</div></div>
+      <div class="p-str">78.5</div>
+      <div class="p-risk"><span class="tag t-navy">19%</span><div class="rbar"><i style="width:19%;background:var(--navy)"></i></div></div>
+    </div>
+    <div class="player" data-open="report">
+      <div class="p-av">MR</div>
+      <div class="p-n">M. Rizzo<div class="p-s">1B · 36세</div></div>
+      <div class="p-str">72.8</div>
+      <div class="p-risk"><span class="tag t-warn">47%</span><div class="rbar"><i style="width:47%;background:#D9A94F"></i></div></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>로스터 전체 26명 보기</summary>
+    <div class="det-in" style="color:var(--muted);font-size:12.5px">나머지 22명이 여기에 표시됩니다.</div>
+  </details>
+
+  <div class="sec"><span>오늘 경기</span></div>
+  <div class="card">
+    <div class="game">
+      <div class="g-t">19:05</div>
+      <div class="g-o">vs Boston Red Sox <span>· 홈</span></div>
+      <div class="g-p"><div class="g-bar"><span class="a" style="width:58%">58%</span><span class="b" style="width:42%">42%</span></div></div>
+    </div>
+    <div class="game">
+      <div class="g-t">내일</div>
+      <div class="g-o">vs Boston Red Sox <span>· 홈</span></div>
+      <div class="g-p"><div class="g-bar"><span class="a" style="width:55%">55%</span><span class="b" style="width:45%">45%</span></div></div>
+    </div>
+  </div>
+  <div class="note">
+    A. Judge 이탈 시 오늘 경기 승률은 <b>58% → 51%</b>로 하락하여 우위가 사라집니다.
+  </div>
+</section>
+
+<!-- 선수 리포트 -->
+<section class="screen" id="report">
+  <button class="back" data-go="war">← 구단 상황실</button>
+
+  <div class="rep-head">
+    <div class="av">AJ</div>
+    <div>
+      <div class="rep-n">A. Judge</div>
+      <div class="rep-m">New York Yankees · RF · 34세 · 계약 마지막 해</div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div class="v-lead">단장 브리핑</div>
+    <div class="v-main">
+      이탈 확률 <b>78%</b>. 이탈 시 승률이 <em>5.5%p</em> 하락해 순위가 <em>3위 → 6위</em>로 밀립니다.<br>
+      <b>B. Wells</b>를 투입하면 손실을 <b>1.4%p</b>로 막고 3위를 지킬 수 있습니다.
+    </div>
+    <div class="v-sub">가장 유력한 형태는 트레이드(42%)이며, 시즌 전체 공백을 가정한 결과입니다.</div>
+  </div>
+
+  <div class="sec">승률에 미치는 영향</div>
+  <div class="card">
+    <div class="track">
+      <div class="tr-line"></div>
+      <div class="tr-sp" style="left:12%;width:38%;background:var(--risk)"></div>
+      <div class="tr-sp" style="left:50%;width:32%;background:var(--gain)"></div>
+      <div class="pt" style="left:12%"><div class="pt-d" style="background:var(--navy)"></div><div class="pt-v">61.3%</div><div class="pt-l">현재 · 3위</div></div>
+      <div class="pt" style="left:50%"><div class="pt-d" style="background:var(--risk)"></div><div class="pt-v" style="color:var(--risk)">55.8%</div><div class="pt-l">이탈 후 · 6위</div></div>
+      <div class="pt" style="left:82%"><div class="pt-d" style="background:var(--gain)"></div><div class="pt-v" style="color:var(--gain)">59.9%</div><div class="pt-l">대체 후 · 3위</div></div>
+    </div>
+    <div class="grid g3" style="margin-top:20px">
+      <div><div class="kpi-l">이탈 영향</div><div class="kpi-v" style="color:var(--risk)">−5.5%p</div></div>
+      <div><div class="kpi-l">대체 효과</div><div class="kpi-v" style="color:var(--gain)">+4.1%p</div></div>
+      <div><div class="kpi-l">최종 손실</div><div class="kpi-v">−1.4%p</div></div>
+    </div>
+  </div>
+
+  <div class="sec"><span>영입 시뮬레이션</span><span style="font-weight:400;color:var(--faint)">후보를 눌러 비교</span></div>
+  <div class="chips">
+    <button class="chip is-on">트레이드 · 시즌 전체</button>
+    <button class="chip">FA · 오프시즌</button>
+    <button class="chip">리그 이탈 · 영구</button>
+  </div>
+  <div class="card">
+    <div class="cand best">
+      <div class="c-n">B. Wells <span class="tag t-gain">추천</span>
+        <div class="c-s">RF · 26세 · 내년 예상 전력 85.1 (상승세) · 3위 유지</div></div>
+      <div class="c-v"><div class="c-big">59.9%</div><div class="c-sm">+4.1%p</div></div>
+    </div>
+    <div class="cand">
+      <div class="c-n">C. Dominguez
+        <div class="c-s">CF · 24세 · 내년 예상 전력 81.7 · 4위</div></div>
+      <div class="c-v"><div class="c-big">58.7%</div><div class="c-sm">+2.9%p</div></div>
+    </div>
+    <div class="cand">
+      <div class="c-n">D. Pereira
+        <div class="c-s">LF · 30세 · 내년 예상 전력 72.2 (하락세) · 5위</div></div>
+      <div class="c-v"><div class="c-big">57.4%</div><div class="c-sm">+1.6%p</div></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>이 예측의 근거</summary>
+    <div class="det-in">
+      <div class="grid g2">
+        <div>
+          <div class="kpi-l" style="margin-bottom:8px">이탈 유형 예측</div>
+          <div class="bar"><span class="bar-l">트레이드</span><span class="bar-t"><i style="width:42%"></i></span><span class="bar-v">42%</span></div>
+          <div class="bar"><span class="bar-l">FA · 방출</span><span class="bar-t"><i style="width:31%"></i></span><span class="bar-v">31%</span></div>
+          <div class="bar" style="margin-bottom:0"><span class="bar-l">리그 이탈</span><span class="bar-t"><i style="width:27%"></i></span><span class="bar-v">27%</span></div>
+        </div>
+        <div>
+          <div class="kpi-l" style="margin-bottom:8px">판단에 기여한 요인</div>
+          <div class="bar"><span class="bar-l">팀 승률</span><span class="bar-t"><i style="width:88%"></i></span><span class="bar-v">0.31</span></div>
+          <div class="bar"><span class="bar-l">직전 출전율</span><span class="bar-t"><i style="width:71%"></i></span><span class="bar-v">0.25</span></div>
+          <div class="bar"><span class="bar-l">출전 변화율</span><span class="bar-t"><i style="width:54%"></i></span><span class="bar-v">0.19</span></div>
+          <div class="bar" style="margin-bottom:0"><span class="bar-l">나이</span><span class="bar-t"><i style="width:38%"></i></span><span class="bar-v">0.14</span></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px 15px;background:var(--paper);border-radius:10px;font-size:12.5px">
+        리그 이탈로 이어질 경우 <b>2년 내 복귀 확률 64%</b><span class="tag t-warn">부상 의심 높음</span>
+      </div>
+      <div class="note">부상 여부는 Lahman에 부상자 명단이 없어 <b>복귀 패턴으로 추정한 해석</b>입니다. 확정된 사실이 아닙니다.</div>
+    </div>
+  </details>
+</section>
+
+<!-- 모델 정보 -->
+<section class="screen" id="about">
+  <h1 class="h">모델 정보</h1>
+  <p class="hd">예측에 사용된 모델과 성능, 데이터의 한계를 공개합니다.</p>
+
+  <div class="sec">모델 성능</div>
+  <div class="card">
+    <table>
+      <tr><th>모델</th><th>역할</th><th>담당</th><th>유형</th><th class="num">지표</th><th class="num">값</th></tr>
+      <tr><td>departure_lgbm <span class="tag t-gain">사용</span></td><td>이탈 예측</td><td>B</td><td>ML</td><td class="num">ROC-AUC</td><td class="num">0.79</td></tr>
+      <tr><td>departure_mlp</td><td>이탈 예측</td><td>B</td><td>DL</td><td class="num">ROC-AUC</td><td class="num">0.76</td></tr>
+      <tr><td>reason_rf <span class="tag t-gain">사용</span></td><td>이탈 유형</td><td>C</td><td>ML</td><td class="num">Macro F1</td><td class="num">0.43</td></tr>
+      <tr><td>win_rate_lr <span class="tag t-gain">사용</span></td><td>시즌 승률</td><td>A</td><td>ML</td><td class="num">ROC-AUC</td><td class="num">0.73</td></tr>
+      <tr><td>game_lgbm <span class="tag t-gain">사용</span></td><td>경기 예측</td><td>A</td><td>ML</td><td class="num">Accuracy</td><td class="num">0.583</td></tr>
+      <tr><td>strength_xgb <span class="tag t-gain">사용</span></td><td>전력 예측</td><td>D</td><td>ML</td><td class="num">MAE</td><td class="num">3.80</td></tr>
+      <tr><td>strength_lstm</td><td>전력 예측</td><td>D</td><td>DL</td><td class="num">MAE</td><td class="num">6.28</td></tr>
+      <tr><td>recommend_knn <span class="tag t-gain">사용</span></td><td>대체 추천</td><td>E</td><td>ML</td><td class="num">P@3</td><td class="num">0.71</td></tr>
+    </table>
+    <p style="font-size:12.5px;color:var(--muted);margin:14px 0 0">
+      정형 데이터·소규모 표본 조건에서 트리 계열이 신경망보다 일관되게 우수했습니다.
+    </p>
+  </div>
+
+  <div class="sec">성능을 읽는 기준</div>
+  <div class="grid g3">
+    <div class="card"><div class="kpi-l">경기 예측 baseline</div><div class="kpi-v">54.1%</div>
+      <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">홈팀이 그냥 이기는 비율</p></div>
+    <div class="card"><div class="kpi-l">우리 모델</div><div class="kpi-v" style="color:var(--gain)">58.3%</div>
+      <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">베팅 업계와 동등 수준</p></div>
+    <div class="card"><div class="kpi-l">이론적 상한</div><div class="kpi-v">~60%</div>
+      <p style="font-size:11.5px;color:var(--muted);margin:6px 0 0">야구 단판 변동성의 한계</p></div>
+  </div>
+
+  <details>
+    <summary>데이터와 한계</summary>
+    <div class="det-in">
+      <table>
+        <tr><th style="width:30%">항목</th><th>내용</th></tr>
+        <tr><td>학습 데이터</td><td>Lahman Baseball Database 2000–2025 (CC BY-SA 3.0)</td></tr>
+        <tr><td>경기 데이터</td><td>MLB Stats API (개인·비상업 무료)</td></tr>
+        <tr><td>분할</td><td>Train 2000–2021 / Valid 2022–2023 / Test 2024</td></tr>
+      </table>
+      <ul style="font-size:12.5px;color:var(--muted);margin-top:14px;padding-left:18px;line-height:1.8">
+        <li>시뮬레이션 결과는 실제 미래 승률이 아니라 모델 기반의 가상 시나리오입니다</li>
+        <li>부상 태그는 복귀 패턴으로 추정한 값이며 확정 사실이 아닙니다</li>
+        <li>이탈 유형 분류는 Macro F1 0.43으로, 선수 성적만으로 구단 의사결정 유형을 구분하는 데 한계가 있습니다</li>
+        <li>전력 예측은 리그 잔류 선수만으로 학습되어 생존 편향이 존재합니다</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>아시안게임 이벤트</summary>
+    <div class="det-in">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:500">2026 아이치 · 나고야 · 9월 19일 – 10월 4일</div>
+        <span class="tag t-warn">참고용</span>
+      </div>
+      <div class="bar"><span class="bar-l">한국 vs 대만</span><span class="bar-t"><i style="width:62%"></i></span><span class="bar-v">62%</span></div>
+      <div class="bar"><span class="bar-l">한국 vs 홍콩</span><span class="bar-t"><i style="width:88%"></i></span><span class="bar-v">88%</span></div>
+      <div class="bar"><span class="bar-l">한국 vs 태국</span><span class="bar-t"><i style="width:91%"></i></span><span class="bar-v">91%</span></div>
+      <p style="font-size:12.5px;color:var(--muted);margin:14px 0 0;line-height:1.7">
+        일본은 NPB 프로 선수를 차출하지 않습니다. 프로 차출을 가정하면 일본 전력이 78.4 → 93.1로 상승하며,
+        한국의 결승 예상 승률은 54% → 31%로 하락합니다. 본 프로젝트의 이탈 시뮬레이션 로직을 그대로 적용한 결과입니다.
+      </p>
+    </div>
+  </details>
+</section>
+
+</div>
+</div>
+
+<script>
+__MOCKUP_JS__
+</script>
+</body>
+</html>

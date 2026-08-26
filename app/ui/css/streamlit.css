@@ -1,0 +1,15 @@
+[data-testid="stSidebar"],
+[data-testid="stHeader"],
+[data-testid="stToolbar"],
+footer {
+  display: none !important;
+}
+
+.block-container {
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+iframe {
+  display: block;
+}
