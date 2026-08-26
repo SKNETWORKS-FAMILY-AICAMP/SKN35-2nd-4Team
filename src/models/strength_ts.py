@@ -61,6 +61,14 @@ def add_lag_features(df: pd.DataFrame, n_lags: int = 3) -> pd.DataFrame:
     return d
 
 
+# overall_score - 현재 시즌 종합 전력 점수 - 지금 얼마나 잘하는 선수인가
+# score_lag1 - 1시즌 전 overall_score - 작년 실력
+# score_lag2 - 2시즌 전 overall_score - 재작년 실력
+# score_lag3 - 3시즌 전 overall_score - 3년 전 실력
+# score_maa3 - 최근 3시즌 종합점수 평균 - 최근 3년 평균 실력
+# score_trend - [lag1 - lag2] - 작년보다 실력이 올랐는지/떨어졌는지
+# score_std3 - 최근 3시즌 점수의 표준편차 - 실력이 얼마나 들쭉날쭉한지
+
 LAG_FEATURES = [
     "overall_score", "score_lag1", "score_lag2", "score_lag3",
     "score_ma3", "score_trend", "score_std3",
@@ -127,6 +135,7 @@ def build_sequences(
 
 
 # ── ML: XGBoost ────────────────────────────────────────────────────
+# 과거 성적과 나이 등을 보고 다음 시즌 전력을 회귀 예측
 class StrengthXGB(BaseModel):
     """과거 시즌을 lag 컬럼으로 펼쳐 학습하는 회귀 모델."""
 
@@ -156,6 +165,7 @@ class StrengthXGB(BaseModel):
 
 
 # ── DL: LSTM ───────────────────────────────────────────────────────
+# 최근 5시즌의 흐름을 순서대로 보고 다음 시즌 전력을 예측
 class StrengthLSTM(BaseModel):
     """최근 SEQ_LEN 시즌을 시퀀스로 읽는 회귀 모델.
 
@@ -205,6 +215,7 @@ class StrengthLSTM(BaseModel):
 
 
 # ── DL 폴백: tensorflow 설치 실패 시 ────────────────────────────────
+# tensorflow를 사용할 수 없으면 MLP를 대체 모델로 사용
 class StrengthMLP(BaseModel):
     """tensorflow 를 못 쓸 때의 대체 DL 모델. 2D lag 피처를 그대로 쓴다."""
 
@@ -227,3 +238,6 @@ class StrengthMLP(BaseModel):
 
     def _predict(self, X):
         return self.model.predict(X)
+    
+    
+# ===========================================================
