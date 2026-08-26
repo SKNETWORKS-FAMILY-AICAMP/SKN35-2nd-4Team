@@ -60,12 +60,57 @@ def add_lag_features(df: pd.DataFrame, n_lags: int = 3) -> pd.DataFrame:
 
     return d
 
+# 성적 관련 피처들
+# [만약 score_lag1 = 85, score_lag2 = 80
+# score_trend = 85 - 80 = +- 5
+# 최근 실력이 상승하고 있다는 뜻]
+# overall_score - 현재 시즌 종합 전력 점수 - 지금 얼마나 잘하는 선수인가
+# score_lag1 - 1시즌 전 overall_score - 작년 실력
+# score_lag2 - 2시즌 전 overall_score - 재작년 실력
+# score_lag3 - 3시즌 전 overall_score - 3년 전 실력
+# score_maa3 - 최근 3시즌 종합점수 평균 - 최근 3년 평균 실력
+# score_trend - [lag1 - lag2] - 작년보다 실력이 올랐는지/떨어졌는지
+# score_std3 - 최근 3시즌 점수의 표준편차 - 실력이 얼마나 들쭉날쭉한지
+
+# 경기 참여 관련 피처들
+# [만약 g_ratio = 0.9라면 -> 팀 경기의 90% 정도를 출전했다는 의미]
+# g_ratio - 경기 참여 비율 - 팀 경기 중 얼마나 많이 뛰었는가
+# gratio_lag1 - 1시즌 전 경기 참여 비율 - 작년 출전 비율
+# gratio-lag2 - 2시즌 전 경기 참여 비율 - 재작년 출전 비율
+
+# 나이 관련
+# [예를들어 30살이면:
+# age = 30, age_c = 30 - 27 = 3, age_sq = 3^2 = 9, past_peak = 1
+# 즉 선수의 나이에 따른 기량 변화를 모델에게 알려주는 변수]
+# age - 현재 나이 - 현재 몇 살인가
+# age_c - [age - 27] - 전성기 27세에서 얼마나 떨어져 있는가
+# age_sq - age_c^2 - 전성기에서 멀어질수록 영향이 커지는 정도
+# past_peak - 27세 초과 여부 - 전성기를 지났는가?
+
+# 경험 관련
+# [정확히 어떤 방식으로 계산했는지는 원본 데이터의 exp 정의를 봐야 하지만, 일반적으로 프로 경력 연수나 누적 경험을 의미]
+# exp - 선수 경험/경력 지표 - 얼마나 경험이 많은 선수인가
+
+# 선수 세부 성적
+# [z-score는 0 -> 평균 정도, +1 -> 평균보다 좋음, -1 -> 평균보다 나쁨
+#  다만 ERA는 낮을수록 좋은 지표라서 era_z의 방향은 전처리 과정에서 어떻게 정의했는지 확인해봐야 함]
+
+# 팀 성적
+# [만약 team_wr = 0.650이면 팀이 전체 경기의 65%를 승리했다는 의미, 선수 개인 능력뿐 아니라 소속 팀의 환경/전력도 다음 
+# 시즌 전력에 영향을 줄 수 있어서 넣음]
+# team_wr - 팀 숭률(Win Rate) - 선수가 속한 팀이 얼마나 잘하고 있는가
+
+# 이 선수의 현재 실력 + 과거 실력 + 성장/하락 추세 + 나이 + 출전량 + 개인 성적 + 팀 성적을
+# 종합해서 다음 시즌 실력을 예측
 
 LAG_FEATURES = [
     "overall_score", "score_lag1", "score_lag2", "score_lag3",
     "score_ma3", "score_trend", "score_std3",
+    
     "g_ratio", "gratio_lag1", "gratio_lag2",
+    
     "age", "age_c", "age_sq", "past_peak", "exp",
+    
     "ops_z", "era_z", "team_wr",
 ]
 
@@ -127,6 +172,7 @@ def build_sequences(
 
 
 # ── ML: XGBoost ────────────────────────────────────────────────────
+# 과거 성적과 나이 등을 보고 다음 시즌 전력을 회귀 예측
 class StrengthXGB(BaseModel):
     """과거 시즌을 lag 컬럼으로 펼쳐 학습하는 회귀 모델."""
 
@@ -156,6 +202,7 @@ class StrengthXGB(BaseModel):
 
 
 # ── DL: LSTM ───────────────────────────────────────────────────────
+# 최근 5시즌의 흐름을 순서대로 보고 다음 시즌 전력을 예측
 class StrengthLSTM(BaseModel):
     """최근 SEQ_LEN 시즌을 시퀀스로 읽는 회귀 모델.
 
@@ -205,6 +252,7 @@ class StrengthLSTM(BaseModel):
 
 
 # ── DL 폴백: tensorflow 설치 실패 시 ────────────────────────────────
+# tensorflow를 사용할 수 없으면 MLP를 대체 모델로 사용
 class StrengthMLP(BaseModel):
     """tensorflow 를 못 쓸 때의 대체 DL 모델. 2D lag 피처를 그대로 쓴다."""
 
@@ -227,3 +275,11 @@ class StrengthMLP(BaseModel):
 
     def _predict(self, X):
         return self.model.predict(X)
+    
+    
+# ===========================================================
+# 결과 활용
+# 모델이 예측한 y_next_score를 이용해 다음 시즌 선수 전력을 예상
+# 이 결과를 B, C의 선수 이탈 예측과 결합해서 대체 선수 추천에 활용
+# 최종적으로 "이 선수가 이탈하면 -> 팀 전력이 얼마나 떨어지고 -> 누구로 대체할 것인가"를 시뮬레이션하는 데 사용"
+# ===========================================================
