@@ -40,12 +40,12 @@ raw = load_features()
 print(f"   출처   : {'실제 데이터' if FEATURES_PATH.exists() else '목업 (가짜)'}")
 print(f"   행 / 열: {len(raw):,} / {raw.shape[1]}")
 print(f"   시즌   : {int(raw.season.min())} ~ {int(raw.season.max())}")
-print("\n   라벨 분포(%)")
-for k, v in (raw.y_reason.value_counts(normalize=True) * 100).round(1).items():
-    print(f"     {k:<12} {v:>5}")
+print("\n   L2 라벨 분포(%) — 잔류자는 NaN")
+for k, v in (raw.y_path.value_counts(normalize=True) * 100).round(1).items():
+    print(f"     {k:<16} {v:>5}")
 
 line("2. 데이터 미리보기")
-cols = ["player_id", "season", "age", "g_ratio", "overall_score", "y_departed", "y_reason", "y_next_score"]
+cols = ["player_id", "season", "age", "g_ratio", "overall_score", "y_departed", "y_path", "y_next_score"]
 print(raw[cols].head(8).to_string(index=False))
 
 line("3. lag 피처 생성")
