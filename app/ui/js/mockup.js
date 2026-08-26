@@ -1,5 +1,5 @@
 
-var TEAMS = {
+const TEAMS = {
   NYY:'New York Yankees', BAL:'Baltimore Orioles', BOS:'Boston Red Sox', TBR:'Tampa Bay Rays',
   TOR:'Toronto Blue Jays', LAD:'Los Angeles Dodgers', SDP:'San Diego Padres', ARI:'Arizona D-backs',
   SFG:'San Francisco Giants', COL:'Colorado Rockies', PHI:'Philadelphia Phillies', ATL:'Atlanta Braves',
@@ -12,7 +12,7 @@ function go(id){
 }
 document.querySelectorAll('.tcard').forEach(function(c){
   c.addEventListener('click', function(){
-    var ab = c.dataset.team;
+    const ab = c.dataset.team;
     document.getElementById('mtAb').textContent = ab;
     document.getElementById('mtName').textContent = TEAMS[ab] || ab;
     document.getElementById('enter').style.display = 'none';
@@ -34,13 +34,13 @@ document.querySelectorAll('[data-open]').forEach(function(el){
 document.querySelectorAll('.chip, .lg-btn').forEach(function(el){
   el.addEventListener('click', function(){
     if (el.disabled) return;
-    var sel = el.classList.contains('chip') ? '.chip' : '.lg-btn';
+    const sel = el.classList.contains('chip') ? '.chip' : '.lg-btn';
     el.parentElement.querySelectorAll(sel).forEach(function(s){ s.classList.toggle('is-on', s === el); });
   });
 });
 
 // Streamlit의 각 페이지가 body[data-screen]으로 초기 화면을 지정한다.
-var initialScreen = document.body.dataset.screen || 'home';
+const initialScreen = document.body.dataset.screen || 'home';
 if (initialScreen === 'home') {
   document.getElementById('enter').style.display = 'block';
   document.getElementById('app').classList.remove('is-on');
