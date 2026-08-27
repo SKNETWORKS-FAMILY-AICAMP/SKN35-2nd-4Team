@@ -56,6 +56,8 @@ class SimulationResult:
     impact: float
     replacement_effect: float | None
     net_effect: float | None
+    rank_before: int | None
+    rank_after: int | None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -63,21 +65,28 @@ class SimulationResult:
 
 # A 담당 승률 모델과의 연결 규약. 0~1 확률 하나를 반환해야 한다.
 WinRatePredictor = Callable[[TeamStrength], float]
+RankPredictor = Callable[[TeamStrength], int]
 
 
 def _validate_players(players: pd.DataFrame) -> None:
     missing = REQUIRED_COLUMNS - set(players.columns)
+
     if missing:
         raise ValueError(f"선수 데이터 필수 컬럼 누락: {sorted(missing)}")
+
     if players.empty:
         raise ValueError("팀 선수 데이터가 비어 있습니다.")
+
     if players["player_id"].duplicated().any():
         duplicated = players.loc[players["player_id"].duplicated(), "player_id"].tolist()
         raise ValueError(f"팀 데이터에 player_id가 중복됩니다: {duplicated[:5]}")
+
     if players["overall_score"].isna().any():
         raise ValueError("overall_score에 결측치가 있습니다.")
+
     if players["g_ratio"].isna().any() or (players["g_ratio"] < 0).any():
         raise ValueError("g_ratio는 결측이 없는 0 이상의 값이어야 합니다.")
+
     if float(players["g_ratio"].sum()) <= 0:
         raise ValueError("팀 전체 g_ratio 합은 0보다 커야 합니다.")
 
@@ -86,9 +95,12 @@ def _weighted_score(players: pd.DataFrame, column: str) -> float | None:
     """결측 점수를 제외하고 출전 비중 가중평균을 계산한다."""
     if column not in players.columns:
         return None
+
     valid = players[column].notna() & players["g_ratio"].notna() & (players["g_ratio"] > 0)
+
     if not valid.any():
         return None
+
     return float(np.average(players.loc[valid, column], weights=players.loc[valid, "g_ratio"]))
 
 
@@ -124,6 +136,7 @@ def simulate(
     predict_win_rate: WinRatePredictor,
     *,
     replacement_player: pd.Series | Mapping[str, Any] | None = None,
+    rank_predictor: RankPredictor | None = None,
 ) -> SimulationResult:
     """선수 이탈 및 선택적 대체 투입 결과를 계산한다.
 
@@ -153,6 +166,7 @@ def simulate(
 
     current_strength = calculate_team_strength(team_players)
     departure_strength = calculate_team_strength(remaining)
+
     current_wr = _as_probability(predict_win_rate(current_strength), "현재 예상 승률")
     departure_wr = _as_probability(predict_win_rate(departure_strength), "이탈 후 예상 승률")
 
@@ -164,8 +178,10 @@ def simulate(
         replacement = pd.DataFrame([dict(replacement_player)])
         _validate_players(replacement)
         replacement_id = str(replacement.iloc[0]["player_id"])
+
         if replacement_id in set(remaining["player_id"].astype(str)):
             raise ValueError(f"대체 선수 '{replacement_id}'가 이미 현재 팀에 있습니다.")
+
         replaced_team = pd.concat([remaining, replacement], ignore_index=True, sort=False)
         replacement_strength = calculate_team_strength(replaced_team)
         replacement_wr = _as_probability(
@@ -175,6 +191,12 @@ def simulate(
     impact = departure_wr - current_wr
     replacement_effect = None if replacement_wr is None else replacement_wr - departure_wr
     net_effect = None if replacement_wr is None else replacement_wr - current_wr
+
+    # 순위표 계산은 팀 전체 상태를 아는 외부 모델/A 파트에서 주입한다.
+    # 순위표가 없는 mock 단계에서는 두 값을 None으로 둔다.
+    rank_before = None if rank_predictor is None else int(rank_predictor(current_strength))
+    final_strength = replacement_strength or departure_strength
+    rank_after = None if rank_predictor is None else int(rank_predictor(final_strength))
 
     return SimulationResult(
         removed_player_id=str(removed_player_id),
@@ -188,6 +210,8 @@ def simulate(
         impact=impact,
         replacement_effect=replacement_effect,
         net_effect=net_effect,
+        rank_before=rank_before,
+        rank_after=rank_after,
     )
 
 
@@ -195,6 +219,7 @@ __all__ = [
     "SimulationResult",
     "TeamStrength",
     "WinRatePredictor",
+    "RankPredictor",
     "calculate_team_strength",
     "simulate",
 ]
@@ -256,6 +281,8 @@ if __name__ == "__main__":
         removed_player_id="star_hitter",
         predict_win_rate=__demo_win_rate_predictor,
         replacement_player=replacement_player,
+        # 실제 구현에서는 전체 팀 순위표를 조회하는 A 담당 함수를 주입한다.
+        rank_predictor=lambda team: 3 if team.overall >= 78 else 6,
     )
 
     print("=== 선수 이탈·대체 시뮬레이션 예제 ===")
@@ -267,3 +294,5 @@ if __name__ == "__main__":
     print(f"이탈 영향:            {result.impact:+.1%}p")
     print(f"대체 효과:            {result.replacement_effect:+.1%}p")
     print(f"최종 변화:            {result.net_effect:+.1%}p")
+    print(f"현재 순위:            {result.rank_before}위")
+    print(f"대체 후 순위:         {result.rank_after}위")
