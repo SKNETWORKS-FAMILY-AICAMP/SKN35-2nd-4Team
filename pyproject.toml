@@ -49,6 +49,7 @@ dependencies = [
     "ultralytics>=8.4.127",
     "webdriver-manager>=4.1.2",
     "xmltodict>=1.0.4",
+    "optuna>=4.9.0",
 ]
 
 [dependency-groups]
