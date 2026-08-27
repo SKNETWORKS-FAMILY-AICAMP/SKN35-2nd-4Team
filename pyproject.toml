@@ -24,4 +24,5 @@ dependencies = [
 dev = [
     "nbstripout>=0.9.1",
     "ruff>=0.16.4",
+    "watchdog>=6.0.0",
 ]
