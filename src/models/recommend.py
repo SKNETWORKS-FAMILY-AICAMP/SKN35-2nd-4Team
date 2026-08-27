@@ -15,7 +15,11 @@
 
 from __future__ import annotations
 
+import json
+import pickle
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -35,12 +39,22 @@ REQUIRED_COLUMNS = {
     "overall_score",
 }
 
+LAHMAN_TEAM_TO_UI = {
+    "CHA": "CHW", "CHN": "CHC", "KCA": "KCR", "LAN": "LAD",
+    "NYA": "NYY", "NYN": "NYM", "SDN": "SDP", "SFN": "SFG",
+    "SLN": "STL", "TB": "TBR", "WAS": "WSN",
+}
+
 COMMON_FEATURES = ["overall_score", "def_score", "g_ratio", "age", "exp"]
 ROLE_FEATURES = {
     "B": ["off_score", "ops_z"],
     "P": ["pit_score", "era_z", "whip_z"],
     "TWO": ["off_score", "pit_score", "ops_z", "era_z", "whip_z"],
 }
+
+ROOT = Path(__file__).resolve().parents[2]
+MODEL_DIR = ROOT / "models"
+REGISTRY_DIR = MODEL_DIR / "registry"
 
 
 @dataclass(frozen=True)
@@ -65,6 +79,7 @@ class ReplacementRecommender:
         self.config = RecommendationConfig(**config)
         self.catalog_: pd.DataFrame | None = None
         self.feature_names_: list[str] = []
+        self.filter_note_: str = ""
 
     def fit(self, players: pd.DataFrame) -> "ReplacementRecommender":
         """추천에 사용할 선수-시즌 카탈로그를 저장하고 검증한다."""
@@ -146,7 +161,9 @@ class ReplacementRecommender:
             "distance",
         ]
         remaining = [column for column in result.columns if column not in first]
-        return result[first + remaining].reset_index(drop=True)
+        result = result[first + remaining].reset_index(drop=True)
+        result.attrs["filter_note"] = self.filter_note_
+        return result
 
     def _catalog(self) -> pd.DataFrame:
         if self.catalog_ is None:
@@ -156,22 +173,28 @@ class ReplacementRecommender:
     def _filter_candidates(
         self, catalog: pd.DataFrame, target: pd.Series
     ) -> tuple[pd.DataFrame, str]:
-        candidates = catalog.loc[catalog["season"] == target["season"]].copy()
-        candidates = candidates.loc[
-            candidates["player_id"].astype(str) != str(target["player_id"])
-        ]
-        candidates = candidates.loc[candidates["g_ratio"] >= self.config.min_g_ratio]
+        pool = catalog.loc[catalog["season"] == target["season"]].copy()
+        pool = pool.loc[pool["player_id"].astype(str) != str(target["player_id"])]
+        if self.config.exclude_same_team:
+            pool = pool.loc[pool["team_last"] != target["team_last"]]
 
-        # 실제 포지션 컬럼이 도착하면 role보다 더 구체적인 position을 우선한다.
+        # 포지션 후보가 없을 때는 더 넓은 역할(B/P/TWO) 후보군으로 완화한다.
         if "position" in catalog.columns and pd.notna(target.get("position")):
-            candidates = candidates.loc[candidates["position"] == target["position"]]
-            matched_on = "position"
+            position_pool = pool.loc[pool["position"] == target["position"]]
         else:
-            candidates = candidates.loc[candidates["role"] == target["role"]]
+            position_pool = pd.DataFrame()
+        if not position_pool.empty:
+            matched_pool, matched_on = position_pool, "position"
+        else:
+            matched_pool = pool.loc[pool["role"] == target["role"]]
             matched_on = "role"
 
-        if self.config.exclude_same_team:
-            candidates = candidates.loc[candidates["team_last"] != target["team_last"]]
+        candidates = matched_pool.loc[matched_pool["g_ratio"] >= self.config.min_g_ratio]
+        self.filter_note_ = "기본 출전 기준 적용"
+        if candidates.empty and self.config.min_g_ratio > 0.05:
+            # 후보가 0명인 경우에만 최소 출전 기준을 0.05까지 낮춘다.
+            candidates = matched_pool.loc[matched_pool["g_ratio"] >= 0.05]
+            self.filter_note_ = "후보 부족으로 최소 출전 비중을 0.05로 완화"
         return candidates, matched_on
 
     @staticmethod
@@ -188,6 +211,271 @@ class ReplacementRecommender:
         if not available:
             raise ValueError("코사인 유사도를 계산할 전력 피처가 없습니다.")
         return available
+
+
+class AutoencoderRecommender(ReplacementRecommender):
+    """Autoencoder 잠재 벡터의 코사인 유사도로 대체 선수를 추천한다."""
+
+    def __init__(
+        self,
+        *,
+        latent_dim: int = 3,
+        hidden_dim: int = 8,
+        epochs: int = 40,
+        learning_rate: float = 0.01,
+        seed: int = 42,
+        **config: Any,
+    ) -> None:
+        super().__init__(**config)
+        if latent_dim < 1 or hidden_dim < 1 or epochs < 1:
+            raise ValueError("latent_dim, hidden_dim, epochs는 1 이상이어야 합니다.")
+        self.latent_dim = latent_dim
+        self.hidden_dim = hidden_dim
+        self.epochs = epochs
+        self.learning_rate = learning_rate
+        self.seed = seed
+        self.imputer_: SimpleImputer | None = None
+        self.scaler_: StandardScaler | None = None
+        self.model_: Any = None
+        self.reconstruction_loss_: float | None = None
+
+    def fit(self, players: pd.DataFrame) -> "AutoencoderRecommender":
+        """전체 선수 카탈로그에서 비지도 방식으로 전력 표현을 학습한다."""
+        super().fit(players)
+        catalog = self._catalog()
+        preferred = list(dict.fromkeys(COMMON_FEATURES + sum(ROLE_FEATURES.values(), [])))
+        self.feature_names_ = [
+            column for column in preferred
+            if column in catalog.columns and catalog[column].notna().any()
+        ]
+        if not self.feature_names_:
+            raise ValueError("Autoencoder를 학습할 전력 피처가 없습니다.")
+
+        matrix = catalog[self.feature_names_].apply(pd.to_numeric, errors="coerce")
+        self.imputer_ = SimpleImputer(strategy="median")
+        self.scaler_ = StandardScaler()
+        transformed = self.scaler_.fit_transform(self.imputer_.fit_transform(matrix))
+
+        # torch는 Autoencoder를 실제로 사용할 때만 불러와 KNN 경로를 가볍게 유지한다.
+        import torch
+        from src.models._torch_autoencoder_net import PlayerAutoencoderNet
+
+        torch.manual_seed(self.seed)
+        tensor = torch.as_tensor(transformed, dtype=torch.float32)
+        self.model_ = PlayerAutoencoderNet(
+            n_features=tensor.shape[1],
+            hidden_dim=self.hidden_dim,
+            latent_dim=min(self.latent_dim, tensor.shape[1]),
+        )
+        optimizer = torch.optim.Adam(self.model_.parameters(), lr=self.learning_rate)
+        loss_fn = torch.nn.MSELoss()
+
+        self.model_.train()
+        for _ in range(self.epochs):
+            optimizer.zero_grad()
+            reconstructed = self.model_(tensor)
+            loss = loss_fn(reconstructed, tensor)
+            loss.backward()
+            optimizer.step()
+        self.model_.eval()
+        self.reconstruction_loss_ = float(loss.detach().cpu())
+        return self
+
+    def recommend(
+        self,
+        player_id: str,
+        season: int,
+        *,
+        n_recommendations: int = 3,
+    ) -> pd.DataFrame:
+        """잠재 공간에서 대상 선수와 가장 가까운 후보를 반환한다."""
+        if self.model_ is None or self.imputer_ is None or self.scaler_ is None:
+            raise RuntimeError("fit()을 먼저 호출하세요.")
+        if n_recommendations < 1:
+            raise ValueError("n_recommendations는 1 이상이어야 합니다.")
+
+        catalog = self._catalog()
+        target_rows = catalog.loc[
+            catalog["player_id"].astype(str).eq(str(player_id))
+            & catalog["season"].eq(season)
+        ]
+        if len(target_rows) != 1:
+            raise ValueError(
+                f"player_id='{player_id}', season={season}인 선수를 정확히 1명 찾을 수 없습니다."
+            )
+        target = target_rows.iloc[0]
+        candidates, matched_on = self._filter_candidates(catalog, target)
+        if candidates.empty:
+            raise ValueError("Autoencoder 추천 조건을 만족하는 대체 후보가 없습니다.")
+
+        matrix = pd.concat([target.to_frame().T, candidates], ignore_index=True)
+        matrix = matrix[self.feature_names_].apply(pd.to_numeric, errors="coerce")
+        transformed = self.scaler_.transform(self.imputer_.transform(matrix))
+
+        import torch
+
+        with torch.no_grad():
+            latent = self.model_.encode(torch.as_tensor(transformed, dtype=torch.float32))
+            latent = latent.cpu().numpy()
+        target_vector = latent[0]
+        candidate_vectors = latent[1:]
+        denominator = np.linalg.norm(candidate_vectors, axis=1) * np.linalg.norm(target_vector)
+        similarity = np.divide(
+            candidate_vectors @ target_vector,
+            denominator,
+            out=np.zeros(len(candidate_vectors), dtype=float),
+            where=denominator > 0,
+        )
+        order = np.argsort(-similarity, kind="stable")[: min(n_recommendations, len(candidates))]
+
+        result = candidates.iloc[order].copy()
+        result["similarity"] = np.clip(similarity[order], -1.0, 1.0)
+        result["distance"] = 1.0 - result["similarity"]
+        result["rank"] = np.arange(1, len(result) + 1)
+        result["matched_on"] = matched_on
+        result["recommender"] = "autoencoder"
+        result.attrs["filter_note"] = self.filter_note_
+        result.attrs["reconstruction_loss"] = self.reconstruction_loss_
+        return result.reset_index(drop=True)
+
+    @classmethod
+    def load_artifact(
+        cls,
+        path: str | Path,
+        players: pd.DataFrame,
+    ) -> "AutoencoderRecommender":
+        """저장된 Autoencoder와 전처리 통계를 복원해 현재 카탈로그에 연결한다."""
+        import torch
+        from src.models._torch_autoencoder_net import PlayerAutoencoderNet
+
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        obj = cls(
+            latent_dim=int(checkpoint["latent_dim"]),
+            hidden_dim=int(checkpoint["hidden_dim"]),
+            epochs=1,
+        )
+        # 추천 대상 카탈로그는 최신 features_v1을 사용하고 학습 가중치만 복원한다.
+        ReplacementRecommender.fit(obj, players)
+        obj.feature_names_ = list(checkpoint["feature_names"])
+        missing = set(obj.feature_names_) - set(players.columns)
+        if missing:
+            raise ValueError(f"Autoencoder 저장 피처가 현재 데이터에 없습니다: {sorted(missing)}")
+
+        matrix = players[obj.feature_names_].apply(pd.to_numeric, errors="coerce")
+        obj.imputer_ = SimpleImputer(strategy="median").fit(matrix)
+        obj.imputer_.statistics_ = np.asarray(checkpoint["imputer_statistics"])
+        imputed = obj.imputer_.transform(matrix)
+        obj.scaler_ = StandardScaler().fit(imputed)
+        obj.scaler_.mean_ = np.asarray(checkpoint["scaler_mean"])
+        obj.scaler_.scale_ = np.asarray(checkpoint["scaler_scale"])
+        obj.scaler_.var_ = obj.scaler_.scale_ ** 2
+
+        obj.model_ = PlayerAutoencoderNet(
+            n_features=len(obj.feature_names_),
+            hidden_dim=obj.hidden_dim,
+            latent_dim=min(obj.latent_dim, len(obj.feature_names_)),
+        )
+        obj.model_.load_state_dict(checkpoint["state_dict"])
+        obj.model_.eval()
+        obj.reconstruction_loss_ = float(checkpoint["reconstruction_loss"])
+        return obj
+
+
+def load_knn_artifact(path: str | Path, players: pd.DataFrame) -> ReplacementRecommender:
+    """저장된 KNN 설정을 복원하고 최신 선수 카탈로그를 연결한다."""
+    with Path(path).open("rb") as stream:
+        recommender = pickle.load(stream)
+    if not isinstance(recommender, ReplacementRecommender):
+        raise TypeError("저장 파일이 ReplacementRecommender가 아닙니다.")
+    return recommender.fit(players)
+
+
+def _clean_feature_rows(players: pd.DataFrame) -> pd.DataFrame:
+    """복구 가능한 결측은 보정하고 계약 자체가 깨진 행만 제외한다."""
+    out = players.copy()
+    original_count = len(out)
+
+    # 문자열이나 inf가 들어와도 계산 계층에는 유한한 숫자만 전달한다.
+    for column in ["overall_score", "g_ratio"]:
+        out[column] = pd.to_numeric(out[column], errors="coerce").replace(
+            [np.inf, -np.inf], np.nan
+        )
+
+    # 출전 비중은 동일 시즌·역할 중앙값으로 보정하고, 그룹 전체가 결측이면
+    # 전체 중앙값을 사용한다. 전력 점수는 임의 보정하지 않고 해당 행을 제외한다.
+    missing_ratio = int(out["g_ratio"].isna().sum())
+    group_median = out.groupby(["season", "role"])["g_ratio"].transform("median")
+    out["g_ratio"] = out["g_ratio"].fillna(group_median).fillna(out["g_ratio"].median())
+    out.loc[out["g_ratio"] < 0, "g_ratio"] = np.nan
+    out["g_ratio"] = out["g_ratio"].clip(upper=1.05)
+
+    required_rows = ["player_id", "season", "team_last", "role", "overall_score", "g_ratio"]
+    out = out.dropna(subset=required_rows).copy()
+    if out.duplicated(["player_id", "season"]).any():
+        raise ValueError("features_v1에 player_id + season 중복 행이 있습니다.")
+
+    out = out.reset_index(drop=True)
+    out.attrs["data_quality"] = {
+        "original_rows": original_count,
+        "usable_rows": len(out),
+        "excluded_rows": original_count - len(out),
+        "imputed_g_ratio": missing_ratio,
+    }
+    return out
+
+
+def adapt_features_v1(players: pd.DataFrame) -> pd.DataFrame:
+    """B의 features_v1을 E 추천·시뮬레이션 계약으로 변환한다.
+
+    문서 계약 컬럼이 이미 있으면 복사본을 반환하고, 현재 B 산출물의
+    ``playerID/yearID`` 스키마도 동일 인터페이스로 변환한다.
+    """
+    if REQUIRED_COLUMNS <= set(players.columns):
+        return _clean_feature_rows(players)
+
+    legacy_required = {
+        "playerID", "yearID", "bat_teamID", "pit_teamID",
+        "batting_strength_before_pt", "pitching_strength_before_pt",
+        "playing_time_ratio", "playing_time_ratio_pit", "is_batter", "is_pitcher",
+    }
+    missing = legacy_required - set(players.columns)
+    if missing:
+        raise ValueError(f"features_v1 변환에 필요한 컬럼 누락: {sorted(missing)}")
+
+    out = pd.DataFrame(index=players.index)
+    out["player_id"] = players["playerID"].astype(str)
+    out["season"] = players["yearID"].astype(int)
+    out["team_last"] = players["bat_teamID"].fillna(players["pit_teamID"])
+    out["team_last"] = out["team_last"].replace(LAHMAN_TEAM_TO_UI)
+
+    batter = players["is_batter"].fillna(False).astype(bool)
+    pitcher = players["is_pitcher"].fillna(False).astype(bool)
+    out["role"] = np.select([batter & pitcher, pitcher], ["TWO", "P"], default="B")
+    out["g_ratio"] = pd.concat(
+        [players["playing_time_ratio"], players["playing_time_ratio_pit"]], axis=1
+    ).max(axis=1, skipna=True)
+    out["off_score"] = players["batting_strength_before_pt"]
+    out["pit_score"] = players["pitching_strength_before_pt"]
+    out["def_score"] = np.nan
+    out["overall_score"] = pd.concat(
+        [out["off_score"], out["pit_score"]], axis=1
+    ).mean(axis=1, skipna=True)
+
+    # 추천 품질을 높일 수 있는 현재 B 피처는 계약명으로 함께 전달한다.
+    if "OPS" in players:
+        out["ops_z"] = players.groupby("yearID")["OPS"].transform(
+            lambda s: (s - s.mean()) / s.std()
+        )
+    if "ERA" in players:
+        out["era_z"] = players.groupby("yearID")["ERA"].transform(
+            lambda s: (s - s.mean()) / s.std()
+        )
+    if "WHIP" in players:
+        out["whip_z"] = players.groupby("yearID")["WHIP"].transform(
+            lambda s: (s - s.mean()) / s.std()
+        )
+
+    return _clean_feature_rows(out)
 
 
 def recommend_replacements(
@@ -211,8 +499,168 @@ def recommend_replacements(
     )
 
 
+def recommend_replacements_autoencoder(
+    players: pd.DataFrame,
+    player_id: str,
+    season: int,
+    *,
+    n_recommendations: int = 3,
+    min_g_ratio: float = 0.10,
+    exclude_same_team: bool = True,
+    epochs: int = 40,
+) -> pd.DataFrame:
+    """Autoencoder 학습부터 추천까지 한 번에 수행하는 편의 함수."""
+    recommender = AutoencoderRecommender(
+        min_g_ratio=min_g_ratio,
+        exclude_same_team=exclude_same_team,
+        epochs=epochs,
+    ).fit(players)
+    return recommender.recommend(
+        player_id,
+        season,
+        n_recommendations=n_recommendations,
+    )
+
+
+def precision_at_k_next_strength(
+    players: pd.DataFrame,
+    recommender: ReplacementRecommender,
+    *,
+    season: int = 2024,
+    k: int = 3,
+    max_queries: int | None = 200,
+) -> dict[str, float | int]:
+    """다음 시즌 실제 전력을 정답으로 사용해 추천 P@K를 계산한다.
+
+    질의 선수의 t+1 전력과 가장 가까운 동일 역할·타 팀 후보 K명을 정답으로
+    정의한다. 추천기는 t시점 피처만 보고 후보를 고르므로 시간 누수를 피한다.
+    """
+    if k < 1:
+        raise ValueError("k는 1 이상이어야 합니다.")
+
+    current = players.loc[players["season"] == season].copy()
+    next_scores = players.loc[
+        players["season"] == season + 1, ["player_id", "overall_score"]
+    ].rename(columns={"overall_score": "next_overall_score"})
+    current = current.merge(next_scores, on="player_id", how="inner")
+    if current.empty:
+        raise ValueError(f"{season + 1}시즌 실제 전력이 없어 P@{k}를 계산할 수 없습니다.")
+
+    # 실행시간과 재현성을 위해 전력 상위 질의를 고정적으로 사용한다.
+    queries = current.sort_values("overall_score", ascending=False)
+    if max_queries is not None:
+        queries = queries.head(max_queries)
+
+    scores: list[float] = []
+    skipped = 0
+    for _, target in queries.iterrows():
+        relevant_pool = current.loc[
+            current["role"].eq(target["role"])
+            & current["team_last"].ne(target["team_last"])
+            & current["player_id"].ne(target["player_id"])
+            & current["g_ratio"].ge(recommender.config.min_g_ratio)
+        ].copy()
+        if len(relevant_pool) < k:
+            skipped += 1
+            continue
+
+        relevant_pool["next_score_gap"] = (
+            relevant_pool["next_overall_score"] - target["next_overall_score"]
+        ).abs()
+        relevant = set(relevant_pool.nsmallest(k, "next_score_gap")["player_id"].astype(str))
+        try:
+            predicted = recommender.recommend(
+                str(target["player_id"]), season, n_recommendations=k
+            )
+        except ValueError:
+            skipped += 1
+            continue
+        recommended = set(predicted["player_id"].astype(str))
+        scores.append(len(relevant & recommended) / k)
+
+    if not scores:
+        raise ValueError(f"평가 가능한 질의가 없어 P@{k}를 계산할 수 없습니다.")
+    return {
+        f"precision_at_{k}": float(np.mean(scores)),
+        "evaluated_queries": len(scores),
+        "skipped_queries": skipped,
+        "evaluation_season": season,
+    }
+
+
+def save_recommendation_models(
+    knn: ReplacementRecommender,
+    autoencoder: AutoencoderRecommender,
+    knn_metrics: dict[str, float | int],
+    autoencoder_metrics: dict[str, float | int],
+) -> tuple[Path, Path]:
+    """E 담당 ML/DL 모델과 비교 지표를 담당자별 레지스트리에 저장한다."""
+    if knn.catalog_ is None or autoencoder.model_ is None:
+        raise RuntimeError("두 추천 모델을 모두 fit()한 뒤 저장하세요.")
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+
+    knn_path = MODEL_DIR / "recommend_knn.pkl"
+    with knn_path.open("wb") as stream:
+        pickle.dump(knn, stream)
+
+    import torch
+
+    autoencoder_path = MODEL_DIR / "recommend_autoencoder.pt"
+    torch.save(
+        {
+            "state_dict": autoencoder.model_.state_dict(),
+            "feature_names": autoencoder.feature_names_,
+            "latent_dim": autoencoder.latent_dim,
+            "hidden_dim": autoencoder.hidden_dim,
+            "imputer_statistics": autoencoder.imputer_.statistics_,
+            "scaler_mean": autoencoder.scaler_.mean_,
+            "scaler_scale": autoencoder.scaler_.scale_,
+            "reconstruction_loss": autoencoder.reconstruction_loss_,
+        },
+        autoencoder_path,
+    )
+
+    knn_features = [
+        column
+        for column in dict.fromkeys(COMMON_FEATURES + sum(ROLE_FEATURES.values(), []))
+        if column in knn.catalog_.columns and knn.catalog_[column].notna().any()
+    ]
+    entries = [
+        {
+            "name": "recommend_knn", "task": "recommend", "kind": "ml", "owner": "E",
+            "format": "pickle", "path": "models/recommend_knn.pkl",
+            "features": knn_features, "n_features": len(knn_features),
+            "metrics": knn_metrics,
+            "note": "동일 시즌·역할 후보 KNN 코사인 추천",
+        },
+        {
+            "name": "recommend_autoencoder", "task": "recommend", "kind": "dl", "owner": "E",
+            "format": "torch", "path": "models/recommend_autoencoder.pt",
+            "features": autoencoder.feature_names_, "n_features": len(autoencoder.feature_names_),
+            "metrics": {**autoencoder_metrics, "reconstruction_loss": autoencoder.reconstruction_loss_},
+            "note": "Autoencoder 잠재 벡터 코사인 추천",
+        },
+    ]
+    for entry in entries:
+        entry.update(
+            classes=[],
+            params={},
+            saved_at=datetime.now().isoformat(timespec="seconds"),
+        )
+        path = REGISTRY_DIR / f"{entry['name']}.json"
+        path.write_text(json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8")
+    return knn_path, autoencoder_path
+
+
 __all__ = [
     "RecommendationConfig",
+    "AutoencoderRecommender",
     "ReplacementRecommender",
+    "adapt_features_v1",
+    "load_knn_artifact",
     "recommend_replacements",
+    "recommend_replacements_autoencoder",
+    "precision_at_k_next_strength",
+    "save_recommendation_models",
 ]

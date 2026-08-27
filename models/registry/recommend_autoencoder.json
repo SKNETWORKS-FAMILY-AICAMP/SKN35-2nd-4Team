@@ -1,0 +1,29 @@
+{
+  "name": "recommend_autoencoder",
+  "task": "recommend",
+  "kind": "dl",
+  "owner": "E",
+  "format": "torch",
+  "path": "models/recommend_autoencoder.pt",
+  "features": [
+    "overall_score",
+    "g_ratio",
+    "off_score",
+    "ops_z",
+    "pit_score",
+    "era_z",
+    "whip_z"
+  ],
+  "n_features": 7,
+  "metrics": {
+    "precision_at_3": 0.03666666666666667,
+    "evaluated_queries": 100,
+    "skipped_queries": 0,
+    "evaluation_season": 2024,
+    "reconstruction_loss": 0.29659369587898254
+  },
+  "note": "Autoencoder 잠재 벡터 코사인 추천",
+  "classes": [],
+  "params": {},
+  "saved_at": "2026-08-27T15:07:06"
+}
