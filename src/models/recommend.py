@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import pickle
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -29,47 +28,8 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-
-REQUIRED_COLUMNS = {
-    "player_id",
-    "season",
-    "team_last",
-    "role",
-    "g_ratio",
-    "overall_score",
-}
-
-LAHMAN_TEAM_TO_UI = {
-    "CHA": "CHW", "CHN": "CHC", "KCA": "KCR", "LAN": "LAD",
-    "NYA": "NYY", "NYN": "NYM", "SDN": "SDP", "SFN": "SFG",
-    "SLN": "STL", "TB": "TBR", "WAS": "WSN",
-}
-
-COMMON_FEATURES = ["overall_score", "def_score", "g_ratio", "age", "exp"]
-ROLE_FEATURES = {
-    "B": ["off_score", "ops_z"],
-    "P": ["pit_score", "era_z", "whip_z"],
-    "TWO": ["off_score", "pit_score", "ops_z", "era_z", "whip_z"],
-}
-
-ROOT = Path(__file__).resolve().parents[2]
-MODEL_DIR = ROOT / "models"
-REGISTRY_DIR = MODEL_DIR / "registry"
-
-
-@dataclass(frozen=True)
-class RecommendationConfig:
-    """추천 후보 필터와 이웃 탐색 설정."""
-
-    min_g_ratio: float = 0.10
-    exclude_same_team: bool = True
-    metric: str = "cosine"
-
-    def __post_init__(self) -> None:
-        if not 0.0 <= self.min_g_ratio <= 1.05:
-            raise ValueError("min_g_ratio는 0~1.05 사이여야 합니다.")
-        if self.metric != "cosine":
-            raise ValueError("현재 추천기는 cosine 거리만 지원합니다.")
+from src.models.recommend_constants import *
+from src.models.recommend_types import RecommendationConfig
 
 
 class ReplacementRecommender:
@@ -84,12 +44,20 @@ class ReplacementRecommender:
     def fit(self, players: pd.DataFrame) -> "ReplacementRecommender":
         """추천에 사용할 선수-시즌 카탈로그를 저장하고 검증한다."""
         missing = REQUIRED_COLUMNS - set(players.columns)
+
+        # 필수 계약 컬럼이 없으면 후보 필터와 특징 계산을 수행할 수 없다.
         if missing:
             raise ValueError(f"추천 데이터 필수 컬럼 누락: {sorted(missing)}")
+
+        # 빈 카탈로그에서는 추천 대상과 후보를 찾을 수 없다.
         if players.empty:
             raise ValueError("추천 데이터가 비어 있습니다.")
+
+        # 선수·시즌 키가 중복되면 추천 대상을 단일 행으로 결정할 수 없다.
         if players.duplicated(["player_id", "season"]).any():
             raise ValueError("player_id + season이 중복된 행이 있습니다.")
+
+        # 출전 비중은 후보 자격을 판정하는 기준이므로 음수를 허용하지 않는다.
         if players["g_ratio"].dropna().lt(0).any():
             raise ValueError("g_ratio는 0 이상이어야 합니다.")
 
@@ -113,6 +81,8 @@ class ReplacementRecommender:
         * ``matched_on``: ``position`` 또는 ``role``
         """
         catalog = self._catalog()
+
+        # 반환할 추천 수는 최소 한 명 이상이어야 한다.
         if n_recommendations < 1:
             raise ValueError("n_recommendations는 1 이상이어야 합니다.")
 
@@ -120,6 +90,8 @@ class ReplacementRecommender:
             (catalog["player_id"].astype(str) == str(player_id))
             & (catalog["season"] == season)
         ]
+
+        # 추천 대상은 지정한 선수·시즌 조합에서 정확히 한 행이어야 한다.
         if len(target_rows) != 1:
             raise ValueError(
                 f"player_id='{player_id}', season={season}인 선수를 정확히 1명 찾을 수 없습니다."
@@ -127,6 +99,8 @@ class ReplacementRecommender:
         target = target_rows.iloc[0]
 
         candidates, matched_on = self._filter_candidates(catalog, target)
+
+        # 필터를 통과한 후보가 없으면 유사도 모델을 실행할 수 없다.
         if candidates.empty:
             raise ValueError("동일 역할/포지션과 최소 출전 기준을 만족하는 대체 후보가 없습니다.")
 
@@ -160,14 +134,18 @@ class ReplacementRecommender:
             "similarity",
             "distance",
         ]
+        # 계산 결과에 없는 원본 컬럼만 뒤에 이어 붙여 핵심 컬럼 순서를 유지한다.
         remaining = [column for column in result.columns if column not in first]
         result = result[first + remaining].reset_index(drop=True)
         result.attrs["filter_note"] = self.filter_note_
         return result
 
     def _catalog(self) -> pd.DataFrame:
+
+        # 학습 카탈로그가 준비되지 않은 상태의 추천 호출을 차단한다.
         if self.catalog_ is None:
             raise RuntimeError("fit()을 먼저 호출하세요.")
+
         return self.catalog_
 
     def _filter_candidates(
@@ -175,6 +153,8 @@ class ReplacementRecommender:
     ) -> tuple[pd.DataFrame, str]:
         pool = catalog.loc[catalog["season"] == target["season"]].copy()
         pool = pool.loc[pool["player_id"].astype(str) != str(target["player_id"])]
+
+        # 설정에서 요청한 경우 현재 소속팀 선수는 외부 대체 후보에서 제외한다.
         if self.config.exclude_same_team:
             pool = pool.loc[pool["team_last"] != target["team_last"]]
 
@@ -183,6 +163,8 @@ class ReplacementRecommender:
             position_pool = pool.loc[pool["position"] == target["position"]]
         else:
             position_pool = pd.DataFrame()
+
+        # 동일 포지션 후보가 있으면 역할보다 구체적인 포지션 조건을 우선한다.
         if not position_pool.empty:
             matched_pool, matched_on = position_pool, "position"
         else:
@@ -191,6 +173,8 @@ class ReplacementRecommender:
 
         candidates = matched_pool.loc[matched_pool["g_ratio"] >= self.config.min_g_ratio]
         self.filter_note_ = "기본 출전 기준 적용"
+
+        # 기본 기준 후보가 없을 때만 최소 출전 비중을 한 차례 완화한다.
         if candidates.empty and self.config.min_g_ratio > 0.05:
             # 후보가 0명인 경우에만 최소 출전 기준을 0.05까지 낮춘다.
             candidates = matched_pool.loc[matched_pool["g_ratio"] >= 0.05]
@@ -201,6 +185,8 @@ class ReplacementRecommender:
     def _select_features(candidates: pd.DataFrame, target: pd.Series) -> list[str]:
         role = str(target["role"])
         preferred = COMMON_FEATURES + ROLE_FEATURES.get(role, [])
+
+        # 후보와 대상 양쪽에서 사용할 수 있고 실제 값이 있는 피처만 선택한다.
         available = [
             column
             for column in preferred
@@ -208,6 +194,8 @@ class ReplacementRecommender:
             and column in target.index
             and (candidates[column].notna().any() or pd.notna(target[column]))
         ]
+
+        # 유효한 공통 피처가 없으면 코사인 유사도를 정의할 수 없다.
         if not available:
             raise ValueError("코사인 유사도를 계산할 전력 피처가 없습니다.")
         return available
@@ -227,8 +215,11 @@ class AutoencoderRecommender(ReplacementRecommender):
         **config: Any,
     ) -> None:
         super().__init__(**config)
+
+        # 신경망 차원과 학습 횟수는 모두 양의 정수 범위여야 한다.
         if latent_dim < 1 or hidden_dim < 1 or epochs < 1:
             raise ValueError("latent_dim, hidden_dim, epochs는 1 이상이어야 합니다.")
+
         self.latent_dim = latent_dim
         self.hidden_dim = hidden_dim
         self.epochs = epochs
@@ -244,10 +235,14 @@ class AutoencoderRecommender(ReplacementRecommender):
         super().fit(players)
         catalog = self._catalog()
         preferred = list(dict.fromkeys(COMMON_FEATURES + sum(ROLE_FEATURES.values(), [])))
+
+        # 카탈로그에 존재하고 실제 학습값이 있는 피처만 사용한다.
         self.feature_names_ = [
             column for column in preferred
             if column in catalog.columns and catalog[column].notna().any()
         ]
+
+        # 학습 가능한 피처가 없으면 Autoencoder 입력 행렬을 만들 수 없다.
         if not self.feature_names_:
             raise ValueError("Autoencoder를 학습할 전력 피처가 없습니다.")
 
@@ -289,8 +284,12 @@ class AutoencoderRecommender(ReplacementRecommender):
         n_recommendations: int = 3,
     ) -> pd.DataFrame:
         """잠재 공간에서 대상 선수와 가장 가까운 후보를 반환한다."""
+
+        # 모델과 전처리기가 모두 준비된 이후에만 잠재 벡터를 계산할 수 있다.
         if self.model_ is None or self.imputer_ is None or self.scaler_ is None:
             raise RuntimeError("fit()을 먼저 호출하세요.")
+
+        # 반환할 추천 수는 최소 한 명 이상이어야 한다.
         if n_recommendations < 1:
             raise ValueError("n_recommendations는 1 이상이어야 합니다.")
 
@@ -299,12 +298,16 @@ class AutoencoderRecommender(ReplacementRecommender):
             catalog["player_id"].astype(str).eq(str(player_id))
             & catalog["season"].eq(season)
         ]
+
+        # 추천 대상은 지정한 선수·시즌 조합에서 정확히 한 행이어야 한다.
         if len(target_rows) != 1:
             raise ValueError(
                 f"player_id='{player_id}', season={season}인 선수를 정확히 1명 찾을 수 없습니다."
             )
         target = target_rows.iloc[0]
         candidates, matched_on = self._filter_candidates(catalog, target)
+
+        # 잠재 공간에서 비교할 후보가 없으면 추천 결과를 만들 수 없다.
         if candidates.empty:
             raise ValueError("Autoencoder 추천 조건을 만족하는 대체 후보가 없습니다.")
 
@@ -354,10 +357,13 @@ class AutoencoderRecommender(ReplacementRecommender):
             hidden_dim=int(checkpoint["hidden_dim"]),
             epochs=1,
         )
+
         # 추천 대상 카탈로그는 최신 features_v1을 사용하고 학습 가중치만 복원한다.
         ReplacementRecommender.fit(obj, players)
         obj.feature_names_ = list(checkpoint["feature_names"])
         missing = set(obj.feature_names_) - set(players.columns)
+
+        # 저장 모델이 요구하는 피처가 없으면 동일한 입력 공간을 복원할 수 없다.
         if missing:
             raise ValueError(f"Autoencoder 저장 피처가 현재 데이터에 없습니다: {sorted(missing)}")
 
@@ -385,8 +391,11 @@ def load_knn_artifact(path: str | Path, players: pd.DataFrame) -> ReplacementRec
     """저장된 KNN 설정을 복원하고 최신 선수 카탈로그를 연결한다."""
     with Path(path).open("rb") as stream:
         recommender = pickle.load(stream)
+
+    # 다른 객체가 저장된 파일을 추천기로 잘못 사용하는 상황을 차단한다.
     if not isinstance(recommender, ReplacementRecommender):
         raise TypeError("저장 파일이 ReplacementRecommender가 아닙니다.")
+
     return recommender.fit(players)
 
 
@@ -411,6 +420,8 @@ def _clean_feature_rows(players: pd.DataFrame) -> pd.DataFrame:
 
     required_rows = ["player_id", "season", "team_last", "role", "overall_score", "g_ratio"]
     out = out.dropna(subset=required_rows).copy()
+
+    # 선수·시즌 중복은 추천 대상과 다음 시즌 평가의 키를 모호하게 만든다.
     if out.duplicated(["player_id", "season"]).any():
         raise ValueError("features_v1에 player_id + season 중복 행이 있습니다.")
 
@@ -430,6 +441,7 @@ def adapt_features_v1(players: pd.DataFrame) -> pd.DataFrame:
     문서 계약 컬럼이 이미 있으면 복사본을 반환하고, 현재 B 산출물의
     ``playerID/yearID`` 스키마도 동일 인터페이스로 변환한다.
     """
+    # 이미 추천 계약을 만족하면 레거시 컬럼 변환 없이 품질 정리만 수행한다.
     if REQUIRED_COLUMNS <= set(players.columns):
         return _clean_feature_rows(players)
 
@@ -439,6 +451,7 @@ def adapt_features_v1(players: pd.DataFrame) -> pd.DataFrame:
         "playing_time_ratio", "playing_time_ratio_pit", "is_batter", "is_pitcher",
     }
     missing = legacy_required - set(players.columns)
+    # 레거시 스키마 변환에 필요한 원본 컬럼이 없으면 변환을 중단한다.
     if missing:
         raise ValueError(f"features_v1 변환에 필요한 컬럼 누락: {sorted(missing)}")
 
@@ -462,14 +475,19 @@ def adapt_features_v1(players: pd.DataFrame) -> pd.DataFrame:
     ).mean(axis=1, skipna=True)
 
     # 추천 품질을 높일 수 있는 현재 B 피처는 계약명으로 함께 전달한다.
+    # OPS가 있을 때만 시즌별 표준화 타격 피처를 추가한다.
     if "OPS" in players:
         out["ops_z"] = players.groupby("yearID")["OPS"].transform(
             lambda s: (s - s.mean()) / s.std()
         )
+
+    # ERA가 있을 때만 시즌별 표준화 투수 피처를 추가한다.
     if "ERA" in players:
         out["era_z"] = players.groupby("yearID")["ERA"].transform(
             lambda s: (s - s.mean()) / s.std()
         )
+
+    # WHIP가 있을 때만 시즌별 표준화 투수 피처를 추가한다.
     if "WHIP" in players:
         out["whip_z"] = players.groupby("yearID")["WHIP"].transform(
             lambda s: (s - s.mean()) / s.std()
@@ -535,6 +553,7 @@ def precision_at_k_next_strength(
     질의 선수의 t+1 전력과 가장 가까운 동일 역할·타 팀 후보 K명을 정답으로
     정의한다. 추천기는 t시점 피처만 보고 후보를 고르므로 시간 누수를 피한다.
     """
+    # Precision@K의 K는 최소 한 개의 추천을 요구한다.
     if k < 1:
         raise ValueError("k는 1 이상이어야 합니다.")
 
@@ -543,11 +562,15 @@ def precision_at_k_next_strength(
         players["season"] == season + 1, ["player_id", "overall_score"]
     ].rename(columns={"overall_score": "next_overall_score"})
     current = current.merge(next_scores, on="player_id", how="inner")
+
+    # 다음 시즌 실제 전력이 없으면 추천 적중 여부를 정의할 수 없다.
     if current.empty:
         raise ValueError(f"{season + 1}시즌 실제 전력이 없어 P@{k}를 계산할 수 없습니다.")
 
     # 실행시간과 재현성을 위해 전력 상위 질의를 고정적으로 사용한다.
     queries = current.sort_values("overall_score", ascending=False)
+
+    # 평가 상한이 지정된 경우에만 상위 질의 수를 제한한다.
     if max_queries is not None:
         queries = queries.head(max_queries)
 
@@ -560,6 +583,8 @@ def precision_at_k_next_strength(
             & current["player_id"].ne(target["player_id"])
             & current["g_ratio"].ge(recommender.config.min_g_ratio)
         ].copy()
+
+        # 정답 후보가 K명보다 적은 질의는 Precision@K 비교가 불가능하다.
         if len(relevant_pool) < k:
             skipped += 1
             continue
@@ -578,6 +603,7 @@ def precision_at_k_next_strength(
         recommended = set(predicted["player_id"].astype(str))
         scores.append(len(relevant & recommended) / k)
 
+    # 모든 질의가 제외됐다면 평균 정밀도를 계산할 수 없다.
     if not scores:
         raise ValueError(f"평가 가능한 질의가 없어 P@{k}를 계산할 수 없습니다.")
     return {
@@ -595,6 +621,8 @@ def save_recommendation_models(
     autoencoder_metrics: dict[str, float | int],
 ) -> tuple[Path, Path]:
     """E 담당 ML/DL 모델과 비교 지표를 담당자별 레지스트리에 저장한다."""
+
+    # 두 모델이 모두 학습된 상태에서만 일관된 아티팩트 묶음을 저장한다.
     if knn.catalog_ is None or autoencoder.model_ is None:
         raise RuntimeError("두 추천 모델을 모두 fit()한 뒤 저장하세요.")
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
