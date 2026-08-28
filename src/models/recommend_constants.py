@@ -36,7 +36,6 @@ ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = ROOT / "models"
 REGISTRY_DIR = MODEL_DIR / "registry"
 
-
 __all__ = [
     "COMMON_FEATURES",
     "LAHMAN_TEAM_TO_UI",

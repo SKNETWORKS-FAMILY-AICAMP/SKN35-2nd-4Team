@@ -27,6 +27,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 from src.models.recommend_constants import *
 from src.models.recommend_types import RecommendationConfig
@@ -210,8 +211,10 @@ class AutoencoderRecommender(ReplacementRecommender):
         *,
         latent_dim: int = 3,
         hidden_dim: int = 8,
-        epochs: int = 40,
+        epochs: int = 300,
         learning_rate: float = 0.01,
+        batch_size: int = 64,
+        validation_fraction: float = 0.2,
         seed: int = 42,
         **config: Any,
     ) -> None:
@@ -220,16 +223,28 @@ class AutoencoderRecommender(ReplacementRecommender):
         # 신경망 차원과 학습 횟수는 모두 양의 정수 범위여야 한다.
         if latent_dim < 1 or hidden_dim < 1 or epochs < 1:
             raise ValueError("latent_dim, hidden_dim, epochs는 1 이상이어야 합니다.")
+        # mini-batch 크기는 최소 한 행 이상이어야 한다.
+        if batch_size < 1:
+            raise ValueError("batch_size는 1 이상이어야 합니다.")
+        # Train과 Validation이 모두 남도록 검증 비율은 0과 1 사이여야 한다.
+        if not 0.0 < validation_fraction < 1.0:
+            raise ValueError("validation_fraction은 0과 1 사이여야 합니다.")
 
         self.latent_dim = latent_dim
         self.hidden_dim = hidden_dim
         self.epochs = epochs
         self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.validation_fraction = validation_fraction
         self.seed = seed
         self.imputer_: SimpleImputer | None = None
         self.scaler_: StandardScaler | None = None
         self.model_: Any = None
         self.reconstruction_loss_: float | None = None
+        self.train_loss_: float | None = None
+        self.validation_loss_: float | None = None
+        self.best_epoch_: int | None = None
+        self.training_history_: list[dict[str, float | int]] = []
 
     def fit(self, players: pd.DataFrame) -> "AutoencoderRecommender":
         """전체 선수 카탈로그에서 비지도 방식으로 전력 표현을 학습한다."""
@@ -247,34 +262,102 @@ class AutoencoderRecommender(ReplacementRecommender):
         if not self.feature_names_:
             raise ValueError("Autoencoder를 학습할 전력 피처가 없습니다.")
 
-        matrix = catalog[self.feature_names_].apply(pd.to_numeric, errors="coerce")
-        self.imputer_ = SimpleImputer(strategy="median")
+        # 최소 두 행은 있어야 Train과 Validation에 한 행 이상 배정할 수 있다.
+        if len(catalog) < 2:
+            raise ValueError("Autoencoder Train/Validation 분할에는 최소 2행이 필요합니다.")
+
+        # 전체 선수-시즌 행을 고정 seed로 섞어 재현 가능한 검증 세트를 만든다.
+        train_indices, validation_indices = train_test_split(
+            catalog.index,
+            test_size=self.validation_fraction,
+            random_state=self.seed,
+            shuffle=True,
+        )
+        train_matrix = catalog.loc[train_indices, self.feature_names_].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        validation_matrix = catalog.loc[
+            validation_indices, self.feature_names_
+        ].apply(pd.to_numeric, errors="coerce")
+        # 전처리 통계는 Train에서만 학습하고 Validation에는 transform만 적용한다.
+        self.imputer_ = SimpleImputer(strategy="median", keep_empty_features=True)
         self.scaler_ = StandardScaler()
-        transformed = self.scaler_.fit_transform(self.imputer_.fit_transform(matrix))
+        train_transformed = self.scaler_.fit_transform(
+            self.imputer_.fit_transform(train_matrix)
+        )
+        validation_transformed = self.scaler_.transform(
+            self.imputer_.transform(validation_matrix)
+        )
 
         # torch는 Autoencoder를 실제로 사용할 때만 불러와 KNN 경로를 가볍게 유지한다.
         import torch
+        from torch.utils.data import DataLoader, TensorDataset
+
         from src.models._torch_autoencoder_net import PlayerAutoencoderNet
 
         torch.manual_seed(self.seed)
-        tensor = torch.as_tensor(transformed, dtype=torch.float32)
+        train_tensor = torch.as_tensor(train_transformed, dtype=torch.float32)
+        validation_tensor = torch.as_tensor(validation_transformed, dtype=torch.float32)
+        generator = torch.Generator().manual_seed(self.seed)
+        train_loader = DataLoader(
+            TensorDataset(train_tensor),
+            batch_size=min(self.batch_size, len(train_tensor)),
+            shuffle=True,
+            generator=generator,
+        )
         self.model_ = PlayerAutoencoderNet(
-            n_features=tensor.shape[1],
+            n_features=train_tensor.shape[1],
             hidden_dim=self.hidden_dim,
-            latent_dim=min(self.latent_dim, tensor.shape[1]),
+            latent_dim=min(self.latent_dim, train_tensor.shape[1]),
         )
         optimizer = torch.optim.Adam(self.model_.parameters(), lr=self.learning_rate)
         loss_fn = torch.nn.MSELoss()
 
-        self.model_.train()
-        for _ in range(self.epochs):
-            optimizer.zero_grad()
-            reconstructed = self.model_(tensor)
-            loss = loss_fn(reconstructed, tensor)
-            loss.backward()
-            optimizer.step()
+        best_state: dict[str, Any] | None = None
+        best_validation_loss = float("inf")
+        self.training_history_ = []
+        for epoch in range(1, self.epochs + 1):
+            self.model_.train()
+            train_loss_sum = 0.0
+            for (batch,) in train_loader:
+                optimizer.zero_grad()
+                reconstructed = self.model_(batch)
+                batch_loss = loss_fn(reconstructed, batch)
+                batch_loss.backward()
+                optimizer.step()
+                train_loss_sum += float(batch_loss.detach().cpu()) * len(batch)
+            train_loss = train_loss_sum / len(train_tensor)
+
+            self.model_.eval()
+            with torch.no_grad():
+                validation_loss = float(
+                    loss_fn(self.model_(validation_tensor), validation_tensor).cpu()
+                )
+            self.training_history_.append(
+                {
+                    "epoch": epoch,
+                    "train_loss": train_loss,
+                    "validation_loss": validation_loss,
+                }
+            )
+
+            # 전체 epoch 중 validation loss가 가장 낮은 가중치를 저장한다.
+            if validation_loss < best_validation_loss:
+                best_validation_loss = validation_loss
+                best_state = {
+                    name: value.detach().clone()
+                    for name, value in self.model_.state_dict().items()
+                }
+                self.best_epoch_ = epoch
+                self.train_loss_ = train_loss
+
+        # 첫 epoch은 항상 무한대보다 개선되므로 최적 상태가 반드시 존재한다.
+        if best_state is None:
+            raise RuntimeError("Autoencoder 최적 가중치를 저장하지 못했습니다.")
+        self.model_.load_state_dict(best_state)
         self.model_.eval()
-        self.reconstruction_loss_ = float(loss.detach().cpu())
+        self.validation_loss_ = best_validation_loss
+        self.reconstruction_loss_ = best_validation_loss
         return self
 
     def recommend(
@@ -357,6 +440,8 @@ class AutoencoderRecommender(ReplacementRecommender):
             latent_dim=int(checkpoint["latent_dim"]),
             hidden_dim=int(checkpoint["hidden_dim"]),
             epochs=1,
+            batch_size=int(checkpoint.get("batch_size", 64)),
+            validation_fraction=float(checkpoint.get("validation_fraction", 0.2)),
         )
 
         # 추천 대상 카탈로그는 최신 features_v1을 사용하고 학습 가중치만 복원한다.
@@ -369,7 +454,9 @@ class AutoencoderRecommender(ReplacementRecommender):
             raise ValueError(f"Autoencoder 저장 피처가 현재 데이터에 없습니다: {sorted(missing)}")
 
         matrix = players[obj.feature_names_].apply(pd.to_numeric, errors="coerce")
-        obj.imputer_ = SimpleImputer(strategy="median").fit(matrix)
+        obj.imputer_ = SimpleImputer(
+            strategy="median", keep_empty_features=True
+        ).fit(matrix)
         obj.imputer_.statistics_ = np.asarray(checkpoint["imputer_statistics"])
         imputed = obj.imputer_.transform(matrix)
         obj.scaler_ = StandardScaler().fit(imputed)
@@ -385,6 +472,16 @@ class AutoencoderRecommender(ReplacementRecommender):
         obj.model_.load_state_dict(checkpoint["state_dict"])
         obj.model_.eval()
         obj.reconstruction_loss_ = float(checkpoint["reconstruction_loss"])
+        train_loss = checkpoint.get("train_loss")
+        validation_loss = checkpoint.get("validation_loss")
+        # 이전 형식의 아티팩트에는 학습 손실이 없으므로 선택적으로 복원한다.
+        obj.train_loss_ = None if train_loss is None else float(train_loss)
+        # 이전 형식의 아티팩트에는 검증 손실이 없으므로 선택적으로 복원한다.
+        obj.validation_loss_ = (
+            None if validation_loss is None else float(validation_loss)
+        )
+        obj.best_epoch_ = checkpoint.get("best_epoch")
+        obj.training_history_ = list(checkpoint.get("training_history", []))
         return obj
 
 
@@ -526,13 +623,17 @@ def recommend_replacements_autoencoder(
     n_recommendations: int = 3,
     min_g_ratio: float = 0.10,
     exclude_same_team: bool = True,
-    epochs: int = 40,
+    epochs: int = 300,
+    batch_size: int = 64,
+    validation_fraction: float = 0.2,
 ) -> pd.DataFrame:
     """Autoencoder 학습부터 추천까지 한 번에 수행하는 편의 함수."""
     recommender = AutoencoderRecommender(
         min_g_ratio=min_g_ratio,
         exclude_same_team=exclude_same_team,
         epochs=epochs,
+        batch_size=batch_size,
+        validation_fraction=validation_fraction,
     ).fit(players)
     return recommender.recommend(
         player_id,
@@ -642,10 +743,16 @@ def save_recommendation_models(
             "feature_names": autoencoder.feature_names_,
             "latent_dim": autoencoder.latent_dim,
             "hidden_dim": autoencoder.hidden_dim,
+            "batch_size": autoencoder.batch_size,
+            "validation_fraction": autoencoder.validation_fraction,
             "imputer_statistics": autoencoder.imputer_.statistics_,
             "scaler_mean": autoencoder.scaler_.mean_,
             "scaler_scale": autoencoder.scaler_.scale_,
             "reconstruction_loss": autoencoder.reconstruction_loss_,
+            "train_loss": autoencoder.train_loss_,
+            "validation_loss": autoencoder.validation_loss_,
+            "best_epoch": autoencoder.best_epoch_,
+            "training_history": autoencoder.training_history_,
         },
         autoencoder_path,
     )
