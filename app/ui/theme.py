@@ -756,9 +756,18 @@ def radar_chart_svg(
     if n < 3:
         raise ValueError("radar_chart_svg 는 최소 3개 축이 필요합니다")
 
-    cx = cy = size / 2
-    r_max = size * 0.34
-    label_r = size * 0.46
+    # 좌/우 끝 라벨(예: "경험", "출전율")이 text-anchor="end/start"로 바깥쪽으로
+    # 뻗어나가는데, viewBox를 size 그대로 두면 그 텍스트가 0/size 경계 밖으로
+    # 잘려서 "험"처럼 앞글자가 잘린 채로 렌더링됐다(실측 확인) — 가로로
+    # margin을 더 줘서 라벨이 잘리지 않게 한다. 원(그리드/데이터)은 원래
+    # size 기준 그대로 두고, 라벨 공간만큼만 캔버스를 넓힌다.
+    margin_x = max(30, size * 0.16)
+    view_w = size + margin_x * 2
+    view_h = size
+    cx = view_w / 2
+    cy = view_h / 2
+    r_max = size * 0.32
+    label_r = size * 0.44
 
     def _point(i: int, r: float) -> tuple[float, float]:
         angle = -math.pi / 2 + i * (2 * math.pi / n)
@@ -794,7 +803,7 @@ def radar_chart_svg(
     grad_id = f"gm-radar-grad-{abs(hash(tuple(a for a, _ in axes))) % 100000}"
 
     return (
-        f'<svg class="gm-radar" width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        f'<svg class="gm-radar" width="{view_w:.0f}" height="{view_h:.0f}" viewBox="0 0 {view_w:.0f} {view_h:.0f}" '
         'xmlns="http://www.w3.org/2000/svg">'
         f'<defs><radialGradient id="{grad_id}" cx="50%" cy="50%" r="65%">'
         f'<stop offset="0%" stop-color="{color}" stop-opacity=".55"/>'

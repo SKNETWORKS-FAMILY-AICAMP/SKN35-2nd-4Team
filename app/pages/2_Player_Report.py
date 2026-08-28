@@ -34,11 +34,14 @@ from src.service.simulation import (  # noqa: E402
 )
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.risk import (  # noqa: E402
+    evidence_html,
     load_departure_model,
     load_reason_model,
+    load_reason_thresholds,
     predict_departure_risk,
     predict_reason_tags,
     reason_badge_html,
+    reason_proba_html,
 )
 from ui.theme import (  # noqa: E402
     badge,
@@ -167,6 +170,9 @@ with wrap():
     reason_model = load_reason_model(
         REASON_MODEL_PATH.stat().st_mtime_ns if REASON_MODEL_PATH.exists() else 0
     )
+    reason_thresholds = load_reason_thresholds(
+        FEATURES_PATH.stat().st_mtime_ns if FEATURES_PATH.exists() else 0
+    )
 
     try:
         players = load_players()
@@ -227,7 +233,8 @@ with wrap():
 
     departure_risk = predict_departure_risk(departure_model, selected_row.to_frame().T).iloc[0]
     reason_df = predict_reason_tags(reason_model, players, [selected_id])
-    reason_tag = reason_df["reason_tag"].iloc[0] if not reason_df.empty else ""
+    reason_row = reason_df.iloc[0] if not reason_df.empty else None
+    reason_tag = reason_row["reason_tag"] if reason_row is not None else ""
 
     chips = [
         f"나이 {_num(selected_row, 'age'):.0f}세",
@@ -267,12 +274,14 @@ with wrap():
             st.caption("이탈위험 모델을 불러올 수 없습니다.")
     with risk_c2:
         badge_html = reason_badge_html(reason_tag)
-        if badge_html:
+        if badge_html and reason_row is not None:
             st.markdown(
                 f'<div class="gm-card">'
                 f'<div class="gm-kpi-l" style="margin-bottom:8px">📋 모델 추정 연관 요인</div>'
                 f'{badge_html}'
-                f'<div style="margin-top:8px;font-size:12.5px;color:var(--muted)">'
+                f'<div style="margin-top:10px">{reason_proba_html(reason_row["reason_proba"])}</div>'
+                f'{evidence_html(reason_row, reason_thresholds)}'
+                f'<div style="margin-top:8px;font-size:11px;color:var(--muted)">'
                 f'이탈이 확정된 사실이 아니라, 현재 피처 프로필이 과거 이탈 사례 중 '
                 f'어떤 유형과 비슷한지에 대한 모델 추정입니다 — 인과관계 단정 아님.</div>'
                 f'</div>',

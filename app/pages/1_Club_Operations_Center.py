@@ -19,11 +19,14 @@ from src.models.recommend import adapt_features_v1  # noqa: E402
 from src.service.simulation import TeamStrength, calculate_team_strength, simulate  # noqa: E402
 from ui.risk import (  # noqa: E402
     REASON_DISPLAY,
+    evidence_html,
     load_departure_model,
     load_reason_model,
+    load_reason_thresholds,
     predict_departure_risk,
     predict_reason_tags,
     reason_badge_html,
+    reason_proba_html,
 )
 from ui.theme import badge, inject_css, init_state, page_header, require_team, section, topbar, wrap  # noqa: E402
 
@@ -116,11 +119,18 @@ with wrap():
     reason_model = load_reason_model(
         REASON_MODEL_PATH.stat().st_mtime_ns if REASON_MODEL_PATH.exists() else 0
     )
+    reason_thresholds = load_reason_thresholds(
+        FEATURES_PATH.stat().st_mtime_ns if FEATURES_PATH.exists() else 0
+    )
     team_players["departure_risk"] = predict_departure_risk(departure_model, team_players)
     reason_tags = predict_reason_tags(reason_model, players, team_players["player_id"].astype(str))
-    reason_map = dict(zip(reason_tags["player_id"], reason_tags["reason_tag"]))
-    team_players["reason_tag"] = team_players["player_id"].astype(str).map(reason_map)
-    team_players["이름"] = team_players["player_id"].astype(str).map(lambda pid: names.get(pid, pid))
+    reason_tags = reason_tags.set_index("player_id")
+    team_players["_pid_str"] = team_players["player_id"].astype(str)
+    team_players["reason_tag"] = team_players["_pid_str"].map(reason_tags["reason_tag"])
+    team_players["reason_proba"] = team_players["_pid_str"].map(reason_tags["reason_proba"])
+    for col in ["age", "exp", "overall_score_delta", "g_chg", "reason_injury_score"]:
+        team_players[f"_ev_{col}"] = team_players["_pid_str"].map(reason_tags[col])
+    team_players["이름"] = team_players["_pid_str"].map(lambda pid: names.get(pid, pid))
 
     default_player = st.session_state.get("selected_player_id")
     ids = team_players["player_id"].astype(str).tolist()
@@ -167,17 +177,26 @@ with wrap():
 
     top_risk = ranked.dropna(subset=["departure_risk"]).nlargest(3, "departure_risk")
     if not top_risk.empty and sort_label.endswith("이탈위험순"):
-        section("이탈위험 TOP 3", "모델 추정 — 인과관계 단정 아님", icon="shield")
+        section("이탈위험 TOP 3", "모델 추정 — 인과관계 단정 아님, 아래 근거 수치 참고", icon="shield")
         rc = st.columns(3)
         for col, (_, r) in zip(rc, top_risk.iterrows()):
             with col:
                 badge_html = reason_badge_html(r.get("reason_tag", ""))
+                evidence = {
+                    "age": r.get("age"),
+                    "exp": r.get("exp"),
+                    "g_chg": r.get("g_chg"),
+                    "overall_score_delta": r.get("_ev_overall_score_delta"),
+                    "reason_injury_score": r.get("_ev_reason_injury_score"),
+                }
                 col.markdown(
                     f'<div class="gm-card" style="text-align:center">'
                     f'<div style="font-weight:800;font-size:14.5px">{r["이름"]}</div>'
                     f'<div class="gm-kpi-v" style="color:var(--risk);font-size:22px;margin:4px 0">'
                     f'{r["departure_risk"]:.0%}</div>'
                     f'{badge_html}'
+                    f'<div style="text-align:left">{reason_proba_html(r.get("reason_proba") or {}, top_n=2)}</div>'
+                    f'{evidence_html(evidence, reason_thresholds)}'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
