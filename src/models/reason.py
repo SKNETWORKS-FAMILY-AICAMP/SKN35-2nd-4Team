@@ -387,7 +387,7 @@ class ReasonRandomForest(BaseModel):
             "n_estimators": 300,
             "max_depth": 12,
             "min_samples_leaf": 3,
-            "class_weight": "balanced",
+            "class_weight": "balanced_subsample",
             "random_state": 42,
             "n_jobs": -1,
         }
@@ -481,15 +481,28 @@ if __name__ == "__main__":
     from src.features.contract import SPLIT, load_features
     from src.models.evaluate import evaluate
 
-    ROOT = Path(__file__).resolve().parents[2]
-    injury_path = ROOT / "data" / "final" / "player_injury_stints.csv"
-    if not injury_path.exists():
-        raise FileNotFoundError(f"실제 부상 데이터가 없습니다: {injury_path}")
+    root = Path(__file__).resolve().parents[2]
+    injury_path = (
+        root
+        / "data"
+        / "final"
+        / "player_injury_stints.csv"
+    )
 
-    features = load_features()  # contract.validate()까지 통과한 데이터만 사용
+    if not injury_path.exists():
+        raise FileNotFoundError(
+            f"실제 부상 데이터가 없습니다: {injury_path}"
+        )
+
+    # contract.validate()를 통과한 실제 데이터만 사용한다.
+    features = load_features()
     injury = pd.read_csv(injury_path)
 
-    reason_data, fitted = build_reason_dataset(features, injury)
+    reason_data, fitted = build_reason_dataset(
+        player_season=features,
+        injury=injury,
+    )
+
     X, y = to_reason_xy(reason_data)
 
     print("=" * 60)
@@ -500,11 +513,16 @@ if __name__ == "__main__":
     print(f"원인 모델 입력: X={X.shape}, y={len(y):,}")
 
     print("\n[primary_reason 분포]")
-    print(y.value_counts(dropna=False).to_string())
+    print(
+        y.value_counts(dropna=False).to_string()
+    )
 
     print("\n[primary_reason 비율(%)]")
     print(
-        y.value_counts(normalize=True, dropna=False)
+        y.value_counts(
+            normalize=True,
+            dropna=False,
+        )
         .mul(100)
         .round(2)
         .to_string()
@@ -514,22 +532,106 @@ if __name__ == "__main__":
     for name, value in threshold_metadata(fitted).items():
         print(f"{name}: {value:.4f}")
 
-    duplicate_count = int(reason_data.duplicated(KEY).sum())
-    print(f"\n[player_id + season 중복]: {duplicate_count:,}건")
+    duplicate_count = int(
+        reason_data.duplicated(KEY).sum()
+    )
+
+    print(
+        f"\n[player_id + season 중복]: "
+        f"{duplicate_count:,}건"
+    )
+
+    # ---------------------------------------------------------
+    # 시계열 학습·검증·테스트 분할
+    # ---------------------------------------------------------
 
     season = reason_data.loc[X.index, "season"]
-    train_lo, train_hi = SPLIT["train"]
-    test_lo, test_hi = SPLIT["test"]
-    train_mask = season.between(train_lo, train_hi)
-    test_mask = season.between(test_lo, test_hi)
-    X_train, y_train = X.loc[train_mask], y.loc[train_mask]
-    X_test, y_test = X.loc[test_mask], y.loc[test_mask]
-    print(f"\ntrain: {len(X_train):,}건 ({train_lo}~{train_hi}) / test: {len(X_test):,}건 ({test_lo}~{test_hi})")
 
-    for model_cls in (ReasonRandomForest, ReasonMLP):
+    train_lo, train_hi = SPLIT["train"]
+    valid_lo, valid_hi = SPLIT["valid"]
+    test_lo, test_hi = SPLIT["test"]
+
+    train_mask = season.between(
+        train_lo,
+        train_hi,
+    )
+    valid_mask = season.between(
+        valid_lo,
+        valid_hi,
+    )
+    test_mask = season.between(
+        test_lo,
+        test_hi,
+    )
+
+    X_train = X.loc[train_mask]
+    y_train = y.loc[train_mask]
+
+    X_valid = X.loc[valid_mask]
+    y_valid = y.loc[valid_mask]
+
+    X_test = X.loc[test_mask]
+    y_test = y.loc[test_mask]
+
+    print(
+        f"\ntrain: {len(X_train):,}건 "
+        f"({train_lo}~{train_hi})"
+    )
+    print(
+        f"valid: {len(X_valid):,}건 "
+        f"({valid_lo}~{valid_hi})"
+    )
+    print(
+        f"test: {len(X_test):,}건 "
+        f"({test_lo}~{test_hi})"
+    )
+
+    # ---------------------------------------------------------
+    # RandomForest 및 MLP 학습·평가·저장
+    # ---------------------------------------------------------
+
+    for model_cls in (
+        ReasonRandomForest,
+        ReasonMLP,
+    ):
         model = model_cls()
-        model.fit(X_train, y_train)
-        metrics = evaluate(model, X_test, y_test)
-        model.set_metrics(**metrics)
-        path = model.save(note="실제 features_v1 + player_injury_stints.csv로 학습")
-        print(f"\n[{model.name}] macro_f1={metrics.get('macro_f1', float('nan')):.4f} -> {path}")
+        model.fit(
+            X_train,
+            y_train,
+        )
+
+        valid_metrics = evaluate(
+            model,
+            X_valid,
+            y_valid,
+        )
+
+        test_metrics = evaluate(
+            model,
+            X_test,
+            y_test,
+        )
+
+        model.set_metrics(
+            **test_metrics,
+            valid_macro_f1=valid_metrics["macro_f1"],
+            n_valid=len(y_valid),
+        )
+
+        path = model.save(
+            note=(
+                "실제 features_v1 및 "
+                "player_injury_stints.csv로 학습"
+            )
+        )
+
+        print(f"\n[{model.name}]")
+        print(
+            "valid macro_f1="
+            f"{valid_metrics['macro_f1']:.4f}"
+        )
+        print(
+            "test macro_f1="
+            f"{test_metrics['macro_f1']:.4f}"
+        )
+        print(f"저장 경로: {path}")
