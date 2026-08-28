@@ -34,20 +34,20 @@
     "n_estimators": "300",
     "max_depth": "12",
     "min_samples_leaf": "3",
-    "class_weight": "balanced",
+    "class_weight": "balanced_subsample",
     "random_state": "42",
     "n_jobs": "-1"
   },
   "metrics": {
-    "accuracy": 0.8956,
-    "macro_f1": 0.8421,
-    "weighted_f1": 0.9015,
+    "accuracy": 0.9093,
+    "macro_f1": 0.8561,
+    "weighted_f1": 0.9123,
     "f1_per_class": {
-      "career_stage": 0.5556,
+      "career_stage": 0.5902,
       "injury_associated": 0.9333,
-      "mixed": 0.9083,
-      "performance_decline": 0.8976,
-      "unknown": 0.9158
+      "mixed": 0.9172,
+      "performance_decline": 0.9038,
+      "unknown": 0.9361
     },
     "support_per_class": {
       "career_stage": 24,
@@ -65,11 +65,11 @@
     ],
     "confusion_matrix": [
       [
-        20,
+        18,
         0,
         0,
         0,
-        4
+        6
       ],
       [
         0,
@@ -81,28 +81,30 @@
       [
         0,
         13,
-        218,
-        21,
+        227,
+        12,
         0
       ],
       [
         0,
         0,
-        5,
-        114,
+        11,
+        108,
         0
       ],
       [
-        28,
+        19,
         0,
         0,
         0,
-        174
+        183
       ]
     ],
-    "log_loss": 0.2355,
-    "n_test": 728
+    "log_loss": 0.2209,
+    "n_test": 728,
+    "valid_macro_f1": 0.8616,
+    "n_valid": 1546
   },
-  "note": "실제 features_v1 + player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T16:32:08"
+  "note": "실제 features_v1 및 player_injury_stints.csv로 학습",
+  "saved_at": "2026-08-28T17:41:27"
 }

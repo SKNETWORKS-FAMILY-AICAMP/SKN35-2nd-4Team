@@ -11,12 +11,12 @@
   "classes": [],
   "params": {},
   "metrics": {
-    "mae": 13.2742,
-    "rmse": 15.8264,
-    "r2": 0.4625,
-    "baseline_mae": 18.5268,
-    "n_test": 1124
+    "mae": 13.0453,
+    "rmse": 15.5802,
+    "r2": 0.4654,
+    "baseline_mae": 18.2483,
+    "n_test": 1186
   },
   "note": "PyTorch MaskedLSTM, SEQ_LEN=5",
-  "saved_at": "2026-08-28T16:29:47"
+  "saved_at": "2026-08-28T17:41:46"
 }

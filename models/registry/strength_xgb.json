@@ -32,12 +32,12 @@
   "classes": [],
   "params": {},
   "metrics": {
-    "mae": 13.428,
-    "rmse": 16.0503,
-    "r2": 0.4472,
-    "baseline_mae": 18.5268,
-    "n_test": 1124
+    "mae": 13.3092,
+    "rmse": 15.9584,
+    "r2": 0.4391,
+    "baseline_mae": 18.2483,
+    "n_test": 1186
   },
   "note": "lag 피처 XGBoost",
-  "saved_at": "2026-08-28T16:29:30"
+  "saved_at": "2026-08-28T17:41:30"
 }

@@ -15,8 +15,15 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 
-START_YEAR, END_YEAR = 2009, 2025
-LABEL_END_YEAR = 2024          # 2025는 다음 시즌이 없어 라벨 생성 불가
+START_YEAR, END_YEAR = 2009, 2026
+# 2026시즌(진행중, load_2026_season.py로 병합)이 생기면서 2025는 이제 "다음
+# 시즌이 있는" 상태가 됐다 - y_departed 등을 실제로 계산할 수 있다. 2026
+# 자신은 여전히 다음 시즌이 없어 결측(censored) 처리된다(labels.py 로직 그대로).
+LABEL_END_YEAR = 2025
+# train/valid/test는 기존 그대로 둔다 - 이미 등록된 모델들의 test 지표가
+# 가리키는 구간을 조용히 바꾸지 않는다. 2025는 라벨은 생기지만 아직 어느
+# split에도 안 들어간 "쓸 수 있지만 아직 안 쓰는" 상태 - 다음 재학습 때
+# valid/test를 어떻게 넓힐지는 팀 논의 후 결정.
 SPLIT = {"train": (2009, 2021), "valid": (2022, 2023), "test": (2024, 2024)}
 
 FA_ELIGIBLE_EXP = 6            # MLB FA 자격 서비스 타임. exp < 6 이면 FA 불가 (확정 규칙)

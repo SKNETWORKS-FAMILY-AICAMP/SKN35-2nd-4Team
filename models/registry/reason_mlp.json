@@ -104,8 +104,10 @@
       ]
     ],
     "log_loss": 0.2554,
-    "n_test": 728
+    "n_test": 728,
+    "valid_macro_f1": 0.8195,
+    "n_valid": 1546
   },
-  "note": "실제 features_v1 + player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T16:32:09"
+  "note": "실제 features_v1 및 player_injury_stints.csv로 학습",
+  "saved_at": "2026-08-28T17:41:27"
 }

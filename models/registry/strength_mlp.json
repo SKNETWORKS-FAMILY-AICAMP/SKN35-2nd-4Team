@@ -32,12 +32,12 @@
   "classes": [],
   "params": {},
   "metrics": {
-    "mae": 12.5653,
-    "rmse": 15.0934,
-    "r2": 0.5111,
-    "baseline_mae": 18.5268,
-    "n_test": 1124
+    "mae": 12.8647,
+    "rmse": 15.4771,
+    "r2": 0.4724,
+    "baseline_mae": 18.2483,
+    "n_test": 1186
   },
   "note": "sklearn MLPRegressor 폴백/비교 기준",
-  "saved_at": "2026-08-28T16:29:48"
+  "saved_at": "2026-08-28T17:41:48"
 }

@@ -779,3 +779,33 @@ year,team_id,lg_id,franch_id,div_id,rank,g,w,l,win_rate,name,park
 2025,TEX,AL,TEX,W,3,162,81,81,0.5,Texas Rangers,Globe Life Field
 2025,TOR,AL,TOR,E,1,162,94,68,0.58,Toronto Blue Jays,Rogers Centre
 2025,WAS,NL,WSH,E,5,162,66,96,0.407,Washington Nationals,Nationals Park
+2026,TBA,AL,TB,E,1,133,79,54,0.594,Tampa Bay Rays,Steinbrenner Field 
+2026,NYA,AL,NYY,E,2,133,75,58,0.564,New York Yankees,Yankee Stadium II
+2026,BOS,AL,BOS,E,3,133,73,60,0.549,Boston Red Sox,Fenway Park
+2026,BAL,AL,BAL,E,4,134,65,69,0.485,Baltimore Orioles,Oriole Park at Camden Yards
+2026,TOR,AL,TOR,E,5,135,65,70,0.481,Toronto Blue Jays,Rogers Centre
+2026,CHA,AL,CHW,C,1,133,70,63,0.526,Chicago White Sox,Rate Field
+2026,CLE,AL,CLE,C,2,134,68,66,0.507,Cleveland Guardians,Progressive Field
+2026,MIN,AL,MIN,C,3,134,64,70,0.478,Minnesota Twins,Target Field
+2026,DET,AL,DET,C,4,133,62,71,0.466,Detroit Tigers,Comerica Park
+2026,KCA,AL,KCR,C,5,135,60,75,0.444,Kansas City Royals,Kauffman Stadium
+2026,HOU,AL,HOU,W,1,134,67,67,0.5,Houston Astros,Daikin Park
+2026,TEX,AL,TEX,W,2,134,66,68,0.493,Texas Rangers,Globe Life Field
+2026,SEA,AL,SEA,W,3,134,64,70,0.478,Seattle Mariners,T-Mobile Park
+2026,ATH,AL,ATH,W,4,134,53,81,0.396,Athletics,Sutter Health Park
+2026,LAA,AL,LAA,W,5,134,52,82,0.388,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2026,ATL,NL,ATL,E,1,134,79,55,0.59,Atlanta Braves,Truist Park
+2026,PHI,NL,PHI,E,2,134,74,60,0.552,Philadelphia Phillies,Citizens Bank Park
+2026,MIA,NL,MIA,E,3,134,68,66,0.507,Miami Marlins,loanDepot park
+2026,WAS,NL,WSH,E,4,136,63,73,0.463,Washington Nationals,Nationals Park
+2026,NYN,NL,NYM,E,5,134,60,74,0.448,New York Mets,Citi Field
+2026,MIL,NL,MIL,C,1,134,83,51,0.619,Milwaukee Brewers,American Family Field
+2026,CHN,NL,CHC,C,2,134,76,58,0.567,Chicago Cubs,Wrigley Field
+2026,SLN,NL,STL,C,3,135,67,68,0.496,St. Louis Cardinals,Busch Stadium III
+2026,PIT,NL,PIT,C,4,135,65,70,0.481,Pittsburgh Pirates,PNC Park
+2026,CIN,NL,CIN,C,5,134,63,71,0.47,Cincinnati Reds,Great American Ballpark
+2026,LAN,NL,LAD,W,1,134,80,54,0.597,Los Angeles Dodgers,Dodger Stadium
+2026,SDN,NL,SDP,W,2,134,72,62,0.537,San Diego Padres,Petco Park
+2026,ARI,NL,ARI,W,3,135,71,64,0.526,Arizona Diamondbacks,Chase Field
+2026,SFN,NL,SFG,W,4,134,55,79,0.41,San Francisco Giants,Oracle Park
+2026,COL,NL,COL,W,5,134,52,82,0.388,Colorado Rockies,Coors Field
