@@ -39,7 +39,7 @@ SCHEMA: dict[str, str] = {
     "league": "object",        # mlb / kbo ← Rev.4 신규. 리그 전이의 파티션 키
     # 식별·역할
     "role": "object",          # B / P / TWO
-    "age": "float64",
+    "age": "float64",          # 실전 피처로 사용 — 결측 불허 (validate() 에서 강제)
     "exp": "int64",            # 리그 경력 시즌 수 — L2b 판별 키 (FA_ELIGIBLE_EXP)
     "n_stint": "int64",        # >= 2 이면 시즌 중 트레이드
     # 출전
@@ -58,7 +58,6 @@ SCHEMA: dict[str, str] = {
     "whip_z": "float64",
     # 팀 맥락
     "team_wr": "float64",
-    "allstar": "int64",
     # 라벨 — 관측 가능성에 따라 4층으로 분리 (Rev.4 3장)
     "y_departed": "float64",     # L1  0/1 — 다음 시즌 동일 franch_id 인가
     "y_path": "object",         # L2  PATH_CLASSES — 이탈자만. 잔류자는 NaN
@@ -89,6 +88,10 @@ def validate(df: pd.DataFrame) -> None:
     assert df.duplicated(KEY).sum() == 0, "player_id + season 중복"
     assert df.g_ratio.max() <= 1.05, f"g_ratio 이상: {df.g_ratio.max()}"
     assert df.season.between(START_YEAR, END_YEAR).all(), "학습 구간 이탈"
+
+    # age 는 이제 실전 피처로 쓴다 — 결측 허용하지 않는다 (전력 나이 곡선 등에 필수)
+    assert df.age.notna().all(), "age 결측 존재 — 나이 피처를 실제로 쓰기로 했으므로 결측 불허"
+    assert df.age.between(15, 50).all(), f"age 범위 이상: {df.age.min()}~{df.age.max()}"
 
     bad_league = set(df.league.dropna()) - set(LEAGUE_CLASSES)
     assert not bad_league, f"정의되지 않은 league: {bad_league}"

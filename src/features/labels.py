@@ -254,6 +254,12 @@ def build_labels(
     confirmed_release = out["y_fa_release"].eq("release_certain")
     out["y_core_departed"] = out["y_departed"].where(~confirmed_release, np.nan)
 
+    # y_next_score: D 회귀 타깃, 다음 시즌 overall_score. 이탈 판정과 무관한
+    # contract.LABEL_COLS 항목이라 여기서는 단순히 player_id별 다음 행(= 다음
+    # season, out은 이미 KEY로 정렬돼 있음)의 overall_score를 그대로 끌어온다.
+    # 다음 시즌 기록이 없는 마지막 행(은퇴/이탈 등)은 NaN으로 남는다.
+    out["y_next_score"] = grouped["overall_score"].shift(-1)
+
     if validate:
         validate_labels(out, LabelConfig(
             data_end_year=data_end_year,
