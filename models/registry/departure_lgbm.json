@@ -1,0 +1,63 @@
+{
+  "name": "departure_lgbm",
+  "task": "departure",
+  "kind": "ml",
+  "owner": "B",
+  "is_regression": false,
+  "format": "pickle",
+  "path": "models/departure_lgbm.pkl",
+  "n_features": 13,
+  "features": [
+    "age",
+    "exp",
+    "g_ratio",
+    "g_ratio_prev",
+    "g_chg",
+    "off_score",
+    "pit_score",
+    "overall_score",
+    "ops_z",
+    "ops_z_prev",
+    "era_z",
+    "whip_z",
+    "team_wr"
+  ],
+  "classes": [
+    0,
+    1
+  ],
+  "params": {
+    "num_leaves": "41",
+    "learning_rate": "0.07683668442564548",
+    "n_estimators": "127",
+    "max_depth": "11",
+    "min_child_samples": "16",
+    "subsample": "0.6593596157585548",
+    "colsample_bytree": "0.6757602165845517",
+    "class_weight": "balanced",
+    "random_state": "42",
+    "verbosity": "-1"
+  },
+  "metrics": {
+    "accuracy": 0.753,
+    "precision": 0.6693,
+    "recall": 0.8149,
+    "f1": 0.7349,
+    "roc_auc": 0.8383,
+    "log_loss": 0.5076,
+    "confusion_matrix": [
+      [
+        512,
+        211
+      ],
+      [
+        97,
+        427
+      ]
+    ],
+    "positive_rate": 0.5116,
+    "n_test": 1247
+  },
+  "note": "Optuna 튜닝, train+val로 최종학습 후 test 평가",
+  "saved_at": "2026-08-28T12:36:10"
+}

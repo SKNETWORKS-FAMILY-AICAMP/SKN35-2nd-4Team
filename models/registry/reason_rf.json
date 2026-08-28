@@ -1,0 +1,108 @@
+{
+  "name": "reason_rf",
+  "task": "reason",
+  "kind": "ml",
+  "owner": "C",
+  "is_regression": false,
+  "format": "pickle",
+  "path": "models/reason_rf.pkl",
+  "n_features": 14,
+  "features": [
+    "age",
+    "exp",
+    "g_ratio",
+    "g_ratio_prev",
+    "g_chg",
+    "overall_score",
+    "overall_score_delta",
+    "ops_z",
+    "ops_z_prev",
+    "era_z",
+    "whip_z",
+    "team_wr",
+    "had_injury",
+    "il_stint_count"
+  ],
+  "classes": [
+    "career_stage",
+    "injury_associated",
+    "mixed",
+    "performance_decline",
+    "unknown"
+  ],
+  "params": {
+    "n_estimators": "300",
+    "max_depth": "12",
+    "min_samples_leaf": "3",
+    "class_weight": "balanced",
+    "random_state": "42",
+    "n_jobs": "-1"
+  },
+  "metrics": {
+    "accuracy": 0.8941,
+    "macro_f1": 0.8419,
+    "weighted_f1": 0.8995,
+    "f1_per_class": {
+      "career_stage": 0.5634,
+      "injury_associated": 0.932,
+      "mixed": 0.902,
+      "performance_decline": 0.8968,
+      "unknown": 0.9153
+    },
+    "support_per_class": {
+      "career_stage": 24,
+      "injury_associated": 141,
+      "mixed": 241,
+      "performance_decline": 120,
+      "unknown": 201
+    },
+    "labels": [
+      "career_stage",
+      "injury_associated",
+      "mixed",
+      "performance_decline",
+      "unknown"
+    ],
+    "confusion_matrix": [
+      [
+        20,
+        0,
+        0,
+        0,
+        4
+      ],
+      [
+        0,
+        137,
+        4,
+        0,
+        0
+      ],
+      [
+        0,
+        16,
+        207,
+        18,
+        0
+      ],
+      [
+        0,
+        0,
+        7,
+        113,
+        0
+      ],
+      [
+        27,
+        0,
+        0,
+        1,
+        173
+      ]
+    ],
+    "log_loss": 0.243,
+    "n_test": 727
+  },
+  "note": "실제 features_v1 + player_injury_stints.csv로 학습",
+  "saved_at": "2026-08-28T12:27:37"
+}
