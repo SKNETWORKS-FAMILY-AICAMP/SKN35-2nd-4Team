@@ -48,10 +48,8 @@ PATH_CLASSES = _contract.PATH_CLASSES
 
 
 KEY = ["player_id", "season"]
-# y_core_departed는 Rev.4 계약(contract.py)에는 없는, departure.py의 순환논리를
-# 막기 위해 이번 리뷰에서 추가한 파생 컬럼이다. contract.py에 정식으로 편입할지는
-# 팀 논의 필요.
-LABEL_COLUMNS = ["y_departed", "y_path", "y_fa_release", "y_returned", "y_core_departed"]
+# y_core_departed는 contract.py의 정식 L1' 타깃이며 핵심 이탈위험 모델이 사용한다.
+LABEL_COLUMNS = list(_contract.LABEL_COLS)
 REQUIRED_COLUMNS = [
     "player_id",
     "season",
@@ -376,11 +374,3 @@ def label_summary(labeled: pd.DataFrame) -> dict[str, pd.Series]:
         for column in LABEL_COLUMNS
     }
 
-
-if __name__ == "__main__":
-    mock = _contract.make_mock()
-    raw = mock.drop(columns=LABEL_COLUMNS, errors="ignore")
-    result = build_labels(raw)
-    print(f"라벨 생성 완료: {len(result):,}행")
-    for name, counts in label_summary(result).items():
-        print(f"\n[{name}]\n{counts.to_string()}")
