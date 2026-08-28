@@ -20,6 +20,11 @@ from src.models.recommend import (
     adapt_features_v1,
     load_knn_artifact,
 )
+from src.models.next_strength import (
+    apply_next_strength_projection,
+    load_next_strength_model,
+    predict_next_season_strength,
+)
 from src.service.simulation import (
     TeamStrength,
     calculate_team_strength,
@@ -31,6 +36,9 @@ from ui.theme import inject_css, init_state, page_header, require_team, section,
 FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
+NEXT_STRENGTH_PATH = ROOT / "models" / "strength_mlp.pkl"
+PEOPLE_PATH = ROOT / "data" / "raw" / "lahman" / "People.csv"
+TEAMS_PATH = ROOT / "data" / "raw" / "lahman" / "Teams.csv"
 
 
 @st.cache_data(show_spinner=False)
@@ -52,6 +60,18 @@ def load_saved_autoencoder(data_version: int, model_version: int) -> Autoencoder
     del data_version, model_version
     players = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
     return AutoencoderRecommender.load_artifact(AUTOENCODER_PATH, players)
+
+
+@st.cache_data(show_spinner=False)
+def load_next_strength_projections(
+    data_version: int,
+    model_version: int,
+) -> pd.DataFrame:
+    """D의 MLP 모델로 최신 선수들의 다음 시즌 전력을 계산한다."""
+    del data_version, model_version
+    players = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+    model = load_next_strength_model(NEXT_STRENGTH_PATH)
+    return predict_next_season_strength(players, model, PEOPLE_PATH, TEAMS_PATH)
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
@@ -172,12 +192,41 @@ with wrap():
         f"(유사도 {model_top['similarity']:.4f}) · "
         "최종 영입 순위는 문서 F6-3의 net effect와 예상 순위로 다시 계산합니다."
     )
-    rank_predictor = make_rank_predictor(season_players)
+
+    simulation_players = season_players
+    simulation_team_players = team_players
+    simulation_candidates = candidates
+
+    # 문서의 FA=오프시즌 정의에 따라 FA만 D의 다음 시즌 전력으로 계산한다.
+    if scenario == "fa":
+        try:
+            projections = load_next_strength_projections(
+                FEATURES_PATH.stat().st_mtime_ns,
+                NEXT_STRENGTH_PATH.stat().st_mtime_ns,
+            )
+            simulation_players = apply_next_strength_projection(
+                season_players, projections
+            )
+            simulation_team_players = apply_next_strength_projection(
+                team_players, projections
+            )
+            simulation_candidates = apply_next_strength_projection(
+                candidates, projections
+            )
+            st.caption(
+                f"FA 시나리오는 D strength_mlp의 {season + 1}시즌 예측 전력을 반영합니다."
+            )
+        except (FileNotFoundError, ValueError, OSError) as exc:
+            # D 모델이나 원천 입력이 없으면 현재 시즌 값으로 대체해 오해를 만들지 않는다.
+            st.warning(f"다음 시즌 전력 모델을 적용할 수 없습니다: {exc}")
+            st.stop()
+
+    rank_predictor = make_rank_predictor(simulation_players)
     try:
         evaluated = evaluate_replacements(
-            team_players,
+            simulation_team_players,
             selected_id,
-            candidates,
+            simulation_candidates,
             predict_win_rate,
             rank_predictor=rank_predictor,
             scenario=scenario,
@@ -210,7 +259,7 @@ with wrap():
     replacement = evaluated.loc[evaluated["player_id"].astype(str) == replacement_id].iloc[0]
 
     result = simulate(
-        team_players,
+        simulation_team_players,
         selected_id,
         predict_win_rate,
         replacement_player=replacement,
@@ -219,14 +268,34 @@ with wrap():
     )
 
     section("단장 브리핑")
+
+    # 방출은 즉시 이탈 승률, 나머지는 대체까지 완료된 시점의 승률을 의사결정 값으로 쓴다.
+    if scenario == "release":
+        briefing_win_rate = result.after_departure_win_rate
+        release_rank = rank_predictor(result.after_departure_strength)
+        briefing_detail = (
+            f'즉시 이탈 기준 예상 순위는 <b>{result.rank_before}위 → '
+            f'{release_rank}위</b>입니다. 이후 <b>{replacement_id}</b> 투입 시 '
+            f'승률은 <b>{result.after_replacement_win_rate:.2%}</b>까지 회복됩니다.'
+        )
+    else:
+        briefing_win_rate = result.after_replacement_win_rate
+        briefing_detail = (
+            f'<b>{replacement_id}</b> 반영 후 예상 순위는 '
+            f'<b>{result.rank_before}위 → {result.rank_after}위</b>입니다.'
+        )
+
+    # 대체 후보가 선택된 화면이므로 trade/FA의 최종 승률은 항상 존재한다.
+    if briefing_win_rate is None:
+        st.error("브리핑에 표시할 최종 승률이 없습니다.")
+        st.stop()
+
     st.markdown(
         '<div class="gm-card">'
         f'{result.scenario_label}({result.effective_timing} · {result.absence_scope}) 시나리오에서 '
-        f'<b>{selected_id}</b> 이탈 시 승률은 '
-        f'<b>{result.current_win_rate:.2%} → {result.after_departure_win_rate:.2%}</b>로 변합니다. '
-        f'(impact {result.impact:+.2%}p)<br>'
-        f'<b>{replacement_id}</b> 투입 후 <b>{result.after_replacement_win_rate:.2%}</b>, '
-        f'예상 순위는 <b>{result.rank_before}위 → {result.rank_after}위</b>입니다.'
+        f'의사결정 기준 승률은 <b>{result.current_win_rate:.2%} → '
+        f'{briefing_win_rate:.2%}</b>입니다.<br>'
+        f'{briefing_detail}'
         '</div>',
         unsafe_allow_html=True,
     )
