@@ -6,7 +6,7 @@
   "is_regression": false,
   "format": "pickle",
   "path": "models/departure_lgbm.pkl",
-  "n_features": 13,
+  "n_features": 14,
   "features": [
     "age",
     "exp",
@@ -15,6 +15,7 @@
     "g_chg",
     "off_score",
     "pit_score",
+    "def_score",
     "overall_score",
     "ops_z",
     "ops_z_prev",
@@ -27,37 +28,37 @@
     1
   ],
   "params": {
-    "num_leaves": "41",
-    "learning_rate": "0.07683668442564548",
-    "n_estimators": "127",
-    "max_depth": "11",
-    "min_child_samples": "16",
-    "subsample": "0.6593596157585548",
-    "colsample_bytree": "0.6757602165845517",
+    "num_leaves": "44",
+    "learning_rate": "0.08105016126411589",
+    "n_estimators": "244",
+    "max_depth": "12",
+    "min_child_samples": "91",
+    "subsample": "0.7989499894055425",
+    "colsample_bytree": "0.9609371175115584",
     "class_weight": "balanced",
     "random_state": "42",
     "verbosity": "-1"
   },
   "metrics": {
-    "accuracy": 0.753,
-    "precision": 0.6693,
-    "recall": 0.8149,
-    "f1": 0.7349,
-    "roc_auc": 0.8383,
-    "log_loss": 0.5076,
+    "accuracy": 0.7436,
+    "precision": 0.6609,
+    "recall": 0.8019,
+    "f1": 0.7246,
+    "roc_auc": 0.8282,
+    "log_loss": 0.5307,
     "confusion_matrix": [
       [
-        512,
-        211
+        507,
+        216
       ],
       [
-        97,
-        427
+        104,
+        421
       ]
     ],
-    "positive_rate": 0.5116,
-    "n_test": 1247
+    "positive_rate": 0.5104,
+    "n_test": 1248
   },
   "note": "Optuna 튜닝, train+val로 최종학습 후 test 평가",
-  "saved_at": "2026-08-28T14:55:08"
+  "saved_at": "2026-08-28T16:31:53"
 }

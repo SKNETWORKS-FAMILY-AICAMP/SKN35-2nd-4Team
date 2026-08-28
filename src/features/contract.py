@@ -39,6 +39,10 @@ SCHEMA: dict[str, str] = {
     "league": "object",        # mlb / kbo ← Rev.4 신규. 리그 전이의 파티션 키
     # 식별·역할
     "role": "object",          # B / P / TWO
+    "primary_position": "object",  # 1B/2B/3B/SS/C/OF/DH/P 등 — Fielding.csv에서 그 시즌
+                                    # G가 가장 많은 포지션. 수비 기록이 아예 없으면 NaN
+                                    # (순수 지명타자 등). 영입 후보를 "같은 포지션"으로
+                                    # 좁힐 때 쓴다 — role(B/P/TWO)보다 세밀한 단위.
     "age": "float64",          # 실전 피처로 사용 — 결측 불허 (validate() 에서 강제)
     "exp": "int64",            # 리그 경력 시즌 수 — L2b 판별 키 (FA_ELIGIBLE_EXP)
     "n_stint": "int64",        # >= 2 이면 시즌 중 트레이드

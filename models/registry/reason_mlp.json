@@ -42,22 +42,22 @@
     "random_state": "42"
   },
   "metrics": {
-    "accuracy": 0.8913,
-    "macro_f1": 0.8379,
-    "weighted_f1": 0.8909,
+    "accuracy": 0.8942,
+    "macro_f1": 0.8509,
+    "weighted_f1": 0.8935,
     "f1_per_class": {
-      "career_stage": 0.5957,
-      "injury_associated": 0.899,
-      "mixed": 0.8833,
-      "performance_decline": 0.8681,
-      "unknown": 0.9432
+      "career_stage": 0.6667,
+      "injury_associated": 0.8745,
+      "mixed": 0.8863,
+      "performance_decline": 0.8734,
+      "unknown": 0.9535
     },
     "support_per_class": {
       "career_stage": 24,
-      "injury_associated": 141,
-      "mixed": 241,
-      "performance_decline": 120,
-      "unknown": 201
+      "injury_associated": 131,
+      "mixed": 252,
+      "performance_decline": 119,
+      "unknown": 202
     },
     "labels": [
       "career_stage",
@@ -68,44 +68,44 @@
     ],
     "confusion_matrix": [
       [
-        14,
+        15,
         0,
         1,
         0,
-        9
+        8
       ],
       [
         0,
-        129,
-        12,
+        115,
+        16,
         0,
         0
       ],
       [
-        1,
+        0,
         17,
-        212,
-        11,
+        226,
+        9,
         0
       ],
       [
         0,
         0,
-        14,
-        102,
+        15,
+        100,
         4
       ],
       [
-        8,
+        6,
         0,
         0,
-        2,
-        191
+        1,
+        195
       ]
     ],
-    "log_loss": 0.2528,
-    "n_test": 727
+    "log_loss": 0.2554,
+    "n_test": 728
   },
   "note": "실제 features_v1 + player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T12:27:38"
+  "saved_at": "2026-08-28T16:32:09"
 }

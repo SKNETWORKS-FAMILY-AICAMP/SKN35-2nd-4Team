@@ -63,6 +63,7 @@ DATA_DIR = ROOT / "data" / "final"
 TEAMS_PATH = DATA_DIR / "teams.csv"
 BATTING_PATH = DATA_DIR / "batting_stats.csv"
 PITCHING_PATH = DATA_DIR / "pitching_stats.csv"
+FIELDING_PATH = DATA_DIR / "fielding_stats.csv"
 INJURY_PATH = DATA_DIR / "player_injury_stints.csv"
 PLAYERS_PATH = DATA_DIR / "players.csv"  # age(=season-birth_year) 계산용
 
@@ -77,6 +78,8 @@ KEY = ["player_id", "season"]
 
 
 # contract.SCHEMA에 있지만 strength.py가 직접 만들지 않는 컬럼
+# def_score는 더 이상 여기 없다 - strength.compute_fielding_strength()가 만들고
+# merge_strength_metadata()가 strength_df에서 그대로 가져온다(metadata_df 출처 아님).
 REQUIRED_META_COLS = [
     "team_last",
     "franch_id",
@@ -87,7 +90,6 @@ REQUIRED_META_COLS = [
     "n_stint",
     "g_ratio_prev",
     "g_chg",
-    "def_score",
     "team_wr",
 ]
 
@@ -142,6 +144,7 @@ def load_raw_data() -> tuple[
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
+    pd.DataFrame,
 ]:
     """실제 원천 CSV만 읽는다."""
 
@@ -149,6 +152,7 @@ def load_raw_data() -> tuple[
         TEAMS_PATH,
         BATTING_PATH,
         PITCHING_PATH,
+        FIELDING_PATH,
         INJURY_PATH,
         PLAYERS_PATH,
     ]:
@@ -157,10 +161,11 @@ def load_raw_data() -> tuple[
     teams = pd.read_csv(TEAMS_PATH)
     batting = pd.read_csv(BATTING_PATH)
     pitching = pd.read_csv(PITCHING_PATH)
+    fielding = pd.read_csv(FIELDING_PATH)
     injuries = pd.read_csv(INJURY_PATH)
     players = pd.read_csv(PLAYERS_PATH)
 
-    return teams, batting, pitching, injuries, players
+    return teams, batting, pitching, fielding, injuries, players
 
 
 # ---------------------------------------------------------------------------
@@ -171,19 +176,22 @@ def build_strength_features(
     teams_raw: pd.DataFrame,
     batting_raw: pd.DataFrame,
     pitching_raw: pd.DataFrame,
+    fielding_raw: pd.DataFrame,
     injuries_raw: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     strength.py의 공식 파이프라인을 그대로 사용한다.
 
     strength.py 자체가 마지막에
-    player_id / season / off_score / pit_score / g_ratio /
-    ops_z / era_z / whip_z / overall_score 등을 만든다.
+    player_id / season / off_score / pit_score / fielding_strength_before_pt /
+    g_ratio / ops_z / era_z / whip_z / overall_score 등을 만든다.
+    (fielding_strength_before_pt는 merge_strength_metadata에서 def_score로 옮겨진다.)
     """
 
     teams = strength.standardize_teams(teams_raw)
     batting = strength.standardize_batting(batting_raw)
     pitching = strength.standardize_pitching(pitching_raw)
+    fielding = strength.standardize_fielding(fielding_raw)
     injuries = strength.standardize_injuries(injuries_raw)
 
     batting_result = strength.compute_batting_strength(
@@ -199,10 +207,25 @@ def build_strength_features(
         injuries,
     )
 
+    fielding_result = strength.compute_fielding_strength(
+        fielding,
+        teams,
+        pitching,
+        injuries,
+    )
+
     result = strength.build_features_v1(
         batting_result,
         pitching_result,
+        fielding_result,
     )
+
+    # primary_position은 전력 점수가 아니라 포지션 메타데이터라 build_features_v1
+    # 안이 아니라 여기서 별도로 붙인다 - "같은 포지션 후보 추천"에 쓰인다.
+    primary_position = strength.derive_primary_position(fielding).rename(
+        columns={"playerID": "player_id", "yearID": "season"}
+    )
+    result = result.merge(primary_position, on=KEY, how="left")
 
     assert_unique(result, KEY, "strength 결과")
 
@@ -608,16 +631,85 @@ def merge_strength_metadata(
     # g_ratio가 출전 비중을 별도로 담당하므로 겹치지 않게 하기 위한 결정 — D 확정).
     # ------------------------------------------------------------------
 
-    merged["g_ratio"] = merged[["playing_time_ratio", "playing_time_ratio_pit"]].max(
+    # g_ratio: contract.py 정의(G/team_games) 그대로 - 타자는 playing_time_ratio
+    # (G/season_games)를 쓰고, 투수는 g_ratio_games(G_pit/season_games)를 쓴다.
+    # 예전엔 투수 쪽에 playing_time_ratio_pit(IP/팀총IP)을 그대로 넣었는데,
+    # 이건 이닝 점유율이라 "몇 경기에 나왔나"와 단위가 다르다 - 마무리투수처럼
+    # 경기는 많이 나오지만(G 높음) 이닝은 짧은(IP 점유율 낮음) 선수가 "거의 안
+    # 뛴 선수"로 왜곡됐다(실측 확인 - 2022년 이후 투수 g_ratio 중앙값이 절반
+    # 가까이 떨어짐, 팀당 투수 수가 늘어난 추세와 겹쳐 더 심해짐). 점수
+    # 스케일링(pitching_strength)에는 여전히 이닝 점유율을 쓴다 - 거기서는
+    # 맞는 기준이다.
+    merged["g_ratio"] = merged[["playing_time_ratio", "g_ratio_games"]].max(
         axis=1, skipna=True
     )
     merged["off_score"] = merged["batting_strength_before_pt"]
     merged["pit_score"] = merged["pitching_strength_before_pt"]
-    merged["overall_score"] = merged[["off_score", "pit_score"]].mean(axis=1, skipna=True)
 
-    # 수비 전력은 strength.py에 아직 구현 안 됨(문서화된 한계) — E의 adapt_features_v1()과
-    # 동일하게 NaN으로 명시한다. 가짜 값을 채우지 않는다.
-    merged["def_score"] = np.nan
+    # 투타겸업(off_score/pit_score 둘 다 존재 = role"TWO"와 동치)은 평균을 내면
+    # "타격도 투구도 어중간한" 실체 없는 점수가 나온다(2026-08-28 팀 결정) — 두
+    # 역할 중 진짜 의미있게 뛴 쪽을 그 선수의 전력으로 본다.
+    #
+    # playing_time_ratio(타격 G/팀경기)와 playing_time_ratio_pit(투구 IP/팀총IP)를
+    # 그대로 비교하면 안 된다 - 단위가 다르다(경기 비율 vs 이닝 비율). 구원투수가
+    # 대타 상황 등으로 어쩌다 1타석 서면 Lahman 타격 G는 "그 경기에 있었다"는
+    # 이유만으로 등판 경기수와 똑같이 잡혀서(AB=1인데 G=33 식) 진짜 겸업처럼
+    # 오분류된다(실측 확인 - aardsda01 2015). AB/IP 최소선을 넘겨야 그 역할이
+    # "진짜" 있었던 것으로 인정한다.
+    AB_QUALIFYING = 100  # 대타 1타석 수준과 진짜 타격 출전을 가르는 최소 타수
+    IP_QUALIFYING = 20   # PITCHING_SHRINKAGE_K와 동일 - "의미있는 투구량"의 최소선
+
+    both = merged["off_score"].notna() & merged["pit_score"].notna()
+    bat_qualifies = both & (merged["AB"].fillna(0) >= AB_QUALIFYING)
+    pit_qualifies = both & (merged["IP"].fillna(0) >= IP_QUALIFYING)
+    only_bat_real = bat_qualifies & ~pit_qualifies
+    only_pit_real = pit_qualifies & ~bat_qualifies
+    both_real = bat_qualifies & pit_qualifies
+    # 그 시즌 출전비중이 더 높은 쪽 - 둘 다 진짜로 뛴 진짜 겸업(오타니형)에만 적용
+    batting_heavier = merged["playing_time_ratio"].fillna(-1) >= merged["playing_time_ratio_pit"].fillna(-1)
+
+    merged["overall_score"] = merged[["off_score", "pit_score"]].mean(axis=1, skipna=True)  # 기본값
+    merged.loc[only_bat_real, "overall_score"] = merged.loc[only_bat_real, "off_score"]
+    merged.loc[only_pit_real, "overall_score"] = merged.loc[only_pit_real, "pit_score"]
+    merged.loc[both_real & batting_heavier, "overall_score"] = merged.loc[both_real & batting_heavier, "off_score"]
+    merged.loc[both_real & ~batting_heavier, "overall_score"] = merged.loc[both_real & ~batting_heavier, "pit_score"]
+    # neither_real(둘 다 트리비얼한 겸업 - 아주 드문 엣지케이스)은 평균(기본값) 유지
+
+    # primary_position은 Fielding.csv 실측이라 기본적으로 안 건드린다. 다만
+    # 위 판정에서 타격이 주 역할로 뽑혔는데 필드 기록이 "P"뿐인 경우(수비 이닝
+    # 없이 지명타자로만 나온 겸업 선수)는 포지션 매칭에 "투수"로 잡히면 안
+    # 되므로 DH로 보정한다.
+    batting_is_primary = only_bat_real | (both_real & batting_heavier)
+    dh_fallback = batting_is_primary & (merged["primary_position"] == "P")
+    merged.loc[dh_fallback, "primary_position"] = "DH"
+
+    # 타격 기록은 있는데(off_score 존재) 수비 기록이 아예 없는 선수-시즌(순수
+    # 지명타자)은 derive_primary_position()이 애초에 만들지 못해 NaN으로 남는다
+    # - Lahman Fielding.csv엔 "DH"라는 포지션 자체가 없기 때문(수비를 안 하므로).
+    # "같은 포지션 추천"에서 이런 선수가 누락되지 않도록 DH로 명시한다.
+    pure_dh = merged["primary_position"].isna() & merged["off_score"].notna()
+    merged.loc[pure_dh, "primary_position"] = "DH"
+
+    # role도 같은 AB/IP 최소선으로 되돌린다. build_player_season_metadata()의
+    # role은 raw batting/pitching KEY 존재만 보고 TWO를 매겨서(대타 1타석도
+    # is_batter=True) 구원투수 대다수가 "투타겸업"으로 잘못 표시되는 문제가
+    # 있었다(실측 확인 - 화면에서 릴리버들이 전부 투타겸업으로 보임). 여기서
+    # off_score/pit_score의 신뢰 근거(both/bat_qualifies/pit_qualifies)를 그대로
+    # 재사용해 진짜 겸업이 아니면 B/P로 되돌린다.
+    merged.loc[only_bat_real, "role"] = "B"
+    merged.loc[only_pit_real, "role"] = "P"
+    # both_real(오타니형) / neither_real(둘 다 트리비얼 — 극히 드묾)은 TWO 유지
+
+    # off_score/pit_score 둘 중 하나가 NaN인 TWO(원래 role 계산이 AB=0인 행도
+    # "타격 기록 있음"으로 셈)는 위 both 기반 분기를 아예 못 타서 안 고쳐진다 —
+    # 이쪽은 판단 기준(AB/IP 최소선)도 필요 없다, 애초에 한쪽 점수 자체가 없다.
+    merged.loc[merged["off_score"].isna() & merged["pit_score"].notna(), "role"] = "P"
+    merged.loc[merged["pit_score"].isna() & merged["off_score"].notna(), "role"] = "B"
+
+    # 수비 전력: strength.compute_fielding_strength()가 만든 fielding_strength_before_pt를
+    # 그대로 def_score로 옮긴다(off_score/pit_score와 동일하게 출전·부상 반영 *전* 값).
+    # 수비 기록이 아예 없는 선수-시즌(지명타자 전업 등)은 자연히 NaN으로 남는다.
+    merged["def_score"] = merged["fielding_strength_before_pt"]
 
     merged["ops_z"] = merged.groupby("season")["OPS"].transform(lambda s: (s - s.mean()) / s.std())
     merged["era_z"] = merged.groupby("season")["ERA"].transform(lambda s: (s - s.mean()) / s.std())
@@ -644,17 +736,18 @@ def merge_strength_metadata(
     )
 
     # ------------------------------------------------------------------
-    # def_score
+    # def_score 안전장치
     #
-    # 현재 strength.py에는 수비 전력 계산이 구현되어 있지 않다.
-    # 임의 점수를 넣지 않고 명시적으로 중단한다.
+    # 컬럼 존재는 위에서 이미 보장되지만(대입문), fielding 파이프라인이
+    # 조용히 깨져서 전부 NaN만 나오는 상황(예: merge 키가 하나도 안 맞음)은
+    # 별개 문제다 - "컬럼은 있는데 쓸모없는 상태"를 여기서 fail-fast로 잡는다.
     # ------------------------------------------------------------------
 
-    if "def_score" not in merged.columns:
+    if merged["def_score"].notna().sum() == 0:
         raise ValueError(
-            "contract.SCHEMA에는 def_score가 필요하지만 "
-            "현재 strength.py에서 def_score를 생성하지 않습니다. "
-            "실제 수비 전력 계산을 strength.py에 추가한 뒤 build를 실행하세요."
+            "def_score가 전부 결측입니다 - fielding_strength 파이프라인이 "
+            "silent하게 깨졌을 가능성이 높습니다(merge 키 불일치 등). "
+            "build_strength_features()의 fielding_result 병합을 확인하세요."
         )
 
     return merged
@@ -911,11 +1004,12 @@ def build() -> pd.DataFrame:
 
     # 1. 원천 데이터
     print("\n[1/7] 실제 원천 데이터 로드")
-    teams_raw, batting_raw, pitching_raw, injuries_raw, players_raw = load_raw_data()
+    teams_raw, batting_raw, pitching_raw, fielding_raw, injuries_raw, players_raw = load_raw_data()
 
     print(f"  teams    : {len(teams_raw):,}")
     print(f"  batting  : {len(batting_raw):,}")
     print(f"  pitching : {len(pitching_raw):,}")
+    print(f"  fielding : {len(fielding_raw):,}")
     print(f"  injuries : {len(injuries_raw):,}")
     print(f"  players  : {len(players_raw):,}")
 
@@ -925,6 +1019,7 @@ def build() -> pd.DataFrame:
         teams_raw,
         batting_raw,
         pitching_raw,
+        fielding_raw,
         injuries_raw,
     )
 

@@ -14,25 +14,25 @@
   ],
   "params": {},
   "metrics": {
-    "accuracy": 0.6816,
-    "precision": 0.5866,
-    "recall": 0.8206,
-    "f1": 0.6842,
-    "roc_auc": 0.7941,
-    "log_loss": 0.5913,
+    "accuracy": 0.6266,
+    "precision": 0.5355,
+    "recall": 0.8476,
+    "f1": 0.6563,
+    "roc_auc": 0.7679,
+    "log_loss": 0.6799,
     "confusion_matrix": [
       [
-        420,
-        303
+        337,
+        386
       ],
       [
-        94,
-        430
+        80,
+        445
       ]
     ],
-    "positive_rate": 0.5878,
-    "n_test": 1247
+    "positive_rate": 0.6659,
+    "n_test": 1248
   },
   "note": "PyTorch MaskedLSTM, SEQ_LEN=5, 선수별 최근 시즌 흐름 재사용(D)",
-  "saved_at": "2026-08-28T14:55:25"
+  "saved_at": "2026-08-28T16:32:05"
 }
