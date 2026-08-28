@@ -8,15 +8,17 @@
   "features": [
     "overall_score",
     "g_ratio",
+    "age",
+    "exp",
     "off_score",
     "ops_z",
     "pit_score",
     "era_z",
     "whip_z"
   ],
-  "n_features": 7,
+  "n_features": 9,
   "metrics": {
-    "precision_at_3": 0.039999999999999994,
+    "precision_at_3": 0.02,
     "evaluated_queries": 100,
     "skipped_queries": 0,
     "evaluation_season": 2024
@@ -24,5 +26,5 @@
   "note": "동일 시즌·역할 후보 KNN 코사인 추천",
   "classes": [],
   "params": {},
-  "saved_at": "2026-08-28T10:45:59"
+  "saved_at": "2026-08-28T12:01:40"
 }

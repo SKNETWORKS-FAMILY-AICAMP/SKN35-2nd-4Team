@@ -8,22 +8,24 @@
   "features": [
     "overall_score",
     "g_ratio",
+    "age",
+    "exp",
     "off_score",
     "ops_z",
     "pit_score",
     "era_z",
     "whip_z"
   ],
-  "n_features": 7,
+  "n_features": 9,
   "metrics": {
-    "precision_at_3": 0.05,
+    "precision_at_3": 0.03333333333333333,
     "evaluated_queries": 100,
     "skipped_queries": 0,
     "evaluation_season": 2024,
-    "reconstruction_loss": 0.03310028091073036
+    "reconstruction_loss": 0.0765727162361145
   },
   "note": "Autoencoder 잠재 벡터 코사인 추천",
   "classes": [],
   "params": {},
-  "saved_at": "2026-08-28T10:45:59"
+  "saved_at": "2026-08-28T12:01:40"
 }
