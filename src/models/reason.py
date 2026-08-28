@@ -9,29 +9,6 @@ RandomForest와 MLP가 그 규칙 기반 라벨을 학습할 수 있는 인터�
 원인 라벨은 공식 방출·은퇴 사유가 아니라 약한 지도학습(weak supervision)을
 위한 추정값이다. 서비스 화면에는 반드시 "연관 요인" 또는 "모델 추정"으로
 표시한다. 자세한 기준은 ``docs/label_spec.md``를 따른다.
-
-원인 태그 적용 범위 (팀 결정, 2026-08-27)
-------------------------------------------
-``이탈유형정의_v2``의 원래 설계원칙은 원인 태그를 방출·은퇴에만 붙이고
-FA·트레이드는 제외하는 것이었다. 팀 논의 결과, 부상은 방출·은퇴뿐 아니라
-트레이드·FA 이적의 배경 요인으로도 실제로 작용할 수 있다고 보고(예: 부상
-이력이 있는 선수를 방출 대신 트레이드로 정리, 부상 이후 시장가치 하락으로
-낮은 조건에 FA 계약) **원인 태그를 전체 이탈 유형(trade/offseason_move/
-league_exit)에 다시 적용하기로 확장 결정**했다. `docs/label_spec.md`와
-`이탈유형정의_v2_원인태그포함.md`에도 이 결정을 반영해야 한다.
-
-단, 이 태그는 여전히 "구단·선수가 이 이유로 떠났다"는 확정 원인이 아니라
-"이탈 시점 전후로 이런 신호가 함께 관측됐다"는 약한 지도학습 추정치다.
-`reason_explanation`의 문구도 "~때문에 이탈함"이 아니라 "~가 함께 관측됨"
-형태로 이미 인과관계를 단정하지 않게 되어 있으니, 화면에 노출할 때도 이
-표현을 그대로 유지할 것.
-
-참고: 이 원인 태그의 적용 범위는 대체 선수 추천 점수식(포지션 적합성 +
-전력 유사도 + 낮은 이탈 위험 + 세부 스탯 유사성)과는 별개다. 추천 점수식의
-"이탈 위험"은 `departure.py`가 예측하는 핵심 이탈확률(`y_departed`/
-`y_core_departed`)이고, 여기서 다루는 `primary_reason`/`reason_tags`는 그
-이탈이 왜 일어났을 가능성이 있는지를 사후 설명하는 별도 출력이다. 즉 원인
-태그 범위를 넓혀도 추천 점수식 자체는 바뀌지 않는다.
 """
 
 from __future__ import annotations
@@ -71,7 +48,6 @@ BASE_REQUIRED_COLUMNS = [
     "overall_score",
     "y_departed",
     "y_path",
-    "y_fa_release",
 ]
 
 INJURY_RAW_COLUMNS = [
@@ -260,14 +236,11 @@ def assign_reason_labels(
     player_season: pd.DataFrame,
     thresholds: ReasonThresholds,
 ) -> pd.DataFrame:
-    """방출·은퇴에 한해 원인 보조 태그와 근거 수준을 부여한다.
+    """이탈자에게 원인 보조 태그와 근거 수준을 부여한다.
 
     반환되는 ``primary_reason``은 다중분류 학습용 대표 태그이고,
     ``reason_tags``에는 동시에 활성화된 모든 태그를 튜플로 보존한다.
-    잔류자와 라벨 검열 행의 ``primary_reason``은 결측이다. 팀 결정(2026-08-27)에
-    따라 원인 태그는 trade/offseason_move/league_exit 전체 이탈 유형에 적용한다
-    (모듈 docstring "원인 태그 적용 범위" 참고) — 단 career_stage(생애주기)는
-    성격상 은퇴·리그이탈에만 의미가 있으므로 league_exit로 한정한다.
+    잔류자와 라벨 검열 행의 primary_reason은 결측이다.
     """
 
     required = BASE_REQUIRED_COLUMNS + [
@@ -280,22 +253,19 @@ def assign_reason_labels(
     out = player_season.copy()
 
     departed = out["y_departed"].eq(1.0)
-    is_retirement_bucket = out["y_path"].eq("league_exit")
-    reason_eligible = departed
-
     injury = (
-        reason_eligible
+        departed
         & out["injury_record_matched"]
         & out["had_injury"].gt(0)
         & out["reason_injury_score"].ge(thresholds.injury_risk)
     )
-    performance = reason_eligible & (
+    performance = departed & (
         out["overall_score_delta"].le(thresholds.score_delta)
         | out["g_chg"].le(thresholds.g_change)
     )
     career = (
-        reason_eligible
-        & is_retirement_bucket
+        departed
+        & out["y_path"].eq("league_exit")
         & (
             out["age"].ge(thresholds.career_age)
             | out["exp"].ge(thresholds.career_exp)
@@ -315,8 +285,8 @@ def assign_reason_labels(
     primary: list[object] = []
     evidence: list[object] = []
 
-    for idx, is_eligible in reason_eligible.items():
-        if not is_eligible:
+    for idx, is_departed in departed.items():
+        if not is_departed:
             tags.append(tuple())
             primary.append(pd.NA)
             evidence.append(pd.NA)
@@ -466,12 +436,28 @@ class ReasonMLP(BaseModel):
         }
         defaults.update(params)
         super().__init__(**defaults)
+        self._label_encoder = None
 
     def _fit(self, X, y):
         from sklearn.impute import SimpleImputer
         from sklearn.neural_network import MLPClassifier
         from sklearn.pipeline import Pipeline
-        from sklearn.preprocessing import StandardScaler
+        from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+        # sklearn 1.8에서 early_stopping=True인 MLPClassifier에 문자열
+        # 타깃을 전달하면 내부 검증 과정에서 TypeError가 발생할 수 있다.
+        # primary_reason을 정수로 인코딩하되, BaseModel.classes_와 같은
+        # 정렬 순서를 사용하여 predict_proba의 열 순서를 유지한다.
+        self._label_encoder = LabelEncoder()
+        y_encoded = self._label_encoder.fit_transform(y)
+
+        encoded_classes = self._label_encoder.classes_.tolist()
+        if self.classes_ and encoded_classes != list(self.classes_):
+            raise ValueError(
+                "BaseModel.classes_와 LabelEncoder 클래스 순서가 "
+                "일치하지 않습니다. "
+                f"BaseModel={self.classes_}, LabelEncoder={encoded_classes}"
+            )
 
         self.model = Pipeline(
             [
@@ -479,7 +465,7 @@ class ReasonMLP(BaseModel):
                 ("scaler", StandardScaler()),
                 ("classifier", MLPClassifier(**self.params)),
             ]
-        ).fit(X, y)
+        ).fit(X, y_encoded)
 
     def _predict_proba(self, X):
         return self.model.predict_proba(X)
@@ -492,19 +478,44 @@ def threshold_metadata(thresholds: ReasonThresholds) -> dict[str, float]:
 
 
 if __name__ == "__main__":
-    # make_mock()은 삭제됐다 — 실제 features_v1 + 실제 부상 데이터로 학습한다.
-    from src.features.contract import SPLIT
+    from src.features.contract import SPLIT, load_features
     from src.models.evaluate import evaluate
 
     ROOT = Path(__file__).resolve().parents[2]
-    features = pd.read_parquet(ROOT / "data" / "final" / "features_v1.parquet")
-    injury = pd.read_csv(ROOT / "data" / "final" / "player_injury_stints.csv")
+    injury_path = ROOT / "data" / "final" / "player_injury_stints.csv"
+    if not injury_path.exists():
+        raise FileNotFoundError(f"실제 부상 데이터가 없습니다: {injury_path}")
+
+    features = load_features()  # contract.validate()까지 통과한 데이터만 사용
+    injury = pd.read_csv(injury_path)
 
     reason_data, fitted = build_reason_dataset(features, injury)
     X, y = to_reason_xy(reason_data)
-    print(f"원인 데이터 생성 완료: X={X.shape}, y={len(y):,}")
-    print(f"원인 분포:\n{y.value_counts().to_string()}")
-    print(f"임계값: {threshold_metadata(fitted)}")
+
+    print("=" * 60)
+    print("실제 원인 데이터 생성 완료")
+    print("=" * 60)
+    print(f"전체 features_v1: {len(features):,}행")
+    print(f"부상 데이터: {len(injury):,}행")
+    print(f"원인 모델 입력: X={X.shape}, y={len(y):,}")
+
+    print("\n[primary_reason 분포]")
+    print(y.value_counts(dropna=False).to_string())
+
+    print("\n[primary_reason 비율(%)]")
+    print(
+        y.value_counts(normalize=True, dropna=False)
+        .mul(100)
+        .round(2)
+        .to_string()
+    )
+
+    print("\n[학습 구간에서 계산된 임계값]")
+    for name, value in threshold_metadata(fitted).items():
+        print(f"{name}: {value:.4f}")
+
+    duplicate_count = int(reason_data.duplicated(KEY).sum())
+    print(f"\n[player_id + season 중복]: {duplicate_count:,}건")
 
     season = reason_data.loc[X.index, "season"]
     train_lo, train_hi = SPLIT["train"]
