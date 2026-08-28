@@ -1,0 +1,38 @@
+{
+  "name": "win_rate_logreg",
+  "task": "win_rate",
+  "kind": "ml",
+  "owner": "A",
+  "is_regression": false,
+  "format": "pickle",
+  "path": "models/win_rate_logreg.pkl",
+  "n_features": 0,
+  "features": [],
+  "classes": [
+    0,
+    1
+  ],
+  "params": {},
+  "metrics": {
+    "accuracy": 0.5467,
+    "precision": 0.5441,
+    "recall": 0.8782,
+    "f1": 0.6719,
+    "roc_auc": 0.5641,
+    "log_loss": 0.6866,
+    "confusion_matrix": [
+      [
+        602,
+        2835
+      ],
+      [
+        469,
+        3383
+      ]
+    ],
+    "positive_rate": 0.8531,
+    "n_test": 7289
+  },
+  "note": "game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10)",
+  "saved_at": "2026-08-28T12:29:38"
+}

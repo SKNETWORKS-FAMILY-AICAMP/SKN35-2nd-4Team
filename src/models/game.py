@@ -99,6 +99,18 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
+import sys as _sys
+from pathlib import Path as _Path
+
+_ROOT_FOR_IMPORT = _Path(__file__).resolve().parents[2]
+if str(_ROOT_FOR_IMPORT) not in _sys.path:
+    _sys.path.insert(0, str(_ROOT_FOR_IMPORT))
+
+from src.models.base import BaseModel  # noqa: E402
+# game.py 자체에 evaluate(name, y_true, y_pred, y_proba)라는 로컬 함수가 이미
+# 있어서(모듈 아래에서 재정의됨) 이름이 겹친다 — d_evaluate로 별칭.
+from src.models.evaluate import evaluate as d_evaluate  # noqa: E402
+
 
 # ----------------------------------------------------------------------
 # 0. 경로 설정 (win_rate.py와 동일한 자동 탐색 방식)
@@ -392,6 +404,41 @@ def predict_dl_model(model, device, X):
 
 
 # ----------------------------------------------------------------------
+# 7.5 D의 공통 레지스트리(BaseModel)에 등록하기 위한 얇은 래퍼
+#
+# task="win_rate"로 등록한다 — base.py의 TASKS에는 "game"이라는 태스크가
+# 없다(5개 태스크 x ML/DL = 10모델 스펙: strength/win_rate/departure/reason/
+# recommend뿐). game.py가 실제로 예측하는 건 "이 경기, 이 상대와 붙었을 때"의
+# 개별 경기 승부라 win_rate 태스크의 정의(evaluate.py의 BINARY_TASKS)와
+# 정확히 일치한다.
+# ----------------------------------------------------------------------
+class WinRateLogReg(BaseModel):
+    name, task, kind, owner = "win_rate_logreg", "win_rate", "ml", "A"
+
+    def _fit(self, X, y):
+        self.model = LogisticRegression(max_iter=1000, random_state=RANDOM_SEED).fit(X, y)
+
+    def _predict_proba(self, X):
+        return self.model.predict_proba(X)
+
+
+class WinRateMLP(BaseModel):
+    name, task, kind, owner = "win_rate_mlp", "win_rate", "dl", "A"
+
+    def _fit(self, X, y):
+        n_val = max(1, int(len(X) * 0.2))
+        X_tr, X_val = X[:-n_val], X[-n_val:]
+        y_tr, y_val = y[:-n_val], y[-n_val:]
+        self.model, _device = train_dl_model(X_tr, y_tr, X_val, y_val)
+
+    def _predict_proba(self, X):
+        device = next(self.model.parameters()).device
+        _, proba = predict_dl_model(self.model, device, X)
+        proba = proba.ravel()
+        return np.column_stack([1 - proba, proba])
+
+
+# ----------------------------------------------------------------------
 # 8. 메인 파이프라인
 # ----------------------------------------------------------------------
 def main():
@@ -452,6 +499,25 @@ def main():
     torch.save(dl_model.state_dict(), os.path.join(MODEL_DIR, "game_dl.pt"))
 
     joblib.dump(scaler, os.path.join(MODEL_DIR, "game_scaler.joblib"))
+
+    # ------------------------------------------------------------------
+    # D의 공통 레지스트리(models/registry/*.json)에도 등록한다 — 이게 있어야
+    # Streamlit "모델 정보" 화면(3_Model_Information.py)에 뜬다. 위에서 이미
+    # 만든 X_train/y_train/X_test/y_test를 그대로 재사용해 새로 학습한다(로컬
+    # logreg/dl_model 변수를 직접 재사용하지 않는 이유: BaseModel.fit()이
+    # feature_names/classes_ 같은 공통 메타를 자동으로 채워줘서, 다른 4개
+    # 태스크 모델들과 완전히 같은 방식으로 저장·비교되게 하기 위함).
+    # ------------------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("4.5) D 공통 레지스트리(BaseModel) 등록")
+    print("=" * 60)
+    for model_cls in (WinRateLogReg, WinRateMLP):
+        registry_model = model_cls()
+        registry_model.fit(X_train, y_train)
+        metrics = d_evaluate(registry_model, X_test, y_test)
+        registry_model.set_metrics(**metrics)
+        saved_path = registry_model.save(note="game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10)")
+        print(f"  [{registry_model.name}] auc={metrics.get('roc_auc', float('nan')):.4f} -> {saved_path}")
 
     print("\n" + "=" * 60)
     print("5) 모델 성능 비교")

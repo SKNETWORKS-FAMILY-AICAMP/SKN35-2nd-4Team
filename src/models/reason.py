@@ -492,22 +492,33 @@ def threshold_metadata(thresholds: ReasonThresholds) -> dict[str, float]:
 
 
 if __name__ == "__main__":
-    from src.features.contract import make_mock
-    from src.features.labels import LABEL_COLUMNS, build_labels
+    # make_mock()은 삭제됐다 — 실제 features_v1 + 실제 부상 데이터로 학습한다.
+    from src.features.contract import SPLIT
+    from src.models.evaluate import evaluate
 
-    mock = make_mock(n_players=500)
-    raw = mock.drop(columns=LABEL_COLUMNS, errors="ignore")
-    labeled = build_labels(raw)
+    ROOT = Path(__file__).resolve().parents[2]
+    features = pd.read_parquet(ROOT / "data" / "final" / "features_v1.parquet")
+    injury = pd.read_csv(ROOT / "data" / "final" / "player_injury_stints.csv")
 
-    # 직접 실행 시 파이프라인 연결만 확인한다. 모델 파일은 저장하지 않는다.
-    injury_mock = labeled.loc[
-        labeled.index % 7 == 0, ["player_id", "season"]
-    ].copy()
-    injury_mock["had_injury"] = 1
-    injury_mock["il_stint_count"] = 1
-
-    reason_data, fitted = build_reason_dataset(labeled, injury_mock)
+    reason_data, fitted = build_reason_dataset(features, injury)
     X, y = to_reason_xy(reason_data)
     print(f"원인 데이터 생성 완료: X={X.shape}, y={len(y):,}")
     print(f"원인 분포:\n{y.value_counts().to_string()}")
     print(f"임계값: {threshold_metadata(fitted)}")
+
+    season = reason_data.loc[X.index, "season"]
+    train_lo, train_hi = SPLIT["train"]
+    test_lo, test_hi = SPLIT["test"]
+    train_mask = season.between(train_lo, train_hi)
+    test_mask = season.between(test_lo, test_hi)
+    X_train, y_train = X.loc[train_mask], y.loc[train_mask]
+    X_test, y_test = X.loc[test_mask], y.loc[test_mask]
+    print(f"\ntrain: {len(X_train):,}건 ({train_lo}~{train_hi}) / test: {len(X_test):,}건 ({test_lo}~{test_hi})")
+
+    for model_cls in (ReasonRandomForest, ReasonMLP):
+        model = model_cls()
+        model.fit(X_train, y_train)
+        metrics = evaluate(model, X_test, y_test)
+        model.set_metrics(**metrics)
+        path = model.save(note="실제 features_v1 + player_injury_stints.csv로 학습")
+        print(f"\n[{model.name}] macro_f1={metrics.get('macro_f1', float('nan')):.4f} -> {path}")

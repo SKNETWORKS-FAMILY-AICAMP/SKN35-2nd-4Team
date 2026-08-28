@@ -27,11 +27,12 @@ topbar("모델 정보")
 with wrap():
     page_header("모델 정보", "예측에 사용된 모델과 성능, 데이터의 한계를 공개합니다.")
 
-    # 기획서 8-1 기준 전체 10개 모델 계획 대비 실제 등록 현황
+    # 기획서 8-1 기준 전체 10개 모델(5태스크 x ML/DL) 계획 대비 실제 등록 현황.
+    # base.py의 TASKS에는 "game"이 따로 없다 — game.py(개별 경기 승부예측)는
+    # win_rate 태스크로 등록된다(경기 단위 이진분류라는 정의가 동일함).
     TOTAL_PLANNED = 10
     PLANNED = {
-        "win_rate": ("A", ["win_rate_lr / win_rate_lgbm", "win_rate_mlp"]),
-        "game": ("A", ["game_lgbm", "game_mlp"]),
+        "win_rate": ("A", ["win_rate_logreg", "win_rate_mlp (game.py 경기단위 승부예측 포함)"]),
         "departure": ("B", ["departure_lgbm", "departure_mlp"]),
         "reason": ("C", ["reason_rf", "reason_mlp"]),
         "strength": ("D", ["strength_xgb", "strength_lstm (또는 strength_mlp 폴백)"]),
@@ -47,7 +48,16 @@ with wrap():
         placeholder("모델 레지스트리", "아직 저장된 모델이 없습니다. `models/registry/*.json` 확인 필요.")
     else:
         table = comparison_table()
-        show_cols = [c for c in ["model", "task", "kind", "owner", "mae", "rmse", "r2", "baseline_mae", "n_test"] if c in table.columns]
+        # task마다 지표 종류가 다르다 — 회귀(strength: mae/rmse/r2), 이진분류
+        # (win_rate/departure: accuracy/f1/roc_auc), 다중분류(reason: accuracy/
+        # macro_f1). 하나로 합쳐서 보여주고, 해당 없는 칸은 자연히 비워둔다.
+        show_cols = [
+            c for c in [
+                "model", "task", "kind", "owner",
+                "accuracy", "f1", "macro_f1", "roc_auc",
+                "mae", "rmse", "r2", "baseline_mae", "n_test",
+            ] if c in table.columns
+        ]
         st.dataframe(table[show_cols], use_container_width=True, hide_index=True)
 
         strength_rows = table[table.task == "strength"] if "task" in table.columns else pd.DataFrame()
@@ -88,12 +98,14 @@ with wrap():
         st.markdown(
             "| 항목 | 내용 |\n|---|---|\n"
             "| 학습 데이터 | Lahman Baseball Database 2000–2025 (CC BY-SA 3.0) |\n"
-            "| 경기 데이터 | MLB Stats API (개인·비상업 무료) — 아직 수집 코드 미작성 |\n"
+            "| 경기 데이터 | MLB Stats API (개인·비상업 무료) — `src/adapters/mlb_api.py` |\n"
             "| 분할 | Train 2000–2021 / Valid 2022–2023 / Test 2024 |\n"
+            "| 부상 데이터 | MLB Stats API transactions — `player_injury_stints.csv` |\n"
         )
         st.markdown(
             "- 시뮬레이션 결과는 실제 미래 승률이 아니라 모델 기반의 가상 시나리오입니다\n"
-            "- 부상 태그는 복귀 패턴으로 추정한 값이며 확정 사실이 아닙니다 (아직 미구현)\n"
+            "- 부상 태그(had_injury/il_stint_count)는 IL(부상자명단) 등재 거래 기록 기반이며,"
+            " 부상 종류·심각도까지 확정하는 것은 아닙니다\n"
             "- 이탈 유형(L2) 분류는 트레이드가 전체의 6%뿐이라 성능에 구조적 한계가 있습니다\n"
             "- 전력 예측(D)은 리그 잔류 선수만으로 학습되어 생존 편향이 존재합니다"
         )

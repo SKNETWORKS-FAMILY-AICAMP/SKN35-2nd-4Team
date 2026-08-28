@@ -1,0 +1,62 @@
+{
+  "name": "departure_mlp",
+  "task": "departure",
+  "kind": "dl",
+  "owner": "B",
+  "is_regression": false,
+  "format": "pickle",
+  "path": "models/departure_mlp.pkl",
+  "n_features": 13,
+  "features": [
+    "age",
+    "exp",
+    "g_ratio",
+    "g_ratio_prev",
+    "g_chg",
+    "off_score",
+    "pit_score",
+    "overall_score",
+    "ops_z",
+    "ops_z_prev",
+    "era_z",
+    "whip_z",
+    "team_wr"
+  ],
+  "classes": [
+    0,
+    1
+  ],
+  "params": {
+    "hidden_layer_sizes": "(64, 32)",
+    "activation": "relu",
+    "solver": "adam",
+    "alpha": "0.0001",
+    "learning_rate_init": "0.001",
+    "max_iter": "300",
+    "early_stopping": "True",
+    "validation_fraction": "0.15",
+    "random_state": "42"
+  },
+  "metrics": {
+    "accuracy": 0.7233,
+    "precision": 0.652,
+    "recall": 0.7328,
+    "f1": 0.69,
+    "roc_auc": 0.807,
+    "log_loss": 0.5311,
+    "confusion_matrix": [
+      [
+        518,
+        205
+      ],
+      [
+        140,
+        384
+      ]
+    ],
+    "positive_rate": 0.4723,
+    "n_test": 1247
+  },
+  "note": "sklearn MLPClassifier 폴백",
+  "saved_at": "2026-08-28T12:36:11"
+}

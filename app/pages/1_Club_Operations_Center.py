@@ -20,7 +20,7 @@ from src.service.simulation import TeamStrength, calculate_team_strength, simula
 from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
+FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 
 
 @st.cache_data(show_spinner=False)
@@ -56,7 +56,7 @@ with wrap():
     try:
         players = load_players()
     except FileNotFoundError:
-        st.error("data/processed/features_v1.parquet 파일이 없습니다.")
+        st.error("data/final/features_v1.parquet 파일이 없습니다.")
         st.stop()
     except ImportError:
         st.error("parquet을 읽기 위한 pyarrow 설치가 필요합니다.")
