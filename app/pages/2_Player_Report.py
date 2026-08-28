@@ -340,7 +340,7 @@ with wrap():
         briefing_detail = (
             f'즉시 이탈 기준 예상 순위는 <b>{result.rank_before}위 → '
             f'{briefing_rank}위</b>입니다. 이후 <b>{replacement_name}</b> 투입 시 '
-            f'승률은 <b>{result.after_replacement_win_rate:.1%}</b>까지 회복됩니다.'
+            f'승률은 <b>{result.after_replacement_win_rate:.2%}</b>까지 회복됩니다.'
         )
     else:
         briefing_win_rate = result.after_replacement_win_rate
@@ -358,7 +358,7 @@ with wrap():
         '<div class="gm-card">'
         f'{result.scenario_label}({result.effective_timing} · {result.absence_scope}) 시나리오에서 '
         f'<b>{departing_name}</b> 관련 의사결정 기준 승률은 '
-        f'<b>{result.current_win_rate:.1%} → {briefing_win_rate:.1%}</b>입니다.<br>'
+        f'<b>{result.current_win_rate:.2%} → {briefing_win_rate:.2%}</b>입니다.<br>'
         f'{briefing_detail}'
         '</div>',
         unsafe_allow_html=True,
@@ -366,9 +366,9 @@ with wrap():
 
     section("승률에 미치는 영향")
     c1, c2, c3 = st.columns(3)
-    c1.metric("이탈 영향", f"{result.impact:+.1%}p")
-    c2.metric("대체 효과", f"{result.replacement_effect:+.1%}p")
-    c3.metric("최종 변화", f"{result.net_effect:+.1%}p")
+    c1.metric("이탈 영향", f"{result.impact:+.2%}p")
+    c2.metric("대체 효과", f"{result.replacement_effect:+.2%}p")
+    c3.metric("최종 변화", f"{result.net_effect:+.2%}p")
 
     with st.expander("이 예측의 근거"):
         used = [
