@@ -1,10 +1,18 @@
 """선수 리포트 — E 추천과 시뮬레이션을 features_v1에 연결한다."""
 
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+# Streamlit이 app/pages를 실행 기준으로 잡아도 프로젝트 패키지를 찾도록 한다.
+ROOT = Path(__file__).resolve().parents[2]
+APP_DIR = ROOT / "app"
+for import_path in (ROOT, APP_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
 
 from src.models.recommend import (
     AutoencoderRecommender,
@@ -20,7 +28,6 @@ from src.service.simulation import (
 )
 from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap
 
-ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
