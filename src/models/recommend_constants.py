@@ -22,6 +22,7 @@ LAHMAN_TEAM_TO_UI = {
     "SFN": "SFG",
     "SLN": "STL",
     "TB": "TBR",
+    "TBA": "TBR",  # 라만 teams.csv는 TBA, 다른 표는 TB를 쓴다 (직접 확인함)
     "WAS": "WSN",
 }
 

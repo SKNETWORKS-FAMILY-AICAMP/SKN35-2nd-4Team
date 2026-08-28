@@ -502,6 +502,14 @@ def _clean_feature_rows(players: pd.DataFrame) -> pd.DataFrame:
     out = players.copy()
     original_count = len(out)
 
+    # 계약을 이미 만족하는 features_v1(B의 build.py 산출물)도 team_last가
+    # 라만 원본 팀코드(NYA/LAN/TBA 등)인 경우가 있다 — UI 코드로 정규화한다.
+    # 이전엔 레거시 변환 분기에서만 이 매핑을 탔었는데, 새 features_v1은
+    # 계약을 이미 만족해 그 분기를 건너뛰면서 팀 코드가 안 바뀌어 팀별
+    # 필터링이 전부 빈 결과를 내던 버그가 있었다(실측 확인됨).
+    if "team_last" in out.columns:
+        out["team_last"] = out["team_last"].replace(LAHMAN_TEAM_TO_UI)
+
     # 문자열이나 inf가 들어와도 계산 계층에는 유한한 숫자만 전달한다.
     for column in ["overall_score", "g_ratio"]:
         out[column] = pd.to_numeric(out[column], errors="coerce").replace(

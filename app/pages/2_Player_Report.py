@@ -32,6 +32,7 @@ from src.service.simulation import (  # noqa: E402
     evaluate_replacements,
     simulate,
 )
+from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.theme import inject_css, init_state, page_header, player_card_html, require_team, section, topbar, wrap  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -121,6 +122,7 @@ with wrap():
     page_header("선수 리포트", "대체 후보를 비교하고 영입 효과를 시뮬레이션합니다")
 
     names = load_name_lookup()
+    photo_lookup = load_mlbam_lookup()
 
     try:
         players = load_players()
@@ -266,7 +268,7 @@ with wrap():
         )
 
     # ── 영입 후보 카드 (FIFA UT 스타일 선택 UI) ──
-    section("영입 후보", "카드를 클릭하듯 골라보세요 · 선택 즉시 아래 시뮬레이션이 갱신됩니다")
+    section("영입 후보", "카드를 클릭하듯 골라보세요 · 선택 즉시 아래 시뮬레이션이 갱신됩니다", icon="swap")
 
     evaluated = evaluated.reset_index(drop=True)
     candidate_ids = evaluated["player_id"].astype(str).tolist()
@@ -305,6 +307,7 @@ with wrap():
                         stat_rows=stat_rows,
                         net_effect_pct=float(row["net_effect"]) * 100,
                         selected=is_selected,
+                        photo_url=headshot_url(pid, photo_lookup),
                     ),
                     unsafe_allow_html=True,
                 )
@@ -331,7 +334,7 @@ with wrap():
         scenario=scenario,
     )
 
-    section("단장 브리핑")
+    section("단장 브리핑", icon="target")
 
     # 방출은 즉시 이탈 결과를, 트레이드와 FA는 대체 완료 결과를 브리핑 기준으로 쓴다.
     if scenario == "release":
@@ -364,7 +367,7 @@ with wrap():
         unsafe_allow_html=True,
     )
 
-    section("승률에 미치는 영향")
+    section("승률에 미치는 영향", icon="chart")
     c1, c2, c3 = st.columns(3)
     c1.metric("이탈 영향", f"{result.impact:+.1%}p")
     c2.metric("대체 효과", f"{result.replacement_effect:+.1%}p")

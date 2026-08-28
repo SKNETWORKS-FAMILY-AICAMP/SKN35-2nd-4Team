@@ -43,7 +43,7 @@ with wrap():
     trained_tasks = {e["task"] for e in entries}
     progress_bar(len(entries), TOTAL_PLANNED, f"전체 {TOTAL_PLANNED}개 모델 중 {len(entries)}개 학습 완료")
 
-    section("학습 완료된 모델")
+    section("학습 완료된 모델", icon="trophy")
     if not entries:
         placeholder("모델 레지스트리", "아직 저장된 모델이 없습니다. `models/registry/*.json` 확인 필요.")
     else:
@@ -93,7 +93,7 @@ with wrap():
     else:
         st.success("계획된 10개 모델이 모두 등록되었습니다.")
 
-    section("데이터와 한계")
+    section("데이터와 한계", icon="shield")
     with st.expander("펼치기"):
         st.markdown(
             "| 항목 | 내용 |\n|---|---|\n"
@@ -110,5 +110,5 @@ with wrap():
             "- 전력 예측(D)은 리그 잔류 선수만으로 학습되어 생존 편향이 존재합니다"
         )
 
-    section("아시안게임 이벤트")
+    section("아시안게임 이벤트", icon="calendar")
     placeholder("조별리그 예측 + 차출 이탈 시뮬레이션", "F9(C, 선택 기능) — 아직 미구현입니다.")

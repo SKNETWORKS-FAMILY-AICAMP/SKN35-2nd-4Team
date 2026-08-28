@@ -101,14 +101,14 @@ with wrap():
         rank_predictor=make_rank_predictor(season_players),
     )
 
-    section("순위 변동 패널", f"{season}시즌 features_v1 기반")
+    section("순위 변동 패널", f"{season}시즌 features_v1 기반", icon="target")
     c1, c2, c3 = st.columns(3)
     c1.metric("현재 예상 승률", f"{result.current_win_rate:.1%}")
     c2.metric("이탈 후 예상 승률", f"{result.after_departure_win_rate:.1%}", f"{result.impact:+.1%}p")
     c3.metric("예상 순위", f"{result.rank_before}위 → {result.rank_after}위")
     st.caption("승률·순위 함수는 simulation.py에 주입되어 실제 예측 함수로 교체할 수 있습니다.")
 
-    section("전력 로스터", "전력 순")
+    section("전력 로스터", "전력 순", icon="team")
     roster = team_players[["player_id", "role", "overall_score", "g_ratio"]].head(15).copy()
     roster.columns = ["선수", "역할", "전력", "출전 비중"]
     st.dataframe(roster, hide_index=True, use_container_width=True)
