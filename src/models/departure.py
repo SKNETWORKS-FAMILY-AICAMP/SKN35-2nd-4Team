@@ -54,7 +54,7 @@ TRAIN_START_YEAR, TRAIN_END_YEAR = 2009, 2021
 VAL_START_YEAR, VAL_END_YEAR = 2022, 2023
 TEST_START_YEAR, TEST_END_YEAR = 2024, 2024
 
-TARGET = "y_core_departed"
+TARGET = "y_departed"
 
 # def_score는 strength.py에 수비 전력 계산이 아직 없어 전부 NaN이라 뺀다.
 FEATURE_COLS = [
