@@ -9,16 +9,14 @@
   "n_features": 0,
   "features": [],
   "classes": [],
-  "params": {
-    "epochs": "15"
-  },
+  "params": {},
   "metrics": {
-    "mae": 6.1201,
-    "rmse": 7.8159,
-    "r2": 0.7273,
-    "baseline_mae": 11.6265,
-    "n_test": 431
+    "mae": 13.2742,
+    "rmse": 15.8264,
+    "r2": 0.4625,
+    "baseline_mae": 18.5268,
+    "n_test": 1124
   },
-  "note": "",
-  "saved_at": "2026-08-26T21:08:03"
+  "note": "PyTorch MaskedLSTM, SEQ_LEN=5",
+  "saved_at": "2026-08-28T16:29:47"
 }

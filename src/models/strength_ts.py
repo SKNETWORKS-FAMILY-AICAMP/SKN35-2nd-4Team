@@ -346,3 +346,67 @@ class StrengthMLP(BaseModel):
 # 이 결과를 B, C의 선수 이탈 예측과 결합해서 대체 선수 추천에 활용
 # 최종적으로 "이 선수가 이탈하면 -> 팀 전력이 얼마나 떨어지고 -> 누구로 대체할 것인가"를 시뮬레이션하는 데 사용"
 # ===========================================================
+
+
+if __name__ == "__main__":
+    from src.features import contract
+    from src.models.evaluate import evaluate
+
+    features = contract.load_features()
+    # had_injury는 features_v1에 아직 없다 - next_strength.py/departure.py의
+    # DepartureLSTM과 동일하게 0으로 채운다(부상 신호 없음으로 보수적 처리).
+    if "had_injury" not in features.columns:
+        features = features.copy()
+        features["had_injury"] = 0.0
+
+    featured = add_lag_features(features)
+    train_df = contract.split(featured, "train")
+    val_df = contract.split(featured, "valid")
+    test_df = contract.split(featured, "test")
+
+    X_train, y_train = make_xy(train_df)
+    X_val, y_val = make_xy(val_df)
+    X_test, y_test = make_xy(test_df)
+    print(f"train {len(X_train)}건 / val {len(X_val)}건 / test {len(X_test)}건 (lag 피처 {len(LAG_FEATURES)}개)")
+
+    # ---- ML: XGBoost (lag 피처) ----
+    print("\n[ML] StrengthXGB 학습...")
+    xgb = StrengthXGB()
+    xgb.fit(X_train, y_train)
+    metrics = evaluate(xgb, X_test, y_test)
+    xgb.set_metrics(**metrics)
+    path = xgb.save(note="lag 피처 XGBoost")
+    print(f"[{xgb.name}] test mae={metrics.get('mae', float('nan')):.4f} r2={metrics.get('r2', float('nan')):.4f} -> {path}")
+
+    # ---- DL: LSTM (시퀀스) ----
+    print("\n[DL] StrengthLSTM 학습 (시퀀스)...")
+    X_seq, y_seq, meta_seq = build_sequences(features)
+    season = meta_seq["season"].to_numpy()
+    tr_lo, tr_hi = contract.SPLIT["train"]
+    va_lo, va_hi = contract.SPLIT["valid"]
+    te_lo, te_hi = contract.SPLIT["test"]
+    tr_mask = (season >= tr_lo) & (season <= tr_hi)
+    va_mask = (season >= va_lo) & (season <= va_hi)
+    te_mask = (season >= te_lo) & (season <= te_hi)
+    print(f"  시퀀스 train {tr_mask.sum()}건 / val {va_mask.sum()}건 / test {te_mask.sum()}건 (SEQ_LEN={SEQ_LEN})")
+
+    try:
+        lstm = StrengthLSTM()
+        lstm.fit(X_seq[tr_mask], y_seq[tr_mask])
+        metrics = evaluate(lstm, X_seq[te_mask], y_seq[te_mask])
+        lstm.set_metrics(**metrics)
+        path = lstm.save(note=f"PyTorch MaskedLSTM, SEQ_LEN={SEQ_LEN}")
+        print(f"[{lstm.name}] test mae={metrics.get('mae', float('nan')):.4f} r2={metrics.get('r2', float('nan')):.4f} -> {path}")
+    except ImportError as exc:
+        print(f"  torch 미설치로 StrengthLSTM 학습 건너뜀: {exc}")
+
+    # ---- DL 폴백: MLP (2D lag 피처, torch 없는 환경 대체용) ----
+    # registry엔 별도 모델(strength_mlp)로 항상 같이 등록한다 - LSTM과 비교
+    # 기준점으로도 쓰인다(성능 개선 목록에서 LSTM이 이걸 못 넘어서는 문제 확인됨).
+    print("\n[DL] StrengthMLP 학습 (폴백/비교 기준)...")
+    mlp = StrengthMLP()
+    mlp.fit(X_train, y_train)
+    metrics = evaluate(mlp, X_test, y_test)
+    mlp.set_metrics(**metrics)
+    path = mlp.save(note="sklearn MLPRegressor 폴백/비교 기준")
+    print(f"[{mlp.name}] test mae={metrics.get('mae', float('nan')):.4f} r2={metrics.get('r2', float('nan')):.4f} -> {path}")

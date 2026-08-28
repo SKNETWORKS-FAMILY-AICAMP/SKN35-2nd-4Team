@@ -70,10 +70,13 @@ TEST_START_YEAR, TEST_END_YEAR = 2024, 2024
 # 행이 자동으로 결측 처리돼서 학습에서 빠진다.
 TARGET = "y_core_departed"
 
-# def_score는 strength.py에 수비 전력 계산이 아직 없어 전부 NaN이라 뺀다.
+# def_score: strength.compute_fielding_strength()가 실제 값을 채우게 되면서
+# (2026-08-28) 다시 포함시켰다. 수비 기록이 아예 없는 선수-시즌(지명타자 등)은
+# 여전히 NaN — LGBM은 결측을 자체 처리하고, MLP/LSTM 경로는 SimpleImputer로
+# 중앙값 대체한다(둘 다 기존에도 다른 컬럼 결측을 이렇게 다뤄왔음).
 FEATURE_COLS = [
     "age", "exp", "g_ratio", "g_ratio_prev", "g_chg",
-    "off_score", "pit_score", "overall_score",
+    "off_score", "pit_score", "def_score", "overall_score",
     "ops_z", "ops_z_prev", "era_z", "whip_z", "team_wr",
 ]
 

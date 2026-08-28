@@ -6,7 +6,7 @@
   "is_regression": false,
   "format": "pickle",
   "path": "models/departure_mlp.pkl",
-  "n_features": 13,
+  "n_features": 14,
   "features": [
     "age",
     "exp",
@@ -15,6 +15,7 @@
     "g_chg",
     "off_score",
     "pit_score",
+    "def_score",
     "overall_score",
     "ops_z",
     "ops_z_prev",
@@ -38,25 +39,25 @@
     "random_state": "42"
   },
   "metrics": {
-    "accuracy": 0.7233,
-    "precision": 0.652,
-    "recall": 0.7328,
-    "f1": 0.69,
-    "roc_auc": 0.807,
-    "log_loss": 0.5311,
+    "accuracy": 0.7436,
+    "precision": 0.7014,
+    "recall": 0.68,
+    "f1": 0.6905,
+    "roc_auc": 0.8245,
+    "log_loss": 0.51,
     "confusion_matrix": [
       [
-        518,
-        205
+        571,
+        152
       ],
       [
-        140,
-        384
+        168,
+        357
       ]
     ],
-    "positive_rate": 0.4723,
-    "n_test": 1247
+    "positive_rate": 0.4079,
+    "n_test": 1248
   },
   "note": "sklearn MLPClassifier 폴백",
-  "saved_at": "2026-08-28T14:55:09"
+  "saved_at": "2026-08-28T16:31:54"
 }

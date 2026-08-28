@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import math
 from contextlib import contextmanager
 
 import streamlit as st
@@ -191,7 +192,6 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   transition:transform .18s ease, box-shadow .18s ease;border:1px solid rgba(255,255,255,.12)}
 .gm-pcard::after{content:"";position:absolute;inset:0;background:
   linear-gradient(115deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 30%);pointer-events:none}
-.gm-pcard:hover{transform:translateY(-5px) scale(1.025)}
 @keyframes gm-pop{from{opacity:0;transform:translateY(22px) scale(.82) rotate(-2deg)}
   to{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
 
@@ -257,6 +257,76 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   background:var(--navy) !important;color:#fff !important;border-color:var(--navy) !important;opacity:1 !important;
   box-shadow:inset 0 0 0 2px var(--team-accent) !important}
 
+/* 카드 자체에 perspective() 를 transform 함수 체인에 넣어 부모 요소 손대지 않고
+   카드 개별 3D 기울임을 준다 — hover 시 살짝 입체적으로 들리는 느낌 */
+.gm-pcard:hover{transform:perspective(900px) rotateX(4deg) rotateY(-5deg) translateY(-6px) scale(1.035)}
+@media (prefers-reduced-motion: reduce){ .gm-pcard:hover{transform:translateY(-3px)} }
+
+/* ── 레전더리 등급(ovr 80+) — 홀로그래픽 트레이딩카드 느낌 ──
+   ::after 는 기존 고정 대각선 하이라이트가 쓰고 있어서, 움직이는 홀로 시트는
+   ::before 에 새로 둔다(레전더리 카드에만 존재) */
+.gm-pcard.tier-legendary{
+  background:linear-gradient(155deg,#1B0F3A,#5B2A9E 30%,#B33FA0 52%,#3FA8C9 74%,#1B0F3A);
+  background-size:280% 280%;border-color:rgba(255,255,255,.35);
+  animation:gm-pop .55s cubic-bezier(.2,.9,.25,1.15) both,
+            gm-holo-drift 6s ease-in-out infinite,
+            gm-legend-glow 2.4s ease-in-out infinite;
+  animation-delay:calc(var(--i,0) * 100ms), 0s, 0s}
+@keyframes gm-holo-drift{0%,100%{background-position:0% 30%}50%{background-position:100% 70%}}
+@keyframes gm-legend-glow{
+  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.22),0 0 20px rgba(179,63,160,.45),0 8px 18px rgba(0,0,0,.4)}
+  50%{box-shadow:0 0 0 1px rgba(255,255,255,.4),0 0 36px rgba(63,168,201,.6),0 8px 22px rgba(0,0,0,.45)}}
+.gm-pcard.tier-legendary::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.65) 46%,rgba(160,255,255,.4) 51%,transparent 66%);
+  background-size:260% 260%;mix-blend-mode:overlay;
+  animation:gm-holo-sweep 3.4s ease-in-out infinite}
+@keyframes gm-holo-sweep{0%{background-position:220% 220%}100%{background-position:-40% -40%}}
+.gm-pcard.tier-legendary .pc-rank{background:linear-gradient(120deg,#B33FA0,#3FA8C9);
+  box-shadow:0 0 8px rgba(179,63,160,.6)}
+@media (prefers-reduced-motion: reduce){
+  .gm-pcard.tier-legendary{animation:gm-pop .55s cubic-bezier(.2,.9,.25,1.15) both}
+  .gm-pcard.tier-legendary::before{animation:none}
+}
+
+/* ══ 선수 프로파일 히어로 카드 (선수 리포트 — 레이더 차트 + 큰 등번호 워터마크) ══ */
+.gm-hero-card{position:relative;border-radius:20px;padding:26px 28px;overflow:hidden;color:#fff;
+  background:radial-gradient(900px 340px at 12% -10%, var(--team-accent) 0%, var(--navy) 55%),
+             linear-gradient(155deg,var(--navy-2),var(--navy));
+  box-shadow:0 14px 32px rgba(0,0,0,.28);margin-bottom:12px;
+  display:flex;flex-wrap:wrap;gap:22px;align-items:center;
+  animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.1) both}
+.gm-hero-watermark{position:absolute;right:-8px;bottom:-38px;font-size:168px;font-weight:800;
+  color:rgba(255,255,255,.07);line-height:1;letter-spacing:-6px;pointer-events:none;user-select:none}
+.gm-hero-id{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;
+  gap:10px;min-width:180px;flex:1}
+.gm-hero-avatar{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:800;color:#fff;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 35% 28%, rgba(255,255,255,.4), rgba(255,255,255,.08) 65%);
+  border:3px solid var(--team-accent);box-shadow:0 4px 14px rgba(0,0,0,.35), inset 0 0 14px rgba(0,0,0,.2)}
+.gm-hero-avatar svg{position:absolute;inset:0;width:100%;height:100%;opacity:.4;color:#fff}
+.gm-hero-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
+.gm-hero-avatar .pc-initials{position:relative;z-index:1}
+.gm-hero-name{font-size:20px;font-weight:800;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.gm-hero-role{font-size:12px;color:rgba(255,255,255,.65);letter-spacing:.4px;margin-top:-4px}
+.gm-hero-ovr-row{display:flex;align-items:baseline;gap:6px}
+.gm-hero-ovr{font-size:40px;font-weight:800;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.35)}
+.gm-hero-ovr-label{font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:1px;text-transform:uppercase}
+.gm-hero-chips{display:flex;gap:6px;flex-wrap:wrap}
+.gm-hero-chip{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:8px;color:#fff;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
+.gm-hero-radar{position:relative;z-index:1;flex-shrink:0;margin-left:auto}
+.gm-radar-fill{animation:gm-radar-grow .7s cubic-bezier(.2,.8,.2,1) .1s both;transform-origin:center}
+@keyframes gm-radar-grow{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.gm-radar-dot{animation:gm-badge-pop .35s cubic-bezier(.2,.9,.25,1.4) both}
+
+/* ══ 추세 그래프 (선수 리포트) — 실선(실측)이 그려지는 느낌 + 예측 구간 점선 ══ */
+.gm-trend-card{background:linear-gradient(155deg,var(--navy-2),var(--navy));border-radius:14px;
+  padding:14px 10px 6px;margin-bottom:10px;box-shadow:var(--shadow-sm);overflow:hidden}
+.gm-trend-card svg{display:block;width:100%;height:auto}
+.gm-trend-line{stroke-dasharray:1400;stroke-dashoffset:1400;animation:gm-trend-draw 1.1s cubic-bezier(.2,.7,.2,1) .1s forwards}
+@keyframes gm-trend-draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){ .gm-trend-line{animation:none;stroke-dashoffset:0} }
+
 /* ══ 오늘 경기 — VS 매치업 카드 ══ */
 .gm-vs-grid{display:flex;flex-direction:column;gap:10px}
 .gm-vs-card{position:relative;background:linear-gradient(135deg,var(--navy-2),var(--navy));
@@ -270,7 +340,10 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-vs-team{display:flex;flex-direction:column;gap:2px;min-width:0}
 .gm-vs-team.away{text-align:left}
 .gm-vs-team.home{text-align:right;align-items:flex-end}
-.gm-vs-name{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gm-vs-name{font-size:14.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%}
+/* align-items:flex-end(.home) 은 자식을 stretch 하지 않아 overflow:hidden 이
+   콘텐츠 폭에 안 걸리는 문제가 있었다 — max-width:100% 로 그리드 트랙 폭에 강제로 고정 */
 .gm-vs-tag{font-size:10px;color:rgba(255,255,255,.55);letter-spacing:.5px;text-transform:uppercase}
 .gm-vs-mid{display:flex;flex-direction:column;align-items:center;gap:2px}
 .gm-vs-bolt{font-size:11px;font-weight:800;color:rgba(255,255,255,.5);letter-spacing:1px}
@@ -279,6 +352,35 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-vs-bar-away{height:100%;background:linear-gradient(90deg,#9CA9C9,#DCE3F2)}
 .gm-vs-bar-home{height:100%;background:linear-gradient(90deg,var(--team-accent),#fff)}
 .gm-vs-winner{font-size:10px;font-weight:800;color:#FFE9A8;letter-spacing:.3px;margin-top:2px}
+
+/* 야간 경기장 조명 느낌 — 카드 위쪽 모서리에서 은은하게 스치는 두 줄기 빛 */
+.gm-vs-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(200deg, rgba(255,255,255,.16) 0%, transparent 22%),
+    linear-gradient(340deg, rgba(255,255,255,.1) 0%, transparent 28%);
+  opacity:.8;animation:gm-floodlight 5s ease-in-out infinite}
+@keyframes gm-floodlight{0%,100%{opacity:.55}50%{opacity:1}}
+
+/* 모델 예측 배지 — "실시간 중계"가 아니라 "AI 예측"임을 정직하게 표시하면서도
+   레퍼런스의 LIVE 펄스 뱃지 느낌을 그대로 가져온다 */
+.gm-live-badge{position:absolute;top:10px;right:14px;z-index:2;display:flex;align-items:center;gap:5px;
+  font-size:9px;font-weight:800;letter-spacing:.6px;color:rgba(255,255,255,.85)}
+.gm-live-dot{width:6px;height:6px;border-radius:50%;background:#3FD17B;flex-shrink:0;
+  box-shadow:0 0 0 0 rgba(63,209,123,.6);animation:gm-live-pulse 1.6s ease-out infinite}
+@keyframes gm-live-pulse{0%{box-shadow:0 0 0 0 rgba(63,209,123,.55)}70%{box-shadow:0 0 0 7px rgba(63,209,123,0)}
+  100%{box-shadow:0 0 0 0 rgba(63,209,123,0)}}
+@media (prefers-reduced-motion: reduce){
+  .gm-vs-card::after{animation:none}
+  .gm-live-dot{animation:none}
+}
+
+/* 좁은 화면(모바일 폭)에서는 3컬럼 그리드가 팀명을 겹치게 만들어 세로 스택으로 전환 */
+@media (max-width: 480px){
+  .gm-vs-row{grid-template-columns:1fr;justify-items:center;text-align:center;gap:6px}
+  .gm-vs-team.away, .gm-vs-team.home{align-items:center;text-align:center}
+  .gm-vs-name{white-space:normal;max-width:100%}
+  .gm-live-badge{position:static;justify-content:center;margin-bottom:6px}
+}
 
 /* ══ 예상 순위 — 리빌 인터랙션 ══ */
 .gm-standing-row{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
@@ -578,6 +680,8 @@ _PLAYER_SILHOUETTE_SVG = (
 
 
 def _card_tier(ovr: float) -> str:
+    if ovr >= 80:
+        return "legendary"
     if ovr >= 65:
         return "gold"
     if ovr >= 50:
@@ -633,6 +737,203 @@ def player_card_html(
         f'<div class="pc-net" style="color:{net_color};background:rgba(255,255,255,.9)">'
         f"{net_sign}{net_effect_pct:.1f}%p</div>"
         "</div>"
+    )
+
+
+def radar_chart_svg(
+    axes: list[tuple[str, float]],
+    *,
+    max_value: float = 100.0,
+    size: int = 210,
+    color: str = "var(--team-accent)",
+) -> str:
+    """레이더(스타) 차트 SVG. NBA 대시보드 레퍼런스 스타일 — 값은 0~max_value.
+
+    축이 3개 미만이면 다각형이 의미가 없어 막대로 대체하지 않고 그대로 그린다
+    (호출부가 최소 3축을 보장해야 함).
+    """
+    n = len(axes)
+    if n < 3:
+        raise ValueError("radar_chart_svg 는 최소 3개 축이 필요합니다")
+
+    cx = cy = size / 2
+    r_max = size * 0.34
+    label_r = size * 0.46
+
+    def _point(i: int, r: float) -> tuple[float, float]:
+        angle = -math.pi / 2 + i * (2 * math.pi / n)
+        return cx + r * math.cos(angle), cy + r * math.sin(angle)
+
+    # 배경 그리드 (25/50/75/100%) — 동심 폴리곤
+    grid_polys = []
+    for frac in (0.25, 0.5, 0.75, 1.0):
+        pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in (_point(i, r_max * frac) for i in range(n)))
+        grid_polys.append(f'<polygon points="{pts}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1"/>')
+
+    axis_lines = []
+    labels_html = []
+    for i, (label, _value) in enumerate(axes):
+        x, y = _point(i, r_max)
+        axis_lines.append(f'<line x1="{cx:.1f}" y1="{cy:.1f}" x2="{x:.1f}" y2="{y:.1f}" '
+                           'stroke="rgba(255,255,255,.16)" stroke-width="1"/>')
+        lx, ly = _point(i, label_r)
+        # 좌/우 라벨은 텍스트가 잘리지 않게 anchor 를 위치에 맞춘다
+        anchor = "middle" if abs(lx - cx) < size * 0.06 else ("start" if lx > cx else "end")
+        labels_html.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" dominant-baseline="middle" '
+            f'font-size="{max(9, size * 0.052):.0f}" font-weight="700" fill="rgba(255,255,255,.75)">{label}</text>'
+        )
+
+    data_pts = [_point(i, r_max * max(0.0, min(1.0, value / max_value))) for i, (_l, value) in enumerate(axes)]
+    data_poly = " ".join(f"{x:.1f},{y:.1f}" for x, y in data_pts)
+    dots = "".join(
+        f'<circle class="gm-radar-dot" cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}" '
+        f'stroke="#fff" stroke-width="1.2" style="animation-delay:{.5 + i * .05}s"/>'
+        for i, (x, y) in enumerate(data_pts)
+    )
+    grad_id = f"gm-radar-grad-{abs(hash(tuple(a for a, _ in axes))) % 100000}"
+
+    return (
+        f'<svg class="gm-radar" width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        'xmlns="http://www.w3.org/2000/svg">'
+        f'<defs><radialGradient id="{grad_id}" cx="50%" cy="50%" r="65%">'
+        f'<stop offset="0%" stop-color="{color}" stop-opacity=".55"/>'
+        f'<stop offset="100%" stop-color="{color}" stop-opacity=".12"/>'
+        "</radialGradient></defs>"
+        + "".join(grid_polys)
+        + "".join(axis_lines)
+        + f'<polygon class="gm-radar-fill" points="{data_poly}" fill="url(#{grad_id})" '
+        f'stroke="{color}" stroke-width="2" stroke-linejoin="round"/>'
+        + dots
+        + "".join(labels_html)
+        + "</svg>"
+    )
+
+
+def player_hero_card_html(
+    *,
+    name: str,
+    role_label: str,
+    team: str,
+    ovr: float,
+    radar_axes: list[tuple[str, float]],
+    chips: list[str] | None = None,
+    photo_url: str | None = None,
+) -> str:
+    """선수 리포트용 큰 프로파일 카드 — 왼쪽 아이덴티티 + 오른쪽 레이더 차트.
+
+    NBA 대시보드 레퍼런스(선수 사진 + 등번호 워터마크 + 레이더)를 이 프로젝트의
+    실제 데이터(overall_score 등)로 재구성한 것 — 사진이 없으면 실루엣+이니셜로
+    자연스럽게 대체된다(player_card_html 과 동일한 폴백 원칙).
+    """
+    initials = "".join(part[0] for part in name.replace("-", " ").split()[:2]).upper() or "?"
+    photo_html = (
+        f'<img src="{photo_url}" alt="" loading="lazy" onerror="this.style.display=\'none\'"/>'
+        if photo_url else ""
+    )
+    chips_html = "".join(f'<span class="gm-hero-chip">{c}</span>' for c in (chips or []))
+    return (
+        '<div class="gm-hero-card">'
+        f'<div class="gm-hero-watermark">{ovr:.0f}</div>'
+        '<div class="gm-hero-id">'
+        f'<div class="gm-hero-avatar">{_PLAYER_SILHOUETTE_SVG}<span class="pc-initials">{initials}</span>{photo_html}</div>'
+        '<div>'
+        f'<div class="gm-hero-name">{name}</div>'
+        f'<div class="gm-hero-role">{role_label} · {team}</div>'
+        "</div>"
+        '<div class="gm-hero-ovr-row">'
+        f'<span class="gm-hero-ovr">{ovr:.0f}</span>'
+        '<span class="gm-hero-ovr-label">종합 전력</span>'
+        "</div>"
+        f'<div class="gm-hero-chips">{chips_html}</div>'
+        "</div>"
+        f'<div class="gm-hero-radar">{radar_chart_svg(radar_axes)}</div>'
+        "</div>"
+    )
+
+
+def trend_chart_svg(
+    seasons: list[int],
+    values: list[float],
+    *,
+    future_season: int | None = None,
+    future_value: float | None = None,
+    max_value: float = 100.0,
+    width: int = 560,
+    height: int = 200,
+    color: str = "var(--team-accent)",
+) -> str:
+    """시즌별 전력 추세 라인차트. future_season/future_value가 있으면 마지막
+    실측 지점에서 점선으로 이어지는 "예측" 구간을 덧붙인다(D의 strength_mlp
+    다음 시즌 예측 — 확정 결과가 아니라 모델 추정이므로 점선+다른 색으로
+    시각적으로 분리한다. 실측과 예측을 같은 실선으로 섞어 보여주지 않는다).
+    """
+    if len(seasons) != len(values):
+        raise ValueError("seasons와 values 길이가 같아야 합니다")
+    pad_l, pad_r, pad_t, pad_b = 34, 18, 16, 26
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+
+    all_seasons = list(seasons) + ([future_season] if future_season is not None else [])
+    n = len(all_seasons)
+    if n < 2:
+        step = 0.0
+    else:
+        step = plot_w / (n - 1)
+
+    def _xy(i: int, value: float) -> tuple[float, float]:
+        x = pad_l + i * step
+        y = pad_t + (1 - max(0.0, min(1.0, value / max_value))) * plot_h
+        return x, y
+
+    # 격자선 (0/25/50/75/100)
+    grid = []
+    for frac in (0, 0.25, 0.5, 0.75, 1.0):
+        gy = pad_t + (1 - frac) * plot_h
+        grid.append(
+            f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{width - pad_r}" y2="{gy:.1f}" '
+            'stroke="rgba(255,255,255,.08)" stroke-width="1"/>'
+        )
+        grid.append(
+            f'<text x="{pad_l - 8}" y="{gy + 3:.1f}" text-anchor="end" font-size="9" '
+            f'fill="rgba(255,255,255,.4)">{frac * max_value:.0f}</text>'
+        )
+
+    hist_pts = [_xy(i, v) for i, v in enumerate(values)]
+    hist_path = " ".join(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(hist_pts))
+    hist_dots = "".join(
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.2" fill="{color}" stroke="#0A1220" stroke-width="1.5"/>'
+        for x, y in hist_pts
+    )
+    labels = "".join(
+        f'<text x="{x:.1f}" y="{height - 8}" text-anchor="middle" font-size="9.5" '
+        f'fill="rgba(255,255,255,.55)">{s}</text>'
+        for (x, _y), s in zip(hist_pts, seasons)
+    )
+
+    future_html = ""
+    if future_season is not None and future_value is not None and hist_pts:
+        fx, fy = _xy(n - 1, future_value)
+        lx, ly = hist_pts[-1]
+        future_html = (
+            f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{fx:.1f}" y2="{fy:.1f}" '
+            f'stroke="#FFC94D" stroke-width="2.5" stroke-dasharray="5,4" stroke-linecap="round"/>'
+            f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="4.5" fill="none" stroke="#FFC94D" stroke-width="2.5"/>'
+            f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="2" fill="#FFC94D"/>'
+            f'<text x="{fx:.1f}" y="{height - 8}" text-anchor="middle" font-size="9.5" '
+            f'font-weight="800" fill="#FFC94D">{future_season}?</text>'
+        )
+
+    return (
+        f'<svg class="gm-trend" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+        'xmlns="http://www.w3.org/2000/svg">'
+        + "".join(grid)
+        + f'<path class="gm-trend-line" d="{hist_path}" fill="none" stroke="{color}" '
+        'stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+        + hist_dots
+        + future_html
+        + labels
+        + "</svg>"
     )
 
 

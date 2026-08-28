@@ -17,15 +17,37 @@ if _ROOT not in sys.path:
 
 from src.models.recommend import adapt_features_v1  # noqa: E402
 from src.service.simulation import TeamStrength, calculate_team_strength, simulate  # noqa: E402
-from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap  # noqa: E402
+from ui.risk import (  # noqa: E402
+    REASON_DISPLAY,
+    load_departure_model,
+    load_reason_model,
+    predict_departure_risk,
+    predict_reason_tags,
+    reason_badge_html,
+)
+from ui.theme import badge, inject_css, init_state, page_header, require_team, section, topbar, wrap  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
+DEPARTURE_MODEL_PATH = ROOT / "models" / "departure_lgbm.pkl"
+REASON_MODEL_PATH = ROOT / "models" / "reason_rf.pkl"
+PEOPLE_PATH = ROOT / "data" / "processed" / "People.csv"
+
+ROLE_LABEL = {"B": "타자", "P": "투수", "TWO": "투타겸업"}
 
 
 @st.cache_data(show_spinner=False)
 def load_players() -> pd.DataFrame:
     return adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+
+
+@st.cache_data(show_spinner=False)
+def load_name_lookup() -> dict[str, str]:
+    if not PEOPLE_PATH.exists():
+        return {}
+    people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
+    names = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
+    return dict(zip(people["playerID"], names))
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
@@ -83,14 +105,49 @@ with wrap():
         st.warning(f"{season}시즌 {team_code} 선수 데이터가 없습니다.")
         st.stop()
 
-    team_players = team_players.sort_values("overall_score", ascending=False)
+    team_players = team_players.sort_values("overall_score", ascending=False).copy()
+
+    # ── 이탈위험 + 연관 요인 (이 서비스의 핵심 — "누가 떠날 위험이 큰가"를
+    # 로스터 전체에 대해 먼저 보여준다. 전력순 정렬만 있던 기존 화면의 공백) ──
+    names = load_name_lookup()
+    departure_model = load_departure_model(
+        DEPARTURE_MODEL_PATH.stat().st_mtime_ns if DEPARTURE_MODEL_PATH.exists() else 0
+    )
+    reason_model = load_reason_model(
+        REASON_MODEL_PATH.stat().st_mtime_ns if REASON_MODEL_PATH.exists() else 0
+    )
+    team_players["departure_risk"] = predict_departure_risk(departure_model, team_players)
+    reason_tags = predict_reason_tags(reason_model, players, team_players["player_id"].astype(str))
+    reason_map = dict(zip(reason_tags["player_id"], reason_tags["reason_tag"]))
+    team_players["reason_tag"] = team_players["player_id"].astype(str).map(reason_map)
+    team_players["이름"] = team_players["player_id"].astype(str).map(lambda pid: names.get(pid, pid))
+
     default_player = st.session_state.get("selected_player_id")
     ids = team_players["player_id"].astype(str).tolist()
+
+    sort_label = st.radio(
+        "로스터 정렬",
+        ["🚨 이탈위험순", "💪 전력순"],
+        horizontal=True,
+        key="roster_sort",
+    )
+    ranked = (
+        team_players.sort_values("departure_risk", ascending=False, na_position="last")
+        if sort_label.endswith("이탈위험순")
+        else team_players.sort_values("overall_score", ascending=False)
+    )
+
     selected_id = st.selectbox(
         "이탈 시뮬레이션 선수",
-        ids,
-        index=ids.index(default_player) if default_player in ids else 0,
-        format_func=lambda pid: f"{pid} · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.2f}",
+        ranked["player_id"].astype(str).tolist(),
+        index=(
+            ranked["player_id"].astype(str).tolist().index(default_player)
+            if default_player in ids else 0
+        ),
+        format_func=lambda pid: (
+            f"{names.get(pid, pid)} · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.1f}"
+            f" · 이탈위험 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'departure_risk'].iloc[0]:.0%}"
+        ),
     )
     st.session_state.selected_player_id = selected_id
 
@@ -108,9 +165,31 @@ with wrap():
     c3.metric("예상 순위", f"{result.rank_before}위 → {result.rank_after}위")
     st.caption("승률·순위 함수는 simulation.py에 주입되어 실제 예측 함수로 교체할 수 있습니다.")
 
-    section("전력 로스터", "전력 순", icon="team")
-    roster = team_players[["player_id", "role", "overall_score", "g_ratio"]].head(15).copy()
-    roster.columns = ["선수", "역할", "전력", "출전 비중"]
+    top_risk = ranked.dropna(subset=["departure_risk"]).nlargest(3, "departure_risk")
+    if not top_risk.empty and sort_label.endswith("이탈위험순"):
+        section("이탈위험 TOP 3", "모델 추정 — 인과관계 단정 아님", icon="shield")
+        rc = st.columns(3)
+        for col, (_, r) in zip(rc, top_risk.iterrows()):
+            with col:
+                badge_html = reason_badge_html(r.get("reason_tag", ""))
+                col.markdown(
+                    f'<div class="gm-card" style="text-align:center">'
+                    f'<div style="font-weight:800;font-size:14.5px">{r["이름"]}</div>'
+                    f'<div class="gm-kpi-v" style="color:var(--risk);font-size:22px;margin:4px 0">'
+                    f'{r["departure_risk"]:.0%}</div>'
+                    f'{badge_html}'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+    section("전력 로스터", sort_label, icon="team")
+    roster = ranked[["이름", "role", "overall_score", "g_ratio", "departure_risk", "reason_tag"]].head(20).copy()
+    roster["role"] = roster["role"].map(ROLE_LABEL).fillna(roster["role"])
+    roster["departure_risk"] = roster["departure_risk"].map(lambda v: f"{v:.0%}" if pd.notna(v) else "—")
+    roster["reason_tag"] = roster["reason_tag"].fillna("").map(
+        lambda t: f"{REASON_DISPLAY[t][1]} {REASON_DISPLAY[t][0]}" if t in REASON_DISPLAY else ""
+    )
+    roster.columns = ["선수", "역할", "전력", "출전 비중", "이탈위험", "연관 요인(모델 추정)"]
     st.dataframe(roster, hide_index=True, use_container_width=True)
 
     if st.button("선수 리포트에서 대체 후보 보기", type="primary"):

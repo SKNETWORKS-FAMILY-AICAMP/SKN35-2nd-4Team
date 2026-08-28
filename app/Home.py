@@ -95,6 +95,7 @@ with st.container(key="hero"):
                 accent = TEAM_COLORS.get(winner_code, ("#3E6FB0", "#3E6FB0"))[1]
                 rows_html.append(
                     f'<div class="gm-vs-card" style="--i:{i};--team-accent:{accent}">'
+                    '<span class="gm-live-badge"><span class="gm-live-dot"></span>AI 예측</span>'
                     '<div class="gm-vs-row">'
                     f'<div class="gm-vs-team away"><span class="gm-vs-tag">원정</span>'
                     f'<span class="gm-vs-name">{away_name}</span></div>'

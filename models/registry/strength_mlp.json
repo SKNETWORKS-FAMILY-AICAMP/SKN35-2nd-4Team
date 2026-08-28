@@ -6,7 +6,7 @@
   "is_regression": true,
   "format": "pickle",
   "path": "models/strength_mlp.pkl",
-  "n_features": 18,
+  "n_features": 20,
   "features": [
     "overall_score",
     "score_lag1",
@@ -25,17 +25,19 @@
     "exp",
     "ops_z",
     "era_z",
-    "team_wr"
+    "team_wr",
+    "had_injury",
+    "injury_lag1"
   ],
   "classes": [],
   "params": {},
   "metrics": {
-    "mae": 3.7563,
-    "rmse": 4.7379,
-    "r2": 0.8998,
-    "baseline_mae": 11.6265,
-    "n_test": 431
+    "mae": 12.5653,
+    "rmse": 15.0934,
+    "r2": 0.5111,
+    "baseline_mae": 18.5268,
+    "n_test": 1124
   },
-  "note": "",
-  "saved_at": "2026-08-25T21:10:59"
+  "note": "sklearn MLPRegressor 폴백/비교 기준",
+  "saved_at": "2026-08-28T16:29:48"
 }

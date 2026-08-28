@@ -39,22 +39,22 @@
     "n_jobs": "-1"
   },
   "metrics": {
-    "accuracy": 0.8941,
-    "macro_f1": 0.8419,
-    "weighted_f1": 0.8995,
+    "accuracy": 0.8956,
+    "macro_f1": 0.8421,
+    "weighted_f1": 0.9015,
     "f1_per_class": {
-      "career_stage": 0.5634,
-      "injury_associated": 0.932,
-      "mixed": 0.902,
-      "performance_decline": 0.8968,
-      "unknown": 0.9153
+      "career_stage": 0.5556,
+      "injury_associated": 0.9333,
+      "mixed": 0.9083,
+      "performance_decline": 0.8976,
+      "unknown": 0.9158
     },
     "support_per_class": {
       "career_stage": 24,
-      "injury_associated": 141,
-      "mixed": 241,
-      "performance_decline": 120,
-      "unknown": 201
+      "injury_associated": 131,
+      "mixed": 252,
+      "performance_decline": 119,
+      "unknown": 202
     },
     "labels": [
       "career_stage",
@@ -73,36 +73,36 @@
       ],
       [
         0,
-        137,
-        4,
+        126,
+        5,
         0,
         0
       ],
       [
         0,
-        16,
-        207,
-        18,
+        13,
+        218,
+        21,
         0
       ],
       [
         0,
         0,
-        7,
-        113,
+        5,
+        114,
         0
       ],
       [
-        27,
+        28,
         0,
         0,
-        1,
-        173
+        0,
+        174
       ]
     ],
-    "log_loss": 0.243,
-    "n_test": 727
+    "log_loss": 0.2355,
+    "n_test": 728
   },
   "note": "실제 features_v1 + player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T12:27:37"
+  "saved_at": "2026-08-28T16:32:08"
 }
