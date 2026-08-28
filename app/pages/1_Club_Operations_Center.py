@@ -90,7 +90,7 @@ with wrap():
         "이탈 시뮬레이션 선수",
         ids,
         index=ids.index(default_player) if default_player in ids else 0,
-        format_func=lambda pid: f"{pid} · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.1f}",
+        format_func=lambda pid: f"{pid} · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.2f}",
     )
     st.session_state.selected_player_id = selected_id
 
@@ -103,8 +103,8 @@ with wrap():
 
     section("순위 변동 패널", f"{season}시즌 features_v1 기반")
     c1, c2, c3 = st.columns(3)
-    c1.metric("현재 예상 승률", f"{result.current_win_rate:.1%}")
-    c2.metric("이탈 후 예상 승률", f"{result.after_departure_win_rate:.1%}", f"{result.impact:+.1%}p")
+    c1.metric("현재 예상 승률", f"{result.current_win_rate:.2%}")
+    c2.metric("이탈 후 예상 승률", f"{result.after_departure_win_rate:.2%}", f"{result.impact:+.2%}p")
     c3.metric("예상 순위", f"{result.rank_before}위 → {result.rank_after}위")
     st.caption("승률·순위 함수는 simulation.py에 주입되어 실제 예측 함수로 교체할 수 있습니다.")
 

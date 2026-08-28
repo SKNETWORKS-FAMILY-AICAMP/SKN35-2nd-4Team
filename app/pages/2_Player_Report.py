@@ -161,7 +161,7 @@ with wrap():
         index=player_ids.index(stored_id) if stored_id in player_ids else 0,
         format_func=lambda pid: (
             f"{names.get(pid, pid)} · {ROLE_LABEL.get(team_players.loc[team_players.player_id.astype(str).eq(pid), 'role'].iloc[0], '')}"
-            f" · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.1f}"
+            f" · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.2f}"
         ),
     )
     st.session_state.selected_player_id = selected_id
