@@ -64,6 +64,13 @@ SCHEMA: dict[str, str] = {
     # 팀 맥락
     "team_wr": "float64",
     "allstar": "int64",
+    # 부상 — MLB Stats API transactions(IL 등재 기록) 기반 실측치.
+    # Lahman 자체엔 부상자 명단이 없어 "추정"만 가능하다고 했었는데, 이제 실제 관측값이라
+    # L3 해석 레이어가 아니라 당당한 피처로 들어간다. exp<6 규칙처럼 한쪽은 확정이다:
+    # had_injury=1(그 시즌 IL 등재 있었음)은 확정, =0은 "기록 매칭 실패"와 "진짜 무사고"가
+    # 섞여 있을 수 있음 — ID 크로스워크가 못 찾은 선수는 0으로 채워지기 때문 (완전한 반증은 아님).
+    "had_injury": "int64",     # 그 시즌 IL 등재 여부 0/1
+    "il_stint_count": "int64", # 그 시즌 IL 등재 횟수
     # 라벨 — 관측 가능성에 따라 4층으로 분리 (Rev.4 3장)
     "y_departed": "float64",     # L1  0/1 — 다음 시즌 동일 franch_id 인가
     "y_path": "object",         # L2  PATH_CLASSES — 이탈자만. 잔류자는 NaN
@@ -127,12 +134,20 @@ def make_mock(n_players: int = 2200, seed: int = 42) -> pd.DataFrame:
                     whip_z=float(rng.normal(0, 1)),
                     team_wr=float(np.clip(rng.normal(0.5, 0.07), 0.25, 0.75)),
                     allstar=int(rng.random() < 0.05),
+                    # 실측 기준 대략적인 시즌당 IL 등재 비율(~18%)을 흉내낸다
+                    had_injury=int(rng.random() < 0.18),
+                    il_stint_count=0,  # 아래서 had_injury=1 인 행만 다시 채움
                 )
             )
             if rng.random() < 0.40:      # 이적
                 team = rng.choice(teams)
 
     df = pd.DataFrame(rows).sort_values(KEY).reset_index(drop=True)
+
+    injured = df.had_injury == 1
+    df.loc[injured, "il_stint_count"] = rng.integers(1, 3, size=int(injured.sum()))
+    # 부상 있었던 시즌은 출전 비중이 깎이는 게 자연스럽다
+    df.loc[injured, "g_ratio"] = (df.loc[injured, "g_ratio"] * rng.uniform(0.4, 0.85, size=int(injured.sum()))).clip(0.02, 1.0)
 
     g = df.groupby("player_id")
     df["g_ratio_prev"] = g.g_ratio.shift(1)
@@ -194,6 +209,9 @@ def validate(df: pd.DataFrame) -> None:
     assert df.duplicated(KEY).sum() == 0, "player_id + season 중복"
     assert df.g_ratio.max() <= 1.05, f"g_ratio 이상: {df.g_ratio.max()}"
     assert df.season.between(START_YEAR, END_YEAR).all(), "학습 구간 이탈"
+    assert df.had_injury.isin([0, 1]).all(), "had_injury 는 0/1 이어야 함"
+    assert (df.il_stint_count >= 0).all(), "il_stint_count 는 음수일 수 없음"
+    assert (df.loc[df.had_injury == 0, "il_stint_count"] == 0).all(), "부상 없는데 il_stint_count>0"
 
     bad_league = set(df.league.dropna()) - set(LEAGUE_CLASSES)
     assert not bad_league, f"정의되지 않은 league: {bad_league}"

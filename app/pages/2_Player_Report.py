@@ -1,34 +1,56 @@
 """선수 리포트 — E 추천과 시뮬레이션을 features_v1에 연결한다."""
 
+import os
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.models.recommend import (
+# streamlit run 은 app/ 을 sys.path[0] 으로 잡아 리포 루트의 src.* 가 안 잡힐 때가
+# 있다(다른 페이지가 먼저 실행돼 루트를 추가해둔 경우에만 우연히 성공). 페이지
+# 단독 진입에서도 항상 되도록 3_Model_Information.py 와 동일한 가드를 둔다.
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from src.models.recommend import (  # noqa: E402
     AutoencoderRecommender,
     ReplacementRecommender,
     adapt_features_v1,
     load_knn_artifact,
 )
-from src.service.simulation import (
+from src.service.simulation import (  # noqa: E402
     TeamStrength,
     calculate_team_strength,
     evaluate_replacements,
     simulate,
 )
-from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap
+from ui.theme import inject_css, init_state, page_header, player_card_html, require_team, section, topbar, wrap  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
+PEOPLE_PATH = ROOT / "data" / "processed" / "People.csv"
+
+ROLE_LABEL = {"B": "타자", "P": "투수", "TWO": "투타겸업"}
 
 
 @st.cache_data(show_spinner=False)
 def load_players() -> pd.DataFrame:
     return adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+
+
+@st.cache_data(show_spinner=False)
+def load_name_lookup() -> dict[str, str]:
+    """Lahman People.csv 로 playerID → 실명을 매핑한다. 없으면 빈 dict(= ID 그대로 표시)."""
+    if not PEOPLE_PATH.exists():
+        return {}
+    people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
+    names = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
+    return dict(zip(people["playerID"], names))
 
 
 @st.cache_resource(show_spinner=False)
@@ -45,6 +67,14 @@ def load_saved_autoencoder(data_version: int, model_version: int) -> Autoencoder
     del data_version, model_version
     players = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
     return AutoencoderRecommender.load_artifact(AUTOENCODER_PATH, players)
+
+
+def _num(row: pd.Series, col: str, default: float = 0.0) -> float:
+    """row[col] 이 없거나 NaN 이면 default. (`x or default` 는 NaN 이 truthy라 못 걸러낸다.)"""
+    value = row.get(col)
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return default
+    return float(value)
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
@@ -71,6 +101,8 @@ topbar("선수 리포트")
 
 with wrap():
     page_header("선수 리포트", "대체 후보를 비교하고 영입 효과를 시뮬레이션합니다")
+
+    names = load_name_lookup()
 
     try:
         players = load_players()
@@ -109,7 +141,10 @@ with wrap():
         "이탈 대상 선수",
         player_ids,
         index=player_ids.index(stored_id) if stored_id in player_ids else 0,
-        format_func=lambda pid: f"{pid} · {team_players.loc[team_players.player_id.astype(str).eq(pid), 'role'].iloc[0]} · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.1f}",
+        format_func=lambda pid: (
+            f"{names.get(pid, pid)} · {ROLE_LABEL.get(team_players.loc[team_players.player_id.astype(str).eq(pid), 'role'].iloc[0], '')}"
+            f" · 전력 {team_players.loc[team_players.player_id.astype(str).eq(pid), 'overall_score'].iloc[0]:.1f}"
+        ),
     )
     st.session_state.selected_player_id = selected_id
 
@@ -184,16 +219,62 @@ with wrap():
             f"후보 {len(candidates)}명 중 {len(evaluation_errors)}명은 결측 또는 범위 오류로 제외했습니다."
         )
 
+    # ── 영입 후보 카드 (FIFA UT 스타일 선택 UI) ──
+    section("영입 후보", "카드를 클릭하듯 골라보세요 · 선택 즉시 아래 시뮬레이션이 갱신됩니다")
+
+    evaluated = evaluated.reset_index(drop=True)
     candidate_ids = evaluated["player_id"].astype(str).tolist()
-    replacement_id = st.selectbox(
-        "대체 후보",
-        candidate_ids,
-        format_func=lambda pid: (
-            f"{pid} · 예상 {int(evaluated.loc[evaluated.player_id.astype(str).eq(pid), 'rank_after'].iloc[0])}위"
-            f" · 최종 변화 {evaluated.loc[evaluated.player_id.astype(str).eq(pid), 'net_effect'].iloc[0]:+.1%}p"
-        ),
-    )
+    sel_key = f"pcard_sel::{team_code}::{selected_id}::{scenario}::{recommender_kind}"
+    if st.session_state.get(sel_key) not in candidate_ids:
+        st.session_state[sel_key] = candidate_ids[0]  # 기본값: 최우선 추천 후보
+
+    with st.container(key="pcard_section"):
+        cols = st.columns(len(candidate_ids))
+        for i, (col, (_, row)) in enumerate(zip(cols, evaluated.iterrows())):
+            pid = str(row["player_id"])
+            is_selected = st.session_state[sel_key] == pid
+            role = row.get("role", "B")
+
+            stat_rows: list[tuple[str, float]] = []
+            if role == "P":
+                stat_rows.append(("투구", _num(row, "pit_score")))
+            elif role == "TWO":
+                stat_rows.append(("타격", _num(row, "off_score")))
+                stat_rows.append(("투구", _num(row, "pit_score")))
+            else:
+                stat_rows.append(("타격", _num(row, "off_score")))
+            stat_rows.append(("출전", _num(row, "g_ratio") * 100))
+            if pd.notna(row.get("similarity")):
+                stat_rows.append(("적합", _num(row, "similarity") * 100))
+
+            with col:
+                st.markdown(
+                    player_card_html(
+                        index=i,
+                        rank=int(row.get("recommendation_rank", i + 1)),
+                        ovr=_num(row, "overall_score"),
+                        position_label=ROLE_LABEL.get(role, role),
+                        name=names.get(pid, pid),
+                        team=str(row.get("team_last", "")),
+                        stat_rows=stat_rows,
+                        net_effect_pct=float(row["net_effect"]) * 100,
+                        selected=is_selected,
+                    ),
+                    unsafe_allow_html=True,
+                )
+                if st.button(
+                    "선택됨" if is_selected else "이 선수 영입",
+                    key=f"pick_{pid}",
+                    disabled=is_selected,
+                    width="stretch",
+                ):
+                    st.session_state[sel_key] = pid
+                    st.rerun()
+
+    replacement_id = st.session_state[sel_key]
     replacement = evaluated.loc[evaluated["player_id"].astype(str) == replacement_id].iloc[0]
+    departing_name = names.get(selected_id, selected_id)
+    replacement_name = names.get(replacement_id, replacement_id)
 
     result = simulate(
         team_players,
@@ -208,8 +289,8 @@ with wrap():
     st.markdown(
         '<div class="gm-card">'
         f'{result.scenario_label}({result.effective_timing} · {result.absence_scope}) 시나리오에서 '
-        f'<b>{selected_id}</b> 이탈 시 승률은 <b>{result.current_win_rate:.1%} → {result.after_departure_win_rate:.1%}</b>로 변합니다.<br>'
-        f'<b>{replacement_id}</b> 투입 후 <b>{result.after_replacement_win_rate:.1%}</b>, '
+        f'<b>{departing_name}</b> 이탈 시 승률은 <b>{result.current_win_rate:.1%} → {result.after_departure_win_rate:.1%}</b>로 변합니다.<br>'
+        f'<b>{replacement_name}</b> 투입 후 <b>{result.after_replacement_win_rate:.1%}</b>, '
         f'예상 순위는 <b>{result.rank_before}위 → {result.rank_after}위</b>입니다.'
         '</div>',
         unsafe_allow_html=True,
@@ -220,19 +301,6 @@ with wrap():
     c1.metric("이탈 영향", f"{result.impact:+.1%}p")
     c2.metric("대체 효과", f"{result.replacement_effect:+.1%}p")
     c3.metric("최종 변화", f"{result.net_effect:+.1%}p")
-
-    section("영입 시뮬레이션", "예상 순위·net effect 우선")
-    display = evaluated[
-        [
-            "recommendation_rank", "player_id", "team_last", "role", "similarity",
-            "after_replacement_win_rate", "replacement_effect", "net_effect", "rank_after",
-        ]
-    ].copy()
-    display.columns = [
-        "추천 순위", "선수", "소속", "역할", "유사도",
-        "대체 후 승률", "대체 효과", "최종 변화", "예상 순위",
-    ]
-    st.dataframe(display, hide_index=True, use_container_width=True)
 
     with st.expander("이 예측의 근거"):
         used = [

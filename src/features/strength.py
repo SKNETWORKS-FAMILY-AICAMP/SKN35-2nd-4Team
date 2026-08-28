@@ -17,7 +17,7 @@ v3 (현재): A가 batting_stats.csv에 R, 2B, 3B 컬럼을 추가함
 === teams.csv도 그대로 (팀 전체 IPouts 없음) ===
   -> season_IP는 pitching_stats.csv를 팀-연도 단위로 합산해서 만듦
      (근사 아니고 정의상 정확히 일치).
-"""
+""" 
 
 import pandas as pd
 import numpy as np
