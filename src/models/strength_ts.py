@@ -133,12 +133,17 @@ def build_sequences(
     df: pd.DataFrame,
     seq_len: int = SEQ_LEN,
     features: list[str] | None = None,
+    target: str = TARGET,
     pad_value: float = 0.0,
 ):
     """(샘플, 시즌, 지표) 3D 텐서로 변환한다. LSTM 작업의 90% 가 여기다.
 
     선수마다 뛴 시즌 수가 다르므로 앞을 pad_value 로 채운다.
     Masking 레이어가 이 값을 무시하게 되어 있으므로 pad_value 를 바꾸면 안 된다.
+
+    target 을 바꾸면 다른 태스크에서도 그대로 재사용할 수 있다 — 예:
+    departure.py 가 y_core_departed 로 시퀀스를 만들 때 이 함수를 그대로 쓴다
+    (선수별 과거 시즌 흐름을 3D 텐서로 접는 로직은 태스크와 무관하다).
 
     Returns:
         X: (n, seq_len, n_features)
@@ -152,7 +157,7 @@ def build_sequences(
     X, y, meta = [], [], []
     for pid, grp in d.groupby("player_id", sort=False):
         vals = grp[features].to_numpy(dtype="float32")
-        tgt = grp[TARGET].to_numpy(dtype="float32")
+        tgt = grp[target].to_numpy(dtype="float32")
         seasons = grp["season"].to_numpy()
 
         for i in range(len(grp)):

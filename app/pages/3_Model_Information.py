@@ -27,13 +27,16 @@ topbar("모델 정보")
 with wrap():
     page_header("모델 정보", "예측에 사용된 모델과 성능, 데이터의 한계를 공개합니다.")
 
-    # 기획서 8-1 기준 전체 10개 모델(5태스크 x ML/DL) 계획 대비 실제 등록 현황.
-    # base.py의 TASKS에는 "game"이 따로 없다 — game.py(개별 경기 승부예측)는
-    # win_rate 태스크로 등록된다(경기 단위 이진분류라는 정의가 동일함).
+    # 기획서 8-1 기준 전체 10개 모델(5태스크 x ML/DL) 계획. base.py의 TASKS에는
+    # "game"이 따로 없다 — game.py(개별 경기 승부예측)는 win_rate 태스크로
+    # 등록된다(경기 단위 이진분류라는 정의가 동일함). win_rate_xgb/departure_lstm은
+    # 계획(10개) 대비 팀이 추가로 등록한 보너스 모델이다 — departure_lstm은 기본
+    # DL(MLP, 단일 시즌 스냅샷) 외에 선수별 최근 시즌 흐름을 보는 시퀀스 버전
+    # (D의 strength_ts.py LSTM 인프라 재사용)을 B 태스크에 얹은 것.
     TOTAL_PLANNED = 10
     PLANNED = {
-        "win_rate": ("A", ["win_rate_logreg", "win_rate_mlp (game.py 경기단위 승부예측 포함)"]),
-        "departure": ("B", ["departure_lgbm", "departure_mlp"]),
+        "win_rate": ("A", ["win_rate_logreg", "win_rate_mlp (game.py 경기단위 승부예측 포함)", "win_rate_xgb (보너스)"]),
+        "departure": ("B", ["departure_lgbm", "departure_mlp", "departure_lstm (보너스: 시퀀스)"]),
         "reason": ("C", ["reason_rf", "reason_mlp"]),
         "strength": ("D", ["strength_xgb", "strength_lstm (또는 strength_mlp 폴백)"]),
         "recommend": ("E", ["recommend_knn", "recommend_autoencoder"]),
@@ -41,7 +44,10 @@ with wrap():
 
     entries = list_models()
     trained_tasks = {e["task"] for e in entries}
-    progress_bar(len(entries), TOTAL_PLANNED, f"전체 {TOTAL_PLANNED}개 모델 중 {len(entries)}개 학습 완료")
+    bonus = max(0, len(entries) - TOTAL_PLANNED)
+    label = f"계획 {TOTAL_PLANNED}개 중 {len(entries)}개 학습 완료"
+    label += f" (보너스 {bonus}개 포함)" if bonus else ""
+    progress_bar(len(entries), TOTAL_PLANNED, label)
 
     section("학습 완료된 모델", icon="trophy")
     if not entries:

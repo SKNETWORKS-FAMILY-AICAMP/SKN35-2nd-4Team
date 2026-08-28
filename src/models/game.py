@@ -95,9 +95,20 @@ from sklearn.metrics import (
 )
 import joblib
 
+# xgboost는 torch보다 먼저 import해야 한다 — macOS arm64에서 torch를 먼저
+# import한 뒤 xgboost를 나중에 import(함수 안에서 지연 import 포함)하면
+# 같은 프로세스 안에서 세그폴트가 난다(직접 겪음, D의 strength_ts.py에서도
+# 동일 이슈 있었음). 그래서 여기서 미리 import해 순서를 고정해둔다.
+import xgboost  # noqa: F401
+
 import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
+
+# import 순서를 맞춰도 xgboost와 torch가 같이 멀티스레드 BLAS/OpenMP를 쓰면
+# 데드락이 날 수 있다(macOS arm64, D의 strength_ts.py에서 겪은 것과 동일 원인).
+# LogReg/RF/XGBoost는 이미 다 끝난 뒤에 DL을 돌리므로 성능 손해는 거의 없다.
+torch.set_num_threads(1)
 
 import sys as _sys
 from pathlib import Path as _Path
@@ -235,6 +246,65 @@ def build_time_aware_features(games):
     games["rest_diff"] = games["home_rest"] - games["away_rest"]
     games["last10_diff"] = games["home_last10"] - games["away_last10"]
 
+    games = add_pitching_quality(games)
+
+    return games
+
+
+_PITCHING_QUALITY_CACHE = None
+
+
+def load_pitching_quality_table():
+    """team_season.csv의 pit_strength(선발+불펜 합산 투수진 전력)를 시즌x팀 단위로 불러온다.
+
+    home_sp_era/away_sp_era를 games.csv에 두려고 했지만 실제로는 채워지지
+    않았다(직접 확인함, 37,339행 전부 결측). 대신 이미 채워져 있는
+    team_season.pit_strength를 쓴다 — 선발만이 아니라 로테이션+불펜을 합친
+    투수진 전체 전력이라 "불펜 반영"이라는 목적에 더 잘 맞는다. 시즌 단위
+    값이라 그 시즌 안에서는 날짜별로 변하지 않는다는 근사가 있다.
+    """
+    global _PITCHING_QUALITY_CACHE
+    if _PITCHING_QUALITY_CACHE is not None:
+        return _PITCHING_QUALITY_CACHE
+
+    path = os.path.join(DATA_DIR, "team_season.csv")
+    if not os.path.exists(path):
+        print(f"[안내] team_season.csv를 못 찾아 투수진 전력 피처를 건너뜁니다: {path}")
+        _PITCHING_QUALITY_CACHE = pd.DataFrame(columns=["year", "team_id", "pit_strength"])
+        return _PITCHING_QUALITY_CACHE
+
+    ts = pd.read_csv(path, usecols=["year", "team_id", "pit_strength"])
+    _PITCHING_QUALITY_CACHE = ts
+    return ts
+
+
+def add_pitching_quality(games):
+    """home/away_pitching_quality, pitching_quality_diff 컬럼을 추가한다.
+
+    team_season.csv는 2025시즌까지만 있다 — 2026시즌 경기는 그 팀의 가장
+    최근 시즌 값으로 대체한다(로스터가 갑자기 확 바뀌진 않는다는 근사).
+    매칭 자체가 안 되는 팀은 리그 평균으로 채운다.
+    """
+    ts = load_pitching_quality_table()
+    if ts.empty:
+        games["home_pitching_quality"] = 0.0
+        games["away_pitching_quality"] = 0.0
+        games["pitching_quality_diff"] = 0.0
+        return games
+
+    latest = ts.sort_values("year").groupby("team_id")["pit_strength"].last()
+    league_avg = float(ts["pit_strength"].mean())
+
+    for side in ("home", "away"):
+        merged = games.merge(
+            ts.rename(columns={"year": "season", "team_id": f"{side}_team"}),
+            on=["season", f"{side}_team"],
+            how="left",
+        )["pit_strength"]
+        fallback = games[f"{side}_team"].map(latest)
+        games[f"{side}_pitching_quality"] = merged.fillna(fallback).fillna(league_avg).to_numpy()
+
+    games["pitching_quality_diff"] = games["home_pitching_quality"] - games["away_pitching_quality"]
     return games
 
 
@@ -242,6 +312,7 @@ FEATURE_COLS = [
     "home_strength", "away_strength", "strength_diff",
     "home_rest", "away_rest", "rest_diff",
     "home_last10", "away_last10", "last10_diff",
+    "home_pitching_quality", "away_pitching_quality", "pitching_quality_diff",
 ]
 TARGET_COL = "y_home_win"
 
@@ -422,6 +493,22 @@ class WinRateLogReg(BaseModel):
         return self.model.predict_proba(X)
 
 
+class WinRateXGB(BaseModel):
+    name, task, kind, owner = "win_rate_xgb", "win_rate", "ml", "A"
+
+    def _fit(self, X, y):
+        from xgboost import XGBClassifier
+
+        self.model = XGBClassifier(
+            n_estimators=300, max_depth=4, learning_rate=0.03,
+            subsample=0.8, colsample_bytree=0.8,
+            reg_lambda=1.0, random_state=RANDOM_SEED, eval_metric="logloss", n_jobs=-1,
+        ).fit(X, y)
+
+    def _predict_proba(self, X):
+        return self.model.predict_proba(X)
+
+
 class WinRateMLP(BaseModel):
     name, task, kind, owner = "win_rate_mlp", "win_rate", "dl", "A"
 
@@ -486,6 +573,22 @@ def main():
     results.append(evaluate("Random Forest", y_test, pred, proba))
     joblib.dump(rf, os.path.join(MODEL_DIR, "game_rf.joblib"))
 
+    # ---------------- XGBoost ----------------
+    print("\n" + "=" * 60)
+    print("3.5) 머신러닝 - XGBoost")
+    print("=" * 60)
+    from xgboost import XGBClassifier
+
+    xgb = XGBClassifier(
+        n_estimators=300, max_depth=4, learning_rate=0.03,
+        subsample=0.8, colsample_bytree=0.8,
+        reg_lambda=1.0, random_state=RANDOM_SEED, eval_metric="logloss", n_jobs=-1,
+    )
+    xgb.fit(X_train, y_train)
+    pred, proba = xgb.predict(X_test), xgb.predict_proba(X_test)[:, 1]
+    results.append(evaluate("XGBoost", y_test, pred, proba))
+    joblib.dump(xgb, os.path.join(MODEL_DIR, "game_xgb.joblib"))
+
     # ---------------- PyTorch MLP ----------------
     print("\n" + "=" * 60)
     print("4) 딥러닝 - PyTorch MLP")
@@ -511,7 +614,7 @@ def main():
     print("\n" + "=" * 60)
     print("4.5) D 공통 레지스트리(BaseModel) 등록")
     print("=" * 60)
-    for model_cls in (WinRateLogReg, WinRateMLP):
+    for model_cls in (WinRateLogReg, WinRateXGB, WinRateMLP):
         registry_model = model_cls()
         registry_model.fit(X_train, y_train)
         metrics = d_evaluate(registry_model, X_test, y_test)
@@ -541,19 +644,20 @@ def main():
 
         remaining["logreg_home_win_proba"] = logreg.predict_proba(X_rem)[:, 1]
         remaining["rf_home_win_proba"] = rf.predict_proba(X_rem)[:, 1]
+        remaining["xgb_home_win_proba"] = xgb.predict_proba(X_rem)[:, 1]
         _, dl_proba = predict_dl_model(dl_model, device, X_rem)
         remaining["dl_home_win_proba"] = dl_proba.ravel()
 
-        # 3개 모델 평균을 최종 확률로 사용
+        # 4개 모델 평균을 최종 확률로 사용
         remaining["ensemble_home_win_proba"] = remaining[
-            ["logreg_home_win_proba", "rf_home_win_proba", "dl_home_win_proba"]
+            ["logreg_home_win_proba", "rf_home_win_proba", "xgb_home_win_proba", "dl_home_win_proba"]
         ].mean(axis=1)
         remaining["predicted_winner"] = np.where(
             remaining["ensemble_home_win_proba"] >= 0.5, remaining["home_team"], remaining["away_team"]
         )
 
         out_cols = ["game_date", "home_team", "away_team",
-                    "logreg_home_win_proba", "rf_home_win_proba", "dl_home_win_proba",
+                    "logreg_home_win_proba", "rf_home_win_proba", "xgb_home_win_proba", "dl_home_win_proba",
                     "ensemble_home_win_proba", "predicted_winner"]
         out = remaining[out_cols].sort_values("game_date")
         out_path = os.path.join(PRED_DIR, "remaining_games_predictions.csv")
