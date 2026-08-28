@@ -189,6 +189,41 @@ class StrengthXGB(BaseModel):
 
     name, task, kind, owner = "strength_xgb", "strength", "ml", "D"
 
+    def fit_with_validation(self, X_train, y_train, X_val, y_val, n_trials: int = 30, timeout: int = 300):
+        """departure_lgbm과 동일한 패턴(2026-08-28 추가) - 예전엔 고정
+        하이퍼파라미터(n_estimators=400/lr=0.05/max_depth=5 등)였다. Optuna로
+        검증 MAE를 최소화하는 조합을 찾은 뒤 train+val로 최종 학습한다."""
+        import optuna
+        from sklearn.metrics import mean_absolute_error
+        from xgboost import XGBRegressor
+
+        def objective(trial: optuna.Trial) -> float:
+            params = dict(
+                n_estimators=trial.suggest_int("n_estimators", 100, 600),
+                learning_rate=trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+                max_depth=trial.suggest_int("max_depth", 3, 10),
+                subsample=trial.suggest_float("subsample", 0.5, 1.0),
+                colsample_bytree=trial.suggest_float("colsample_bytree", 0.5, 1.0),
+                min_child_weight=trial.suggest_int("min_child_weight", 1, 10),
+                reg_alpha=trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),
+                reg_lambda=trial.suggest_float("reg_lambda", 1e-8, 1.0, log=True),
+                random_state=42,
+            )
+            model = XGBRegressor(**params)
+            model.fit(X_train, y_train)
+            pred = model.predict(X_val)
+            return mean_absolute_error(y_val, pred)
+
+        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=42))
+        study.optimize(objective, n_trials=n_trials, timeout=timeout)
+        self.best_params_ = study.best_params
+
+        best_params = dict(study.best_params)
+        best_params["random_state"] = 42
+        self.params = best_params
+        self.fit(pd.concat([X_train, X_val]), pd.concat([y_train, y_val]))
+        return study.best_value
+
     def _fit(self, X, y):
         from xgboost import XGBRegressor
 
@@ -423,12 +458,13 @@ if __name__ == "__main__":
     print(f"train {len(X_train)}건 / val {len(X_val)}건 / test {len(X_test)}건 (lag 피처 {len(LAG_FEATURES)}개)")
 
     # ---- ML: XGBoost (lag 피처) ----
-    print("\n[ML] StrengthXGB 학습...")
+    print("\n[ML] StrengthXGB 학습 (Optuna 튜닝)...")
     xgb = StrengthXGB()
-    xgb.fit(X_train, y_train)
+    best_mae = xgb.fit_with_validation(X_train, y_train, X_val, y_val)
+    print(f"검증 MAE: {best_mae:.4f} / best_params: {xgb.best_params_}")
     metrics = evaluate(xgb, X_test, y_test)
     xgb.set_metrics(**metrics)
-    path = xgb.save(note="lag 피처 XGBoost")
+    path = xgb.save(note="lag 피처 XGBoost, Optuna 튜닝, train+val로 최종학습")
     print(f"[{xgb.name}] test mae={metrics.get('mae', float('nan')):.4f} r2={metrics.get('r2', float('nan')):.4f} -> {path}")
 
     # ---- DL: LSTM (시퀀스) ----

@@ -65,6 +65,7 @@ NEXT_STRENGTH_PATH = ROOT / "models" / "strength_mlp.pkl"
 DEPARTURE_MODEL_PATH = ROOT / "models" / "departure_lgbm.pkl"
 REASON_MODEL_PATH = ROOT / "models" / "reason_rf.pkl"
 PEOPLE_PATH = ROOT / "data" / "processed" / "People.csv"
+PLAYERS_PATH = ROOT / "data" / "final" / "players.csv"
 
 ROLE_LABEL = {"B": "타자", "P": "투수", "TWO": "투타겸업"}
 POSITION_LABEL = {
@@ -95,12 +96,20 @@ def load_players() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_name_lookup() -> dict[str, str]:
-    """Lahman People.csv 로 playerID → 실명을 매핑한다. 없으면 빈 dict(= ID 그대로 표시)."""
-    if not PEOPLE_PATH.exists():
-        return {}
-    people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
-    names = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
-    return dict(zip(people["playerID"], names))
+    """playerID → 실명 매핑. data/final/players.csv(2026 신인 195명 포함, features_v1의
+    전체 player_id를 100% 커버)를 우선으로 쓰고, Lahman People.csv를 보조로 합친다 —
+    People.csv 단독으로는 2026 신인 184명이 빠져서 로스터/추천 카드에 이름 대신
+    player_id(예: "acunajo01")가 그대로 노출되는 문제가 있었다."""
+    names: dict[str, str] = {}
+    if PEOPLE_PATH.exists():
+        people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
+        pnames = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
+        names.update(dict(zip(people["playerID"], pnames)))
+    if PLAYERS_PATH.exists():
+        players = pd.read_csv(PLAYERS_PATH, usecols=["player_id", "name_first", "name_last"])
+        fnames = (players["name_first"].fillna("") + " " + players["name_last"].fillna("")).str.strip()
+        names.update({pid: n for pid, n in zip(players["player_id"], fnames) if n})
+    return names
 
 
 @st.cache_resource(show_spinner=False)
@@ -244,15 +253,25 @@ with wrap():
     if pd.notna(sel_position):
         chips.append(POSITION_LABEL.get(sel_position, sel_position))
 
+    # 리그 전체(같은 시즌, 전 구단) 대비 순위 — overall_score는 시즌별 min-max
+    # 정규화라서 그 시즌 최저 선수는 항상 정확히 0.00이 나오는 구조적 특성이 있다.
+    # "0.00"만 보면 계산 오류처럼 보일 수 있어 리그 순위/퍼센타일을 함께 보여준다.
+    ovr_val = _num(selected_row, "overall_score")
+    league_pool = season_players["overall_score"].dropna()
+    league_total = int(len(league_pool))
+    league_rank = int((league_pool > ovr_val).sum()) + 1 if league_total else None
+
     st.markdown(
         player_hero_card_html(
             name=names.get(selected_id, selected_id),
             role_label=ROLE_LABEL.get(sel_role, sel_role),
             team=team_code,
-            ovr=_num(selected_row, "overall_score"),
+            ovr=ovr_val,
             radar_axes=radar_axes,
             chips=chips,
             photo_url=headshot_url(selected_id, photo_lookup),
+            league_rank=league_rank,
+            league_total=league_total,
         ),
         unsafe_allow_html=True,
     )

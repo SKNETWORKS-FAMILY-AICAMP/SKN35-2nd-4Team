@@ -311,6 +311,8 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-hero-ovr-row{display:flex;align-items:baseline;gap:6px}
 .gm-hero-ovr{font-size:40px;font-weight:800;line-height:1;text-shadow:0 2px 6px rgba(0,0,0,.35)}
 .gm-hero-ovr-label{font-size:10.5px;color:rgba(255,255,255,.55);letter-spacing:1px;text-transform:uppercase}
+.gm-hero-percentile{display:flex;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.6)}
+.gm-hero-percentile .gm-badge{font-size:9.5px;padding:2px 8px}
 .gm-hero-chips{display:flex;gap:6px;flex-wrap:wrap}
 .gm-hero-chip{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:8px;color:#fff;
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
@@ -828,12 +830,20 @@ def player_hero_card_html(
     radar_axes: list[tuple[str, float]],
     chips: list[str] | None = None,
     photo_url: str | None = None,
+    league_rank: int | None = None,
+    league_total: int | None = None,
 ) -> str:
     """선수 리포트용 큰 프로파일 카드 — 왼쪽 아이덴티티 + 오른쪽 레이더 차트.
 
     NBA 대시보드 레퍼런스(선수 사진 + 등번호 워터마크 + 레이더)를 이 프로젝트의
     실제 데이터(overall_score 등)로 재구성한 것 — 사진이 없으면 실루엣+이니셜로
     자연스럽게 대체된다(player_card_html 과 동일한 폴백 원칙).
+
+    league_rank/league_total: 같은 시즌 리그 전체에서의 순위(1=최고). 전력 점수는
+    시즌별 min-max 정규화라서 그 시즌 최저 선수는 항상 정확히 0.00, 최고 선수는
+    항상 정확히 100.00이 나오는 구조적 특성이 있다 — "0.00"만 보면 계산이 깨진
+    것처럼 보일 수 있어, 리그 내 순위/퍼센타일을 함께 보여줘서 "정규화상 바닥"과
+    "실제 능력치 0"을 구분해준다.
     """
     initials = "".join(part[0] for part in name.replace("-", " ").split()[:2]).upper() or "?"
     photo_html = (
@@ -841,6 +851,27 @@ def player_hero_card_html(
         if photo_url else ""
     )
     chips_html = "".join(f'<span class="gm-hero-chip">{c}</span>' for c in (chips or []))
+
+    rank_html = ""
+    if league_rank is not None and league_total:
+        pct_from_top = (league_rank - 1) / league_total * 100
+        if ovr <= 0.05:
+            note = badge("⚠️ 시즌 최저치", "risk")
+            detail = f"리그 {league_total}명 중 {league_rank}위 — 정규화 특성상 매 시즌 1명은 항상 0.00이 됩니다"
+        elif ovr >= 99.95:
+            note = badge("🏆 시즌 최고치", "gain")
+            detail = f"리그 {league_total}명 중 {league_rank}위"
+        elif pct_from_top <= 10:
+            note = badge(f"상위 {max(pct_from_top, 0.1):.0f}%", "gain")
+            detail = f"리그 {league_total}명 중 {league_rank}위"
+        elif pct_from_top >= 90:
+            note = badge(f"하위 {100 - pct_from_top:.0f}%", "warn")
+            detail = f"리그 {league_total}명 중 {league_rank}위"
+        else:
+            note = ""
+            detail = f"리그 {league_total}명 중 {league_rank}위"
+        rank_html = f'<div class="gm-hero-percentile">{note}<span>{detail}</span></div>'
+
     return (
         '<div class="gm-hero-card">'
         f'<div class="gm-hero-watermark">{ovr:.0f}</div>'
@@ -854,6 +885,7 @@ def player_hero_card_html(
         f'<span class="gm-hero-ovr">{ovr:.0f}</span>'
         '<span class="gm-hero-ovr-label">종합 전력</span>'
         "</div>"
+        f'{rank_html}'
         f'<div class="gm-hero-chips">{chips_html}</div>'
         "</div>"
         f'<div class="gm-hero-radar">{radar_chart_svg(radar_axes)}</div>'

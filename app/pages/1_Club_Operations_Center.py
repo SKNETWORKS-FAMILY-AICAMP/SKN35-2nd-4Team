@@ -35,6 +35,7 @@ FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 DEPARTURE_MODEL_PATH = ROOT / "models" / "departure_lgbm.pkl"
 REASON_MODEL_PATH = ROOT / "models" / "reason_rf.pkl"
 PEOPLE_PATH = ROOT / "data" / "processed" / "People.csv"
+PLAYERS_PATH = ROOT / "data" / "final" / "players.csv"
 
 ROLE_LABEL = {"B": "타자", "P": "투수", "TWO": "투타겸업"}
 
@@ -46,11 +47,20 @@ def load_players() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def load_name_lookup() -> dict[str, str]:
-    if not PEOPLE_PATH.exists():
-        return {}
-    people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
-    names = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
-    return dict(zip(people["playerID"], names))
+    """playerID → 실명 매핑. data/final/players.csv(2026 신인 195명 포함, features_v1의
+    전체 player_id를 100% 커버)를 우선으로 쓰고, Lahman People.csv를 보조로 합친다 —
+    People.csv 단독으로는 2026 신인 184명이 빠져서 로스터 표에 이름 대신 player_id가
+    그대로 노출되는 문제가 있었다."""
+    names: dict[str, str] = {}
+    if PEOPLE_PATH.exists():
+        people = pd.read_csv(PEOPLE_PATH, usecols=["playerID", "nameFirst", "nameLast"])
+        pnames = (people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")).str.strip()
+        names.update(dict(zip(people["playerID"], pnames)))
+    if PLAYERS_PATH.exists():
+        players = pd.read_csv(PLAYERS_PATH, usecols=["player_id", "name_first", "name_last"])
+        fnames = (players["name_first"].fillna("") + " " + players["name_last"].fillna("")).str.strip()
+        names.update({pid: n for pid, n in zip(players["player_id"], fnames) if n})
+    return names
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
