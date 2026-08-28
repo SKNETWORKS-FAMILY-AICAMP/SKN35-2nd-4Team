@@ -1,16 +1,23 @@
 """구단 상황실 — E 시뮬레이션을 features_v1과 연결한다."""
 
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
+# Streamlit이 app/pages를 실행 기준으로 잡아도 프로젝트 패키지를 찾도록 한다.
+ROOT = Path(__file__).resolve().parents[2]
+APP_DIR = ROOT / "app"
+for import_path in (ROOT, APP_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+
 from src.models.recommend import adapt_features_v1
 from src.service.simulation import TeamStrength, calculate_team_strength, simulate
 from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap
 
-ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 
 
