@@ -26,7 +26,9 @@ LAHMAN_TEAM_TO_UI = {
     "WAS": "WSN",
 }
 
-COMMON_FEATURES = ["overall_score", "def_score", "g_ratio", "age", "exp"]
+# age·exp는 서로 강하게 중복되고 고정 평가에서 추천 정확도를 낮춰 제외한다.
+# def_score는 현재 features_v1에 유효값이 없어 실제 거리 계산에 사용할 수 없다.
+COMMON_FEATURES = ["overall_score", "g_ratio"]
 ROLE_FEATURES = {
     "B": ["off_score", "ops_z"],
     "P": ["pit_score", "era_z", "whip_z"],
