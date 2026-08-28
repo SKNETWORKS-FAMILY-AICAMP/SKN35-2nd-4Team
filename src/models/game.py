@@ -1,0 +1,505 @@
+"""
+game.py
+=======
+MLB 개별 경기 승부 예측 - 머신러닝/딥러닝 모델 학습 + 2026 잔여경기 예측
+
+목표
+----
+1) 과거 경기 데이터(games.csv, 2010~2025)로 이진분류 모델을 학습한다.
+2) 2026시즌 진행 데이터(mlb-2026-asplayed.csv)를 읽어, 이미 끝난 경기(Final)로
+   "현재까지의 팀 성적"을 계산하고, 아직 안 한 경기(Scheduled)의 승패를 예측한다.
+
+왜 team_season을 안 쓰고 경기 로그만으로 피처를 다시 만드는가
+--------------------------------------------------------
+기존 win_rate.py는 team_season.csv의 "그 시즌 최종 승률(win_rate)"을 홈/원정 팀
+강함 지표로 사용했다. 하지만 이건 시즌이 다 끝난 뒤에나 알 수 있는 값이라, "시즌
+중간에 잔여 경기를 예측"하는 이번 목적에는 맞지 않는다(미래 정보가 섞이는
+data leakage). 그래서 이 스크립트는 batting/pitching 등 시즌 집계 파일 대신,
+"그 경기 시점까지의 누적 승률(to-date win rate)"을 직접 계산해서 사용한다.
+이렇게 하면:
+  - 과거 데이터 학습 때도 각 경기 시점까지의 정보만 사용 (leakage 없음)
+  - 2026 예측 때도 완전히 동일한 방식으로 "지금까지의 성적"을 계산해서 그대로 적용
+    가능 (학습/예측 피처 산출 방식이 100% 동일)
+
+사용 피처
+--------
+- home_strength_td / away_strength_td : 그 경기 이전까지의 "시즌 누적 승률"
+- home_rest / away_rest               : 직전 경기와의 휴식일수
+- home_last10 / away_last10           : 직전 10경기 승률
+- 위 3쌍의 diff(홈-원정 차이)값
+
+데이터 경로
+----------
+실제 프로젝트 구조(스크린샷 기준):
+
+    SKN35-2nd-4Team/
+    ├── data/
+    │   └── final/                 <- 데이터 파일들이 있는 실제 위치
+    │       ├── batting_stats.csv
+    │       ├── fielding_stats.csv
+    │       ├── franchises.csv
+    │       ├── games.csv          <- 과거 경기 데이터 (2010~2025)
+    │       ├── managers_stats.csv
+    │       ├── mlb_api.csv        <- 2026시즌 경기결과 + 잔여경기 일정
+    │       ├── pitching_stats.csv
+    │       ├── player_injury_stints.csv
+    │       ├── player_season.csv
+    │       ├── players.csv
+    │       ├── team_season.csv
+    │       └── teams.csv
+    └── src/
+        └── models/
+            ├── data/               <- (모델별 로컬 캐시용 폴더, 비어있어도 무방)
+            ├── __init__.py
+            ├── base.py
+            ├── evaluate.py
+            ├── game.py             <- 이 스크립트
+            └── ...
+
+win_rate.py와 동일하게, game.py 위치에서 시작해 상위 폴더로 올라가며
+games.csv가 실제로 들어있는 "data" 또는 "data/final" 폴더를 자동으로 찾는다
+(find_data_dir). src/models/game.py 기준으로 두 단계 위인 SKN35-2nd-4Team/data/final/
+을 자동으로 찾아내며, mlb_api.csv도 같은 폴더에서 함께 찾는다.
+못 찾으면 환경변수 GAME_DATA_DIR로 직접 지정 가능하다.
+
+모델
+----
+- 머신러닝: LogisticRegression, RandomForestClassifier
+- 딥러닝  : PyTorch MLP
+
+실행 방법
+--------
+    python game.py
+
+출력
+----
+- 콘솔에 모델별 Accuracy / ROC-AUC 등 평가 지표
+- data/models/ 에 학습된 모델 저장
+- data/predictions/remaining_games_predictions.csv : 2026 잔여경기 예측 결과
+  (날짜, 홈팀, 원정팀, 모델별 홈팀 승리확률·예측승자)
+"""
+
+import os
+import warnings
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import pandas as pd
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score,
+    f1_score, roc_auc_score, confusion_matrix, classification_report
+)
+import joblib
+
+import torch
+import torch.nn as nn
+from torch.utils.data import TensorDataset, DataLoader
+
+
+# ----------------------------------------------------------------------
+# 0. 경로 설정 (win_rate.py와 동일한 자동 탐색 방식)
+# ----------------------------------------------------------------------
+def find_data_dir(start_dir, filename="games.csv", max_up=8):
+    """start_dir(스크립트 위치)부터 상위 폴더로 올라가며 filename이 실제로 있는
+    폴더를 찾는다. 각 단계에서 <폴더>/data 와 <폴더>/data/final 두 가지를 검사한다."""
+    current = os.path.abspath(start_dir)
+    tried = []
+    patterns = [("data",), ("data", "final")]
+    for _ in range(max_up + 1):
+        for pattern in patterns:
+            candidate = os.path.join(current, *pattern)
+            tried.append(candidate)
+            if os.path.isfile(os.path.join(candidate, filename)):
+                return candidate, tried
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+    return None, tried
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+_env_override = os.environ.get("GAME_DATA_DIR")
+if _env_override:
+    DATA_DIR = _env_override
+    _SEARCH_TRIED = [f"(환경변수 GAME_DATA_DIR 사용) {DATA_DIR}"]
+else:
+    _found, _SEARCH_TRIED = find_data_dir(BASE_DIR)
+    DATA_DIR = _found if _found else os.path.join(BASE_DIR, "data")
+
+MODEL_DIR = os.path.join(DATA_DIR, "models")
+PRED_DIR = os.path.join(DATA_DIR, "predictions")
+
+GAMES_PATH = os.path.join(DATA_DIR, "games.csv")
+GAMES_2026_PATH = os.path.join(DATA_DIR, "mlb_api.csv")
+
+RANDOM_SEED = 42
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
+
+
+# ----------------------------------------------------------------------
+# 1. 팀명 매핑 (2026 파일은 정식 구단명, 과거 데이터는 3자리 코드 사용)
+# ----------------------------------------------------------------------
+TEAM_NAME_TO_ID = {
+    "Arizona Diamondbacks": "ARI", "Athletics": "ATH", "Atlanta Braves": "ATL",
+    "Baltimore Orioles": "BAL", "Boston Red Sox": "BOS", "Chicago Cubs": "CHN",
+    "Chicago White Sox": "CHA", "Cincinnati Reds": "CIN", "Cleveland Guardians": "CLE",
+    "Colorado Rockies": "COL", "Detroit Tigers": "DET", "Houston Astros": "HOU",
+    "Kansas City Royals": "KCA", "Los Angeles Angels": "LAA", "Los Angeles Dodgers": "LAN",
+    "Miami Marlins": "MIA", "Milwaukee Brewers": "MIL", "Minnesota Twins": "MIN",
+    "New York Mets": "NYN", "New York Yankees": "NYA", "Philadelphia Phillies": "PHI",
+    "Pittsburgh Pirates": "PIT", "San Diego Padres": "SDN", "San Francisco Giants": "SFN",
+    "Seattle Mariners": "SEA", "St. Louis Cardinals": "SLN", "Tampa Bay Rays": "TBA",
+    "Texas Rangers": "TEX", "Toronto Blue Jays": "TOR", "Washington Nationals": "WAS",
+}
+
+
+# ----------------------------------------------------------------------
+# 2. 경기 로그 -> "그 시점까지" 피처 계산 (학습/예측 공통 함수)
+# ----------------------------------------------------------------------
+def build_time_aware_features(games):
+    """games: [season, game_date(datetime), home_team, away_team, y_home_win(NaN 허용)]
+    (+ 위 컬럼 외에 추가로 들어있는 컬럼, 예: 'Status'는 그대로 보존되어 함께 반환됨)
+    각 경기 이전까지의 누적 승률/최근10경기승률/휴식일수를 팀 관점으로 계산해
+    home_*, away_* 컬럼으로 되돌려준다. 미래 정보 유출 없이(shift 사용) 계산한다.
+    더블헤더처럼 (날짜, 홈팀, 원정팀)이 같은 경기가 있어도 game_pk로 고유하게
+    처리하므로 행이 중복 생성되지 않는다."""
+    games = games.sort_values(["game_date", "home_team", "away_team"]).reset_index(drop=True)
+    games["game_pk"] = range(1, len(games) + 1)
+
+    home_rows = games[["game_pk", "season", "game_date", "home_team", "y_home_win"]].copy()
+    home_rows.columns = ["game_pk", "season", "game_date", "team", "win"]
+    home_rows["is_home"] = 1
+
+    away_rows = games[["game_pk", "season", "game_date", "away_team", "y_home_win"]].copy()
+    away_rows.columns = ["game_pk", "season", "game_date", "team", "win"]
+    away_rows["win"] = 1 - away_rows["win"]
+    away_rows["is_home"] = 0
+
+    long = pd.concat([home_rows, away_rows], ignore_index=True)
+    long = long.sort_values(["team", "game_date", "game_pk"]).reset_index(drop=True)
+
+    # 직전 경기와의 휴식일수
+    long["prev_date"] = long.groupby(["team", "season"])["game_date"].shift(1)
+    long["rest"] = (long["game_date"] - long["prev_date"]).dt.days
+
+    # 결과가 아직 없는(미래) 경기는 win이 NaN -> 누적/롤링 계산에서 자동 제외됨
+    win_shift = long.groupby(["team", "season"])["win"].shift(1)
+
+    # 시즌 누적 승률(to-date): 그 경기 이전까지 치른 경기의 승률
+    long["games_so_far"] = long.groupby(["team", "season"])["win"].transform(
+        lambda s: s.shift(1).expanding().count()
+    )
+    long["wins_so_far"] = long.groupby(["team", "season"])["win"].transform(
+        lambda s: s.shift(1).expanding().sum()
+    )
+    long["strength_td"] = (long["wins_so_far"] / long["games_so_far"]).fillna(0.5)  # 시즌 첫 경기는 중립 0.5
+
+    # 최근 10경기 승률
+    long["last10"] = long.groupby(["team", "season"])["win"].transform(
+        lambda s: s.shift(1).rolling(window=10, min_periods=1).mean()
+    )
+
+    home_feat = long[long["is_home"] == 1][["game_pk", "rest", "strength_td", "last10"]].rename(
+        columns={"rest": "home_rest", "strength_td": "home_strength", "last10": "home_last10"})
+    away_feat = long[long["is_home"] == 0][["game_pk", "rest", "strength_td", "last10"]].rename(
+        columns={"rest": "away_rest", "strength_td": "away_strength", "last10": "away_last10"})
+
+    games = games.merge(home_feat, on="game_pk", how="left").merge(away_feat, on="game_pk", how="left")
+
+    # 시즌 첫 경기 등 결측 -> 중립값
+    games["home_rest"] = games["home_rest"].fillna(4)
+    games["away_rest"] = games["away_rest"].fillna(4)
+    games["home_last10"] = games["home_last10"].fillna(0.5)
+    games["away_last10"] = games["away_last10"].fillna(0.5)
+
+    games["strength_diff"] = games["home_strength"] - games["away_strength"]
+    games["rest_diff"] = games["home_rest"] - games["away_rest"]
+    games["last10_diff"] = games["home_last10"] - games["away_last10"]
+
+    return games
+
+
+FEATURE_COLS = [
+    "home_strength", "away_strength", "strength_diff",
+    "home_rest", "away_rest", "rest_diff",
+    "home_last10", "away_last10", "last10_diff",
+]
+TARGET_COL = "y_home_win"
+
+
+# ----------------------------------------------------------------------
+# 3. 과거 데이터(games.csv) 로드 & 피처 생성
+# ----------------------------------------------------------------------
+def load_historical_games(path=GAMES_PATH):
+    if not os.path.exists(path):
+        tried_str = "\n".join(f"    - {p}" for p in _SEARCH_TRIED)
+        raise FileNotFoundError(
+            f"games.csv를 찾을 수 없습니다: {path}\n"
+            f"\n  다음 경로들에서 찾아봤지만 없었습니다:\n{tried_str}\n"
+            f"\n  환경변수로 직접 지정하려면:\n"
+            f"    $env:GAME_DATA_DIR = \"C:\\경로\\data\"   (PowerShell)\n"
+            f"    python game.py"
+        )
+    df = pd.read_csv(path)
+    df["game_date"] = pd.to_datetime(df["game_date"])
+    df = df[["season", "game_date", "home_team", "away_team", "y_home_win"]].copy()
+    return build_time_aware_features(df)
+
+
+# ----------------------------------------------------------------------
+# 4. 2026 시즌 데이터 로드 (완료경기 -> 성적 반영, 예정경기 -> 예측대상)
+# ----------------------------------------------------------------------
+def load_2026_games(path=GAMES_2026_PATH):
+    """2026시즌 진행 데이터(mlb_api.csv)를 로드한다.
+    (2026년 MLB 경기결과 + 잔여경기 일정 데이터, data/final/mlb_api.csv 위치)"""
+    if not os.path.exists(path):
+        print(f"\n[안내] 2026 시즌 파일을 찾을 수 없습니다: {path}")
+        print("  잔여경기 예측 단계는 건너뜁니다. mlb_api.csv를 data 폴더에 넣고 다시 실행하세요.")
+        return None
+
+    raw = pd.read_csv(path, encoding="latin1")
+    raw["home_team"] = raw["Home"].map(TEAM_NAME_TO_ID)
+    raw["away_team"] = raw["Away"].map(TEAM_NAME_TO_ID)
+
+    unmapped = raw[raw["home_team"].isna() | raw["away_team"].isna()]
+    if len(unmapped) > 0:
+        unknown_names = set(unmapped["Home"]).union(set(unmapped["Away"])) - set(TEAM_NAME_TO_ID.keys())
+        print(f"[경고] 팀명 매핑 실패 {len(unmapped)}건, 알 수 없는 팀명: {unknown_names}")
+        raw = raw.dropna(subset=["home_team", "away_team"])
+
+    raw["game_date"] = pd.to_datetime(raw["Date"])
+    raw["season"] = 2026
+
+    # 완료된 경기(Final)는 실제 스코어로 y_home_win 계산, 예정 경기(Scheduled)는 NaN
+    is_final = raw["Status"] == "Final"
+    raw["y_home_win"] = np.nan
+    raw.loc[is_final, "y_home_win"] = (
+        raw.loc[is_final, "Home Score"] > raw.loc[is_final, "Away Score"]
+    ).astype(float)
+
+    df = raw[["season", "game_date", "home_team", "away_team", "y_home_win", "Status"]].copy()
+    featured = build_time_aware_features(df)
+    return featured
+
+
+# ----------------------------------------------------------------------
+# 5. 시간 기준 Train/Test 분할
+# ----------------------------------------------------------------------
+def time_based_split(df, train_seasons=range(2010, 2023), test_seasons=range(2023, 2026)):
+    train_df = df[df["season"].isin(train_seasons)].copy()
+    test_df = df[df["season"].isin(test_seasons)].copy()
+    return train_df, test_df
+
+
+# ----------------------------------------------------------------------
+# 6. 평가 유틸
+# ----------------------------------------------------------------------
+def evaluate(name, y_true, y_pred, y_proba):
+    acc = accuracy_score(y_true, y_pred)
+    prec = precision_score(y_true, y_pred)
+    rec = recall_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
+    auc = roc_auc_score(y_true, y_proba)
+
+    print(f"\n[{name}] 평가 결과")
+    print(f"  Accuracy : {acc:.4f}")
+    print(f"  Precision: {prec:.4f}")
+    print(f"  Recall   : {rec:.4f}")
+    print(f"  F1-score : {f1:.4f}")
+    print(f"  ROC-AUC  : {auc:.4f}")
+    print("  Confusion Matrix:")
+    print("  ", confusion_matrix(y_true, y_pred))
+
+    return {"model": name, "accuracy": acc, "precision": prec,
+            "recall": rec, "f1": f1, "roc_auc": auc}
+
+
+# ----------------------------------------------------------------------
+# 7. PyTorch DL 모델
+# ----------------------------------------------------------------------
+class WinPredictorMLP(nn.Module):
+    def __init__(self, input_dim, hidden_dims=(32, 16)):
+        super().__init__()
+        layers = []
+        prev_dim = input_dim
+        for h in hidden_dims:
+            layers += [nn.Linear(prev_dim, h), nn.ReLU(), nn.Dropout(0.2)]
+            prev_dim = h
+        layers += [nn.Linear(prev_dim, 1)]
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.net(x).squeeze(-1)
+
+
+def train_dl_model(X_train, y_train, X_val, y_val, epochs=60, batch_size=256, lr=1e-3):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    X_train_t = torch.tensor(X_train, dtype=torch.float32)
+    y_train_t = torch.tensor(y_train, dtype=torch.float32)
+    X_val_t = torch.tensor(X_val, dtype=torch.float32).to(device)
+    y_val_t = torch.tensor(y_val, dtype=torch.float32).to(device)
+
+    train_ds = TensorDataset(X_train_t, y_train_t)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+
+    model = WinPredictorMLP(input_dim=X_train.shape[1]).to(device)
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+
+    best_val_loss, best_state, patience, patience_cnt = float("inf"), None, 8, 0
+
+    for epoch in range(1, epochs + 1):
+        model.train()
+        for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            optimizer.zero_grad()
+            loss = criterion(model(xb), yb)
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        with torch.no_grad():
+            val_loss = criterion(model(X_val_t), y_val_t).item()
+
+        if val_loss < best_val_loss:
+            best_val_loss, best_state, patience_cnt = val_loss, {k: v.clone() for k, v in model.state_dict().items()}, 0
+        else:
+            patience_cnt += 1
+
+        if epoch % 10 == 0 or epoch == 1:
+            print(f"  epoch {epoch:3d} | val_loss={val_loss:.4f}")
+        if patience_cnt >= patience:
+            print(f"  Early stopping at epoch {epoch}")
+            break
+
+    model.load_state_dict(best_state)
+    return model, device
+
+
+def predict_dl_model(model, device, X):
+    model.eval()
+    with torch.no_grad():
+        proba = torch.sigmoid(model(torch.tensor(X, dtype=torch.float32).to(device))).cpu().numpy()
+    return (proba >= 0.5).astype(int), proba
+
+
+# ----------------------------------------------------------------------
+# 8. 메인 파이프라인
+# ----------------------------------------------------------------------
+def main():
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    os.makedirs(PRED_DIR, exist_ok=True)
+
+    print("=" * 60)
+    print("1) 과거 경기 데이터(2010~2025) 로드 및 피처 생성")
+    print("=" * 60)
+    df = load_historical_games()
+    print(f"전체 경기 수: {len(df)}")
+
+    train_df, test_df = time_based_split(df)
+    print(f"Train(2010~2022): {len(train_df)}경기 / Test(2023~2025): {len(test_df)}경기")
+
+    X_train_raw = train_df[FEATURE_COLS].values
+    y_train = train_df[TARGET_COL].values
+    X_test_raw = test_df[FEATURE_COLS].values
+    y_test = test_df[TARGET_COL].values
+
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train_raw)
+    X_test = scaler.transform(X_test_raw)
+
+    results = []
+
+    # ---------------- Logistic Regression ----------------
+    print("\n" + "=" * 60)
+    print("2) 머신러닝 - Logistic Regression")
+    print("=" * 60)
+    logreg = LogisticRegression(max_iter=1000, random_state=RANDOM_SEED)
+    logreg.fit(X_train, y_train)
+    pred, proba = logreg.predict(X_test), logreg.predict_proba(X_test)[:, 1]
+    results.append(evaluate("Logistic Regression", y_test, pred, proba))
+    joblib.dump(logreg, os.path.join(MODEL_DIR, "game_logreg.joblib"))
+
+    # ---------------- Random Forest ----------------
+    print("\n" + "=" * 60)
+    print("3) 머신러닝 - Random Forest")
+    print("=" * 60)
+    rf = RandomForestClassifier(n_estimators=300, max_depth=6, min_samples_leaf=20,
+                                 random_state=RANDOM_SEED, n_jobs=-1)
+    rf.fit(X_train, y_train)
+    pred, proba = rf.predict(X_test), rf.predict_proba(X_test)[:, 1]
+    results.append(evaluate("Random Forest", y_test, pred, proba))
+    joblib.dump(rf, os.path.join(MODEL_DIR, "game_rf.joblib"))
+
+    # ---------------- PyTorch MLP ----------------
+    print("\n" + "=" * 60)
+    print("4) 딥러닝 - PyTorch MLP")
+    print("=" * 60)
+    n_val = int(len(X_train) * 0.2)
+    X_tr, X_val = X_train[:-n_val], X_train[-n_val:]
+    y_tr, y_val = y_train[:-n_val], y_train[-n_val:]
+    dl_model, device = train_dl_model(X_tr, y_tr, X_val, y_val)
+    pred, proba = predict_dl_model(dl_model, device, X_test)
+    results.append(evaluate("PyTorch MLP (DL)", y_test, pred.ravel(), proba.ravel()))
+    torch.save(dl_model.state_dict(), os.path.join(MODEL_DIR, "game_dl.pt"))
+
+    joblib.dump(scaler, os.path.join(MODEL_DIR, "game_scaler.joblib"))
+
+    print("\n" + "=" * 60)
+    print("5) 모델 성능 비교")
+    print("=" * 60)
+    result_df = pd.DataFrame(results)
+    print(result_df.to_string(index=False))
+    result_df.to_csv(os.path.join(MODEL_DIR, "game_model_comparison.csv"), index=False)
+
+    # --------------------------------------------------------------
+    print("\n" + "=" * 60)
+    print("6) 2026시즌 잔여경기 예측")
+    print("=" * 60)
+    games_2026 = load_2026_games()
+    if games_2026 is not None:
+        remaining = games_2026[games_2026["Status"] == "Scheduled"].copy()
+        print(f"2026시즌 완료경기: {(games_2026['Status']=='Final').sum()}경기")
+        print(f"2026시즌 잔여경기: {len(remaining)}경기 -> 예측 진행")
+
+        X_rem_raw = remaining[FEATURE_COLS].values
+        X_rem = scaler.transform(X_rem_raw)
+
+        remaining["logreg_home_win_proba"] = logreg.predict_proba(X_rem)[:, 1]
+        remaining["rf_home_win_proba"] = rf.predict_proba(X_rem)[:, 1]
+        _, dl_proba = predict_dl_model(dl_model, device, X_rem)
+        remaining["dl_home_win_proba"] = dl_proba.ravel()
+
+        # 3개 모델 평균을 최종 확률로 사용
+        remaining["ensemble_home_win_proba"] = remaining[
+            ["logreg_home_win_proba", "rf_home_win_proba", "dl_home_win_proba"]
+        ].mean(axis=1)
+        remaining["predicted_winner"] = np.where(
+            remaining["ensemble_home_win_proba"] >= 0.5, remaining["home_team"], remaining["away_team"]
+        )
+
+        out_cols = ["game_date", "home_team", "away_team",
+                    "logreg_home_win_proba", "rf_home_win_proba", "dl_home_win_proba",
+                    "ensemble_home_win_proba", "predicted_winner"]
+        out = remaining[out_cols].sort_values("game_date")
+        out_path = os.path.join(PRED_DIR, "remaining_games_predictions.csv")
+        out.to_csv(out_path, index=False)
+
+        print(f"\n예측 결과 저장: {out_path}")
+        print(out.head(10).to_string(index=False))
+    else:
+        print("2026 잔여경기 예측을 건너뛰었습니다 (파일 없음).")
+
+    print(f"\n모델 파일은 {MODEL_DIR} 에 저장되었습니다.")
+
+
+if __name__ == "__main__":
+    main()
