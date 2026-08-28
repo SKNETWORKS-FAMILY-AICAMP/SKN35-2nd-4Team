@@ -64,6 +64,7 @@ TEAMS_PATH = DATA_DIR / "teams.csv"
 BATTING_PATH = DATA_DIR / "batting_stats.csv"
 PITCHING_PATH = DATA_DIR / "pitching_stats.csv"
 INJURY_PATH = DATA_DIR / "player_injury_stints.csv"
+PLAYERS_PATH = DATA_DIR / "players.csv"  # age(=season-birth_year) 계산용
 
 OUTPUT_PATH = DATA_DIR / "features_v1.parquet"
 
@@ -88,7 +89,6 @@ REQUIRED_META_COLS = [
     "g_chg",
     "def_score",
     "team_wr",
-    "allstar",
 ]
 
 
@@ -141,6 +141,7 @@ def load_raw_data() -> tuple[
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
+    pd.DataFrame,
 ]:
     """실제 원천 CSV만 읽는다."""
 
@@ -149,6 +150,7 @@ def load_raw_data() -> tuple[
         BATTING_PATH,
         PITCHING_PATH,
         INJURY_PATH,
+        PLAYERS_PATH,
     ]:
         require_file(path)
 
@@ -156,8 +158,9 @@ def load_raw_data() -> tuple[
     batting = pd.read_csv(BATTING_PATH)
     pitching = pd.read_csv(PITCHING_PATH)
     injuries = pd.read_csv(INJURY_PATH)
+    players = pd.read_csv(PLAYERS_PATH)
 
-    return teams, batting, pitching, injuries
+    return teams, batting, pitching, injuries, players
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +217,7 @@ def build_player_season_metadata(
     teams_raw: pd.DataFrame,
     batting_raw: pd.DataFrame,
     pitching_raw: pd.DataFrame,
+    players_raw: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     labels.py가 요구하는 player-season 입력을 구성한다.
@@ -228,7 +232,7 @@ def build_player_season_metadata(
     overall_score는 strength 결과와 merge 후 추가한다.
 
     contract 최종 컬럼 중 메타데이터로 필요한
-    team_last / league / role / age / team_wr / allstar 등도
+    team_last / league / role / age / team_wr 등도
     가능한 범위에서 원천 데이터로 구성한다.
     """
 
@@ -527,91 +531,33 @@ def build_player_season_metadata(
     )
 
     # ------------------------------------------------------------------
-    # age
+    # age — players.csv의 birth_year로 계산한다 (season - birth_year).
+    # batting/pitching 원본엔 age 컬럼 자체가 없다(실측 확인됨). 정확한 생일
+    # 기준은 아니고 "그 해 나이"로 근사하는 것 — 실전 피처로 쓰기로 했으므로
+    # (contract.py) 결측 없이 채워야 한다.
     # ------------------------------------------------------------------
 
-    age_frames = []
+    players = players_raw.copy()
+    players["player_id"] = players["player_id"].astype(str)
+    birth_year = players[["player_id", "birth_year"]].dropna().drop_duplicates("player_id")
 
-    if "age" in batting.columns:
-        age_frames.append(
-            batting[
-                KEY + ["age"]
-            ].rename(columns={"age": "age_b"})
-        )
+    player_season = player_season.merge(birth_year, on="player_id", how="left")
+    player_season["age"] = player_season["season"] - player_season["birth_year"]
 
-    if "age" in pitching.columns:
-        age_frames.append(
-            pitching[
-                KEY + ["age"]
-            ].rename(columns={"age": "age_p"})
-        )
-
-    if not age_frames:
+    missing_age = sorted(
+        player_season.loc[player_season["age"].isna(), "player_id"].unique()
+    )
+    if missing_age:
         raise ValueError(
-            "contract.SCHEMA의 age를 만들 수 없습니다. "
-            "batting_stats.csv 또는 pitching_stats.csv에 age 컬럼이 필요합니다."
+            f"players.csv에 birth_year가 없어 age를 못 만든 선수 {len(missing_age)}명: "
+            f"{missing_age[:10]}{'...' if len(missing_age) > 10 else ''}"
         )
-
-    age = age_frames[0]
-
-    if len(age_frames) == 2:
-        age = age.merge(
-            age_frames[1],
-            on=KEY,
-            how="outer",
-        )
-        age["age"] = age["age_b"].combine_first(age["age_p"])
-        age = age[KEY + ["age"]]
-    else:
-        age = age.rename(columns={"age_b": "age"})
-
-    age = (
-        age
-        .dropna(subset=["age"])
-        .drop_duplicates(KEY)
-    )
-
-    player_season = player_season.merge(
-        age,
-        on=KEY,
-        how="left",
-    )
+    player_season = player_season.drop(columns=["birth_year"])
 
     # ------------------------------------------------------------------
-    # allstar
-    #
-    # 현재 원천 데이터에 allstar 관련 컬럼이 없다면 임의값을 만들지 않는다.
-    # contract.validate()를 통과하려면 실제 allstar 데이터가 필요하다.
+    # allstar — contract.SCHEMA에서 뺐다(사용 안 하기로 결정, D 확정). 여기서
+    # 만들지 않는다.
     # ------------------------------------------------------------------
-
-    allstar_source = None
-
-    for source in [batting, pitching]:
-        for candidate in ["allstar", "all_star", "is_allstar"]:
-            if candidate in source.columns:
-                allstar_source = (
-                    source[
-                        KEY + [candidate]
-                    ]
-                    .rename(columns={candidate: "allstar"})
-                    .drop_duplicates(KEY)
-                )
-                break
-        if allstar_source is not None:
-            break
-
-    if allstar_source is None:
-        raise ValueError(
-            "contract.SCHEMA의 allstar를 만들 실제 원천 컬럼이 없습니다. "
-            "batting_stats.csv 또는 pitching_stats.csv에 "
-            "allstar / all_star / is_allstar 중 하나가 필요합니다."
-        )
-
-    player_season = player_season.merge(
-        allstar_source,
-        on=KEY,
-        how="left",
-    )
 
     # ------------------------------------------------------------------
     # g_ratio_prev / g_chg
@@ -630,7 +576,6 @@ def build_player_season_metadata(
             "exp",
             "n_stint",
             "team_wr",
-            "allstar",
         ]
     ]
 
@@ -655,7 +600,30 @@ def merge_strength_metadata(
         validate="one_to_one",
     )
 
-    # strength.py가 만드는 g_ratio를 기준으로 이전 시즌 출전비율 계산
+    # ------------------------------------------------------------------
+    # strength.py는 라만 호환 이름(playing_time_ratio, batting_strength_*  등)만
+    # 만들고 contract 이름(g_ratio/off_score/pit_score/overall_score/*_z)으로
+    # 바꿔주는 단계가 없었다 — 여기서 만든다. E의 recommend.adapt_features_v1()과
+    # 동일한 공식을 쓴다(off_score/pit_score는 출전·부상 반영 *전* 스킬 점수;
+    # g_ratio가 출전 비중을 별도로 담당하므로 겹치지 않게 하기 위한 결정 — D 확정).
+    # ------------------------------------------------------------------
+
+    merged["g_ratio"] = merged[["playing_time_ratio", "playing_time_ratio_pit"]].max(
+        axis=1, skipna=True
+    )
+    merged["off_score"] = merged["batting_strength_before_pt"]
+    merged["pit_score"] = merged["pitching_strength_before_pt"]
+    merged["overall_score"] = merged[["off_score", "pit_score"]].mean(axis=1, skipna=True)
+
+    # 수비 전력은 strength.py에 아직 구현 안 됨(문서화된 한계) — E의 adapt_features_v1()과
+    # 동일하게 NaN으로 명시한다. 가짜 값을 채우지 않는다.
+    merged["def_score"] = np.nan
+
+    merged["ops_z"] = merged.groupby("season")["OPS"].transform(lambda s: (s - s.mean()) / s.std())
+    merged["era_z"] = merged.groupby("season")["ERA"].transform(lambda s: (s - s.mean()) / s.std())
+    merged["whip_z"] = merged.groupby("season")["WHIP"].transform(lambda s: (s - s.mean()) / s.std())
+
+    # 이전 시즌 출전비율(g_ratio_prev)·변화량(g_chg) 계산
     merged = merged.sort_values(KEY)
 
     merged["g_ratio_prev"] = (
@@ -667,6 +635,12 @@ def merge_strength_metadata(
     merged["g_chg"] = (
         merged["g_ratio"] -
         merged["g_ratio_prev"]
+    )
+
+    merged["ops_z_prev"] = (
+        merged
+        .groupby("player_id")["ops_z"]
+        .shift(1)
     )
 
     # ------------------------------------------------------------------
@@ -715,8 +689,14 @@ def build_labels(
 
     labeled = labels.build_labels(
         label_input,
+        # labels.py의 data_end_year는 "그 시즌 자체는 censor(라벨 보류)"하는
+        # 배타적 경계다(l1_observable = season < data_end_year). 반면
+        # contract.LABEL_END_YEAR는 "그 시즌까지는 라벨이 있어야 한다"는
+        # 포함 경계다(validate()의 season <= LABEL_END_YEAR). 그대로 넘기면
+        # LABEL_END_YEAR 자기 자신이 censor돼서 y_departed가 결측으로
+        # 나온다(실측 확인됨) — +1 해서 배타/포함 정의를 맞춘다.
         config=labels.LabelConfig(
-            data_end_year=contract.LABEL_END_YEAR,
+            data_end_year=contract.LABEL_END_YEAR + 1,
         ),
         validate=True,
     )
@@ -735,43 +715,23 @@ def merge_final(
 ) -> pd.DataFrame:
     """
     strength + metadata + labels를 하나의 features_v1로 합친다.
+
+    주의: 호출부에서 strength_df 자리에 넘기는 strength_full은 이미
+    merge_strength_metadata()에서 metadata_df와 합쳐진 상태다(team_last/
+    franch_id/... 다 포함). 그런데도 여기서 metadata_df를 다시 merge하면
+    같은 컬럼명이 겹쳐 pandas가 자동으로 _x/_y를 붙여버려서, 원래 이름의
+    컬럼이 하나도 안 남는다 — 그래서 최종 병합 직전에 필수 컬럼이 통째로
+    "없다"는 에러가 났었다(실측). y_next_score도 마찬가지로 labeled_df가
+    이미 만들어서 주므로 여기서 또 계산하지 않는다. metadata_df는 이미
+    strength_df 안에 들어있어 여기서는 쓰지 않는다.
     """
 
-    merged = strength_df.merge(
-        metadata_df,
-        on=KEY,
-        how="left",
-        validate="one_to_one",
-    )
+    merged = strength_df.copy()
 
     label_columns = KEY + contract.LABEL_COLS
 
     merged = merged.merge(
         labeled_df[label_columns],
-        on=KEY,
-        how="left",
-        validate="one_to_one",
-    )
-
-    # 다음 시즌 overall_score
-    next_score = (
-        strength_df[
-            KEY + ["overall_score"]
-        ]
-        .copy()
-        .rename(
-            columns={
-                "season": "next_season",
-                "overall_score": "y_next_score",
-            }
-        )
-    )
-
-    next_score["season"] = next_score["next_season"] - 1
-    next_score.drop(columns=["next_season"], inplace=True)
-
-    merged = merged.merge(
-        next_score,
         on=KEY,
         how="left",
         validate="one_to_one",
@@ -951,12 +911,13 @@ def build() -> pd.DataFrame:
 
     # 1. 원천 데이터
     print("\n[1/7] 실제 원천 데이터 로드")
-    teams_raw, batting_raw, pitching_raw, injuries_raw = load_raw_data()
+    teams_raw, batting_raw, pitching_raw, injuries_raw, players_raw = load_raw_data()
 
     print(f"  teams    : {len(teams_raw):,}")
     print(f"  batting  : {len(batting_raw):,}")
     print(f"  pitching : {len(pitching_raw):,}")
     print(f"  injuries : {len(injuries_raw):,}")
+    print(f"  players  : {len(players_raw):,}")
 
     # 2. B 전력
     print("\n[2/7] B strength.py 실행")
@@ -978,6 +939,7 @@ def build() -> pd.DataFrame:
         teams_raw,
         batting_raw,
         pitching_raw,
+        players_raw,
     )
 
     print(
@@ -1001,7 +963,6 @@ def build() -> pd.DataFrame:
                 "franch_id",
                 "n_stint",
                 "exp",
-                "overall_score",
             ]
         ],
         strength_full,

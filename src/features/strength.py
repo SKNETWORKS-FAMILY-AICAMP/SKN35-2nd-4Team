@@ -68,7 +68,7 @@ def standardize_batting(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns={
         "player_id": "playerID", "year": "yearID", "team_id": "teamID",
         "g": "G", "ab": "AB", "h": "H", "hr": "HR", "rbi": "RBI",
-        "bb": "BB", "hbp": "HBP", "sf": "SF", "R": "R", "2B": "2B", "3B": "3B",
+        "bb": "BB", "hbp": "HBP", "sf": "SF", "r": "R", "2b": "2B", "3b": "3B",
     })
 
 
@@ -83,7 +83,7 @@ def standardize_pitching(df: pd.DataFrame) -> pd.DataFrame:
 def standardize_teams(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns={
         "year": "yearID", "team_id": "teamID", "franch_id": "franchID",
-        "lg_id": "lgID", "w": "W", "l": "L", "win_rate": "winRate",
+        "lg_id": "lgID", "w": "W", "l": "L", "win_rate": "winRate", "g": "team_games",
     })
 
 
