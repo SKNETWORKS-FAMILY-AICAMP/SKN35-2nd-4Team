@@ -132,6 +132,14 @@ with wrap():
         horizontal=True,
     )
     scenario = scenario_labels[selected_scenario_label]
+    season_progress = st.slider(
+        "현재 시즌 진행률",
+        min_value=0,
+        max_value=100,
+        value=50,
+        step=5,
+        help="문서 기준으로 방출만 남은 기간을 반영하고, 트레이드·FA는 전체 시즌을 반영합니다.",
+    ) / 100.0
 
     recommender_kind = st.radio(
         "추천 모델",
@@ -165,6 +173,13 @@ with wrap():
         st.stop()
 
     filter_note = candidates.attrs.get("filter_note", "")
+    st.caption(f"현재 추천 모델: {recommender_kind}")
+    model_top = candidates.sort_values("rank", kind="stable").iloc[0]
+    st.info(
+        f"{recommender_kind} 유사도 1순위: {model_top['player_id']} "
+        f"(유사도 {model_top['similarity']:.4f}) · "
+        "최종 영입 순위는 문서 F6-3의 net effect와 예상 순위로 다시 계산합니다."
+    )
     rank_predictor = make_rank_predictor(season_players)
     try:
         evaluated = evaluate_replacements(
@@ -174,6 +189,7 @@ with wrap():
             predict_win_rate,
             rank_predictor=rank_predictor,
             scenario=scenario,
+            season_progress=season_progress,
         )
     except ValueError as exc:
         st.warning(str(exc))
@@ -197,7 +213,7 @@ with wrap():
         candidate_ids,
         format_func=lambda pid: (
             f"{pid} · 예상 {int(evaluated.loc[evaluated.player_id.astype(str).eq(pid), 'rank_after'].iloc[0])}위"
-            f" · 최종 변화 {evaluated.loc[evaluated.player_id.astype(str).eq(pid), 'net_effect'].iloc[0]:+.1%}p"
+            f" · 기간 반영 변화 {evaluated.loc[evaluated.player_id.astype(str).eq(pid), 'effective_net_effect'].iloc[0]:+.1%}p"
         ),
     )
     replacement = evaluated.loc[evaluated["player_id"].astype(str) == replacement_id].iloc[0]
@@ -209,14 +225,19 @@ with wrap():
         replacement_player=replacement,
         rank_predictor=rank_predictor,
         scenario=scenario,
+        season_progress=season_progress,
     )
 
     section("단장 브리핑")
     st.markdown(
         '<div class="gm-card">'
         f'{result.scenario_label}({result.effective_timing} · {result.absence_scope}) 시나리오에서 '
-        f'<b>{selected_id}</b> 이탈 시 승률은 <b>{result.current_win_rate:.1%} → {result.after_departure_win_rate:.1%}</b>로 변합니다.<br>'
-        f'<b>{replacement_id}</b> 투입 후 <b>{result.after_replacement_win_rate:.1%}</b>, '
+        f'적용 기간은 <b>{result.application_ratio:.0%}</b>입니다.<br>'
+        f'<b>{selected_id}</b> 이탈 시 기간 반영 승률은 '
+        f'<b>{result.current_win_rate:.2%} → {result.effective_after_departure_win_rate:.2%}</b>로 변합니다. '
+        f'(순수 영향 {result.impact:+.2%}p × 적용 기간 {result.application_ratio:.0%} '
+        f'= {result.effective_impact:+.2%}p)<br>'
+        f'<b>{replacement_id}</b> 투입 후 <b>{result.effective_after_replacement_win_rate:.2%}</b>, '
         f'예상 순위는 <b>{result.rank_before}위 → {result.rank_after}위</b>입니다.'
         '</div>',
         unsafe_allow_html=True,
@@ -224,20 +245,27 @@ with wrap():
 
     section("승률에 미치는 영향")
     c1, c2, c3 = st.columns(3)
-    c1.metric("이탈 영향", f"{result.impact:+.1%}p")
-    c2.metric("대체 효과", f"{result.replacement_effect:+.1%}p")
-    c3.metric("최종 변화", f"{result.net_effect:+.1%}p")
+    c1.metric("기간 반영 이탈 영향", f"{result.effective_impact:+.2%}p")
+    c2.metric("기간 반영 대체 효과", f"{result.effective_replacement_effect:+.2%}p")
+    c3.metric("기간 반영 최종 변화", f"{result.effective_net_effect:+.2%}p")
+    st.caption(
+        f"적용 기간 {result.application_ratio:.0%} · "
+        f"기간 반영 전 순수 변화 {result.net_effect:+.2%}p"
+    )
 
     section("영입 시뮬레이션", "예상 순위·net effect 우선")
     display = evaluated[
         [
-            "recommendation_rank", "player_id", "team_last", "role", "similarity",
-            "after_replacement_win_rate", "replacement_effect", "net_effect", "rank_after",
+            "recommendation_rank", "rank", "recommender", "player_id", "team_last",
+            "role", "similarity",
+            "effective_after_replacement_win_rate", "effective_replacement_effect",
+            "effective_net_effect", "application_ratio", "rank_after",
         ]
     ].copy()
     display.columns = [
-        "추천 순위", "선수", "소속", "역할", "유사도",
-        "대체 후 승률", "대체 효과", "최종 변화", "예상 순위",
+        "추천 순위", "모델 원순위", "추천 모델", "선수", "소속", "역할", "유사도",
+        "기간 반영 대체 후 승률", "기간 반영 대체 효과", "기간 반영 최종 변화",
+        "적용 기간", "예상 순위",
     ]
     st.dataframe(display, hide_index=True, use_container_width=True)
 

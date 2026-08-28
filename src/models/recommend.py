@@ -123,6 +123,7 @@ class ReplacementRecommender:
         result["similarity"] = np.clip(1.0 - distances[0], 0.0, 1.0)
         result["rank"] = np.arange(1, len(result) + 1)
         result["matched_on"] = matched_on
+        result["recommender"] = "knn"
 
         first = [
             "rank",
