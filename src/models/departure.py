@@ -14,11 +14,10 @@ B - 이탈 이진분류 (LGBMClassifier + Optuna, sklearn API 스타일)
      테스트에서 이 현상이 그대로 재현됨: accuracy 81%인데 이탈 recall 0%).
   4. class_weight='balanced' 추가 (문서에 명시된 class_weight 확인 항목).
   5. eval_metric을 목적함수(auc)와 일치시킴 (기존엔 binary_error로 따로 놀았음).
-
-TODO: C의 실제 라벨 도착 시 attach_dummy_label() 호출부만 교체.
+  6. 더미 라벨 생성 로직 제거 -> C가 생성한 y_core_departed 사용.
+  7. 기존 레거시 컬럼(yearID, batting_strength 등) 제거 -> features_v1 새 스키마 사용.
 """
 
-import numpy as np
 import pandas as pd
 import optuna
 from lightgbm import LGBMClassifier, early_stopping, log_evaluation
@@ -30,45 +29,102 @@ TRAIN_START_YEAR, TRAIN_END_YEAR = 2009, 2021
 VAL_START_YEAR, VAL_END_YEAR = 2022, 2023
 TEST_START_YEAR, TEST_END_YEAR = 2024, 2025
 
+# features_v1의 새 스키마 기준.
+# y_* 라벨 컬럼은 누수 방지를 위해 feature에서 제외한다.
 FEATURE_COLS = [
-    "batting_strength", "pitching_strength", "OPS", "HR", "RBI", "R",
-    "ERA", "WHIP", "SO9", "IP", "AB",
-    "playing_time_ratio", "playing_time_ratio_pit",
-    "is_batter", "is_pitcher",
+    "off_score",
+    "pit_score",
+    "g_ratio",
+    "ops_z",
+    "era_z",
+    "whip_z",
+    "overall_score",
+    "g_ratio_prev",
+    "g_chg",
+    "def_score",
+    "team_wr",
+    "age",
+    "exp",
+    "n_stint",
+    "allstar",
+    "role",
 ]
+
+TARGET_COL = "y_core_departed"
 
 
 def load_features(path: str = FEATURES_PATH) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
-def attach_dummy_label(df: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
-    """TODO: C 라벨 도착 시 실제 merge로 교체. 지금은 파이프라인 확인용."""
-    rng = np.random.default_rng(seed)
+def attach_real_label(df: pd.DataFrame) -> pd.DataFrame:
+    """C가 생성한 실제 이탈 라벨 y_core_departed를 사용한다.
+
+    더미/랜덤 라벨은 생성하지 않는다.
+    """
+    if TARGET_COL not in df.columns:
+        raise KeyError(
+            f"실제 라벨 컬럼 '{TARGET_COL}'이 features_v1.parquet에 없습니다. "
+            "build.py에서 labels.py 결과가 병합되었는지 확인하세요."
+        )
+
     out = df.copy()
-    out["departed"] = rng.choice([0, 1], size=len(out), p=[0.8, 0.2])
+    out[TARGET_COL] = pd.to_numeric(out[TARGET_COL], errors="coerce")
+
+    invalid = out[TARGET_COL].dropna().loc[
+        ~out[TARGET_COL].dropna().isin([0, 1])
+    ]
+    if len(invalid):
+        raise ValueError(
+            f"{TARGET_COL}에 0/1이 아닌 값이 있습니다: "
+            f"{sorted(invalid.unique().tolist())}"
+        )
+
+    out = out.dropna(subset=[TARGET_COL]).copy()
+    out[TARGET_COL] = out[TARGET_COL].astype(int)
+
     return out
 
-
 def time_based_split(df: pd.DataFrame):
-    """랜덤 분할 대신 연도 기준 시계열 분할 (D의 팀 공통 기준)."""
-    train = df[(df.yearID >= TRAIN_START_YEAR) & (df.yearID <= TRAIN_END_YEAR)]
-    val = df[(df.yearID >= VAL_START_YEAR) & (df.yearID <= VAL_END_YEAR)]
-    test = df[(df.yearID >= TEST_START_YEAR) & (df.yearID <= TEST_END_YEAR)]
+    """랜덤 분할 대신 season 기준 시계열 분할."""
+    if "season" not in df.columns:
+        raise KeyError("features_v1.parquet에 season 컬럼이 없습니다.")
+
+    train = df[(df.season >= TRAIN_START_YEAR) & (df.season <= TRAIN_END_YEAR)].copy()
+    val = df[(df.season >= VAL_START_YEAR) & (df.season <= VAL_END_YEAR)].copy()
+    test = df[(df.season >= TEST_START_YEAR) & (df.season <= TEST_END_YEAR)].copy()
+
     return train, val, test
 
 
 def to_xy(df: pd.DataFrame):
+    missing = [col for col in FEATURE_COLS if col not in df.columns]
+    if missing:
+        raise KeyError(
+            f"features_v1.parquet에 필요한 feature 컬럼이 없습니다: {missing}"
+        )
+
     X = df[FEATURE_COLS].copy()
-    for col in ["is_batter", "is_pitcher"]:
-        X[col] = X[col].astype(int)
-    y = df["departed"]
+
+    # role은 contract상 문자열 컬럼이므로 모델 입력용 숫자로 변환한다.
+    role_map = {"P": 0, "B": 1, "TWO": 2}
+    X["role"] = X["role"].map(role_map)
+
+    for col in X.columns:
+        if X[col].dtype == "object":
+            X[col] = pd.to_numeric(X[col], errors="coerce")
+
+    X = X.replace([float("inf"), float("-inf")], pd.NA)
+    X = X.apply(pd.to_numeric, errors="coerce")
+
+    y = df[TARGET_COL].astype(int)
+
     return X, y
 
 
 if __name__ == "__main__":
     features = load_features()
-    features = attach_dummy_label(features)  # TODO: C 라벨 도착 시 교체
+    features = attach_real_label(features)
 
     train_df, val_df, test_df = time_based_split(features)
     X_train, y_train = to_xy(train_df)
