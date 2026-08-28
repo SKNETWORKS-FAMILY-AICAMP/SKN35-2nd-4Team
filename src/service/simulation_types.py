@@ -33,22 +33,15 @@ class SimulationResult:
     scenario_label: str
     effective_timing: str
     absence_scope: str
-    season_progress: float
-    application_ratio: float
     current_strength: TeamStrength
     after_departure_strength: TeamStrength
     after_replacement_strength: TeamStrength | None
     current_win_rate: float
     after_departure_win_rate: float
     after_replacement_win_rate: float | None
-    effective_after_departure_win_rate: float
-    effective_after_replacement_win_rate: float | None
     impact: float
     replacement_effect: float | None
     net_effect: float | None
-    effective_impact: float
-    effective_replacement_effect: float | None
-    effective_net_effect: float | None
     rank_before: int | None
     rank_after: int | None
 

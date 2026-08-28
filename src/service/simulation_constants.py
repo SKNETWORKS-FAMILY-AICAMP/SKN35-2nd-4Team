@@ -12,19 +12,16 @@ SCENARIO_META: dict[DepartureScenario, dict[str, str]] = {
         "label": "트레이드",
         "timing": "시즌 중",
         "absence_scope": "시즌 전체",
-        "duration_basis": "full_season",
     },
     "fa": {
         "label": "FA",
         "timing": "오프시즌",
         "absence_scope": "다음 시즌",
-        "duration_basis": "full_season",
     },
     "release": {
         "label": "방출",
         "timing": "즉시",
         "absence_scope": "잔여 시즌",
-        "duration_basis": "remaining_season",
     },
 }
 

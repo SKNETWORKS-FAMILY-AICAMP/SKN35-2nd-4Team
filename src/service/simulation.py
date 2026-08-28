@@ -133,27 +133,6 @@ def _as_rank(value: int, label: str) -> int:
     return int(numeric)
 
 
-def _scenario_application_ratio(
-    scenario: DepartureScenario,
-    season_progress: float,
-) -> float:
-    """이탈 유형과 시즌 진행률로 영향이 적용되는 기간 비율을 계산한다."""
-    progress = float(season_progress)
-
-    # 시즌 진행률은 시즌 시작 0과 종료 1 사이의 유한한 값이어야 한다.
-    if not np.isfinite(progress) or not 0.0 <= progress <= 1.0:
-        raise ValueError(
-            f"season_progress는 0~1 사이의 유한한 값이어야 합니다: {season_progress}"
-        )
-
-    duration_basis = SCENARIO_META[scenario]["duration_basis"]
-    # 트레이드·FA는 문서상 전체 시즌 단위이므로 진행률과 관계없이 전부 반영한다.
-    if duration_basis == "full_season":
-        return 1.0
-
-    return 1.0 - progress
-
-
 def _prepare_departure(
     team_players: pd.DataFrame,
     removed_player_id: str,
@@ -218,7 +197,6 @@ def _simulate_from_context(
     context: DepartureContext,
     replacement_player: pd.Series | Mapping[str, Any] | None,
     scenario: DepartureScenario,
-    season_progress: float,
 ) -> SimulationResult:
     """준비된 이탈 상태에 선택적 대체 선수를 적용한다."""
     replacement_id: str | None = None
@@ -265,25 +243,6 @@ def _simulate_from_context(
         else replacement_win_rate - context.current_win_rate
     )
     meta = SCENARIO_META[scenario]
-    application_ratio = _scenario_application_ratio(scenario, season_progress)
-    effective_impact = impact * application_ratio
-    # 대체 효과가 없는 이탈 전용 결과는 기간 반영 대체 효과도 제공하지 않는다.
-    effective_replacement_effect = (
-        None
-        if replacement_effect is None
-        else replacement_effect * application_ratio
-    )
-    # 대체 선수가 있을 때만 기간을 반영한 최종 변화량을 계산한다.
-    effective_net_effect = (
-        None if net_effect is None else net_effect * application_ratio
-    )
-    effective_after_departure_win_rate = context.current_win_rate + effective_impact
-    # 대체 선수가 있을 때만 기간 반영 최종 승률을 계산한다.
-    effective_after_replacement_win_rate = (
-        None
-        if effective_net_effect is None
-        else context.current_win_rate + effective_net_effect
-    )
 
     return SimulationResult(
         removed_player_id=context.removed_player_id,
@@ -292,22 +251,15 @@ def _simulate_from_context(
         scenario_label=meta["label"],
         effective_timing=meta["timing"],
         absence_scope=meta["absence_scope"],
-        season_progress=float(season_progress),
-        application_ratio=application_ratio,
         current_strength=context.current_strength,
         after_departure_strength=context.departure_strength,
         after_replacement_strength=replacement_strength,
         current_win_rate=context.current_win_rate,
         after_departure_win_rate=context.departure_win_rate,
         after_replacement_win_rate=replacement_win_rate,
-        effective_after_departure_win_rate=effective_after_departure_win_rate,
-        effective_after_replacement_win_rate=effective_after_replacement_win_rate,
         impact=impact,
         replacement_effect=replacement_effect,
         net_effect=net_effect,
-        effective_impact=effective_impact,
-        effective_replacement_effect=effective_replacement_effect,
-        effective_net_effect=effective_net_effect,
         rank_before=context.rank_before,
         rank_after=rank_after,
     )
@@ -327,7 +279,6 @@ def simulate(
     replacement_player: pd.Series | Mapping[str, Any] | None = None,
     rank_predictor: RankPredictor | None = None,
     scenario: DepartureScenario = "trade",
-    season_progress: float = 0.0,
 ) -> SimulationResult:
     """선수 이탈 및 선택적 대체 투입 결과를 계산한다.
 
@@ -359,12 +310,7 @@ def simulate(
         predict_win_rate,
         rank_predictor,
     )
-    return _simulate_from_context(
-        context,
-        replacement_player,
-        scenario,
-        season_progress,
-    )
+    return _simulate_from_context(context, replacement_player, scenario)
 
 
 def evaluate_replacements(
@@ -375,11 +321,10 @@ def evaluate_replacements(
     *,
     rank_predictor: RankPredictor | None = None,
     scenario: DepartureScenario = "trade",
-    season_progress: float = 0.0,
 ) -> pd.DataFrame:
     """추천 후보별 시뮬레이션 결과를 의사결정 우선순위로 재정렬한다.
 
-    문서 F6-3에 따라 기간 반영 net effect(내림차순), 예상 순위(오름차순),
+    문서 F6-3에 따라 net effect(내림차순), 예상 순위(오름차순),
     replacement effect와 코사인 유사도(내림차순) 순으로 정렬한다.
     """
     # 비교할 후보가 없으면 평가표와 추천 순위를 만들 수 없다.
@@ -401,12 +346,7 @@ def evaluate_replacements(
     errors: list[dict[str, str]] = []
     for _, candidate in candidates.iterrows():
         try:
-            result = _simulate_from_context(
-                context,
-                candidate,
-                scenario,
-                season_progress,
-            )
+            result = _simulate_from_context(context, candidate, scenario)
         except (ValueError, TypeError, FloatingPointError) as exc:
             # 한 후보의 결측·범위 오류 때문에 전체 추천 결과를 버리지 않는다.
             errors.append(
@@ -416,14 +356,8 @@ def evaluate_replacements(
         row = candidate.to_dict()
         row.update(
             after_replacement_win_rate=result.after_replacement_win_rate,
-            effective_after_replacement_win_rate=(
-                result.effective_after_replacement_win_rate
-            ),
             replacement_effect=result.replacement_effect,
             net_effect=result.net_effect,
-            application_ratio=result.application_ratio,
-            effective_replacement_effect=result.effective_replacement_effect,
-            effective_net_effect=result.effective_net_effect,
             rank_after=result.rank_after,
         )
         rows.append(row)
@@ -437,14 +371,14 @@ def evaluate_replacements(
     sort_columns: list[str] = []
     ascending: list[bool] = []
 
-    sort_columns.append("effective_net_effect")
+    sort_columns.append("net_effect")
     ascending.append(False)
 
     # net effect가 같을 때는 문서의 다음 기준인 예상 순위를 사용한다.
     if rank_predictor is not None:
         sort_columns.append("rank_after")
         ascending.append(True)
-    sort_columns.append("effective_replacement_effect")
+    sort_columns.append("replacement_effect")
     ascending.append(False)
 
     # 추천 모델이 유사도를 제공한 경우 동률 후보의 추가 정렬 기준으로 사용한다.
