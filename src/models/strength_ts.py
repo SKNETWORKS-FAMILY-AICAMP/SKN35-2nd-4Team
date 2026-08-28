@@ -31,6 +31,7 @@ SEQ_FEATURES = [
     "ops_z",
     "era_z",
     "age",
+    "had_injury",  # 그 시즌 IL 등재 여부 — 성적 하락이 노쇠인지 부상인지 구분하는 신호
 ]
 
 
@@ -57,6 +58,9 @@ def add_lag_features(df: pd.DataFrame, n_lags: int = 3) -> pd.DataFrame:
     d["age_c"] = d.age - PEAK_AGE
     d["age_sq"] = d.age_c ** 2
     d["past_peak"] = (d.age > PEAK_AGE).astype(int)
+
+    # 작년에 부상이 있었다면, 올해 성적 하락을 노쇠가 아니라 회복 과정으로 볼 근거가 된다
+    d["injury_lag1"] = g.had_injury.shift(1)
 
     return d
 
@@ -106,12 +110,14 @@ def add_lag_features(df: pd.DataFrame, n_lags: int = 3) -> pd.DataFrame:
 LAG_FEATURES = [
     "overall_score", "score_lag1", "score_lag2", "score_lag3",
     "score_ma3", "score_trend", "score_std3",
-    
+
     "g_ratio", "gratio_lag1", "gratio_lag2",
-    
+
     "age", "age_c", "age_sq", "past_peak", "exp",
-    
+
     "ops_z", "era_z", "team_wr",
+
+    "had_injury", "injury_lag1",
 ]
 
 

@@ -1,23 +1,25 @@
 """구단 상황실 — E 시뮬레이션을 features_v1과 연결한다."""
 
-from pathlib import Path
+import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-# Streamlit이 app/pages를 실행 기준으로 잡아도 프로젝트 패키지를 찾도록 한다.
+# streamlit run 은 app/ 을 sys.path[0] 으로 잡아 리포 루트의 src.* 가 안 잡힐 때가
+# 있다(다른 페이지가 먼저 실행돼 루트를 추가해둔 경우에만 우연히 성공). 페이지
+# 단독 진입에서도 항상 되도록 3_Model_Information.py 와 동일한 가드를 둔다.
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from src.models.recommend import adapt_features_v1  # noqa: E402
+from src.service.simulation import TeamStrength, calculate_team_strength, simulate  # noqa: E402
+from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[2]
-APP_DIR = ROOT / "app"
-for import_path in (ROOT, APP_DIR):
-    if str(import_path) not in sys.path:
-        sys.path.insert(0, str(import_path))
-
-from src.models.recommend import adapt_features_v1
-from src.service.simulation import TeamStrength, calculate_team_strength, simulate
-from ui.theme import inject_css, init_state, page_header, require_team, section, topbar, wrap
-
 FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 
 

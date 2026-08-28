@@ -46,6 +46,11 @@ import requests
 MLB_API_TEAM_TO_UI = {
     "AZ": "ARI", "CWS": "CHW", "KC": "KCR", "SD": "SDP", "SF": "SFG",
     "TB": "TBR", "WSH": "WSN",
+    # 어슬레틱스는 2025년에 "Oakland" 를 떼고 개명(오클랜드 -> 새크라멘토 임시 연고,
+    # 라스베이거스 이전 예정) — 그래서 2023~24 경기는 API 가 "OAK", 2025+ 는 "ATH"로
+    # 돌려준다. 같은 프랜차이즈인데 시즌마다 코드가 달라서 조인이 깨짐 — 직접 겪음
+    # (features_v1 쪽은 LAHMAN_TEAM_TO_UI 가 이미 전 시즌 "ATH"로 통일해놨음).
+    "OAK": "ATH",
 }
 SCHEDULE_URL = "https://statsapi.mlb.com/api/v1/schedule"
 PERSON_STATS_URL = "https://statsapi.mlb.com/api/v1/people/{person_id}/stats"
@@ -110,10 +115,30 @@ def _extract_game_row(game: dict) -> dict:
 
 
 def fetch_schedule(start_date: str, end_date: str, game_type: str = "R") -> pd.DataFrame:
-    """지정 기간의 경기 목록. 하루씩 반복하지 않고 범위로 한 번에 받는다."""
+    """지정 기간의 경기 목록. 하루씩 반복하지 않고 범위로 한 번에 받는다.
+
+    주의(직접 겪은 버그): MLB 스케줄 API 가 같은 game_pk 를 두 번 주는 경우가
+    있다(연기 후 재편성 등 사유 추정 — 넓은 날짜범위로 한 번에 조회할 때 관찰됨).
+    game_pk 는 PK 라 중복이 있으면 이후 add_rest_days/add_last10 의 merge 가
+    game_pk 당 여러 번 매칭되면서 기하급수적으로 뻥튀기된다(실측: 2,430경기가
+    19,804행으로 불어남). 그래서 여기서 바로 dedup 한다 — Final 로 확정된
+    쪽을 우선 남긴다.
+    """
     fetcher = ScheduleFetcher(session=requests.Session())
     games = fetcher.fetch_range(start_date, end_date, game_type)
-    return pd.DataFrame([_extract_game_row(g) for g in games])
+    df = pd.DataFrame([_extract_game_row(g) for g in games])
+    if df.empty:
+        return df
+
+    status_rank = {"Final": 3, "Live": 2, "Preview": 1}
+    df["_rank"] = df["status"].map(status_rank).fillna(0)
+    df = (
+        df.sort_values("_rank")
+        .drop_duplicates(subset="game_pk", keep="last")
+        .drop(columns="_rank")
+        .reset_index(drop=True)
+    )
+    return df
 
 
 def fetch_finished_games(season: int) -> pd.DataFrame:
@@ -248,9 +273,85 @@ def add_starter_era(games: pd.DataFrame, season: int, cache_dir: Path) -> pd.Dat
     return out
 
 
+# ── 4) 팀 전력 조인 — B의 strength.py 결과(features_v1) + E의 calculate_team_strength ──
+def build_team_strength_table(features_path: Path) -> pd.DataFrame:
+    """시즌×팀 단위 전력 점수. B strength.py 출력을 E의 계산 로직으로 집계한다.
+
+    features_v1 은 2000~2025 시즌만 있다(직접 확인함) — 2026처럼 아직 라만/B
+    파이프라인에 없는 시즌은 여기 안 나온다. add_team_strength() 에서 그런
+    시즌은 "그 팀의 가장 최근에 알려진 시즌" 전력으로 대체한다.
+    """
+    import sys
+
+    root = Path(__file__).resolve().parent
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    from src.models.recommend import adapt_features_v1  # noqa: PLC0415
+    from src.service.simulation import calculate_team_strength  # noqa: PLC0415
+
+    raw = pd.read_parquet(features_path)
+    players = adapt_features_v1(raw)
+
+    rows = []
+    for (season, team), group in players.groupby(["season", "team_last"]):
+        rows.append(
+            {"season": int(season), "team": team, "strength": calculate_team_strength(group).overall}
+        )
+    return pd.DataFrame(rows)
+
+
+def add_team_strength(games: pd.DataFrame, features_path: Path) -> pd.DataFrame:
+    """games 에 home_strength/away_strength 를 채운다.
+
+    해당 시즌 데이터가 없으면(예: 진행 중인 2026시즌) 그 팀의 가장 최근
+    시즌 전력으로 대체한다 — "지금 로스터가 대략 작년이랑 비슷한 수준일
+    것"이라는 근사다. 완벽하진 않지만, 아예 NaN으로 비우는 것보다는 낫다.
+    """
+    strength = build_team_strength_table(features_path)
+    latest = (
+        strength.sort_values("season")
+        .groupby("team")
+        .last()
+        .rename(columns={"strength": "latest_strength"})
+        .reset_index()
+    )
+
+    out = games.copy()
+    for side in ("home", "away"):
+        col = f"{side}_team"
+        merged = out.merge(
+            strength.rename(columns={"team": col, "strength": f"{side}_strength_exact"}),
+            on=["season", col],
+            how="left",
+        )
+        merged = merged.merge(
+            latest.rename(columns={"team": col}), on=col, how="left"
+        )
+        out[f"{side}_strength"] = merged[f"{side}_strength_exact"].fillna(merged["latest_strength"])
+    return out
+
+
 # ── 실행 예시 ─────────────────────────────────────────────────────
-def build_training_table(season: int, cache_dir: Path) -> pd.DataFrame:
-    """win_rate.py 학습용 games 테이블 (home_strength/away_strength 는 비워둠)."""
+def build_training_table_multi(
+    cache_dir: Path, seasons: list[int], features_path: Path | None = None
+) -> pd.DataFrame:
+    """여러 시즌을 합쳐서 학습 테이블을 만든다. 진행 중인 시즌을 넣어도
+
+    fetch_finished_games 가 status=Final 인 경기만 걸러내므로, 아직 안 끝난
+    시즌을 넣어도 그때까지 끝난 경기만 자동으로 포함되고 나머지는 무시된다
+    (즉 마지막 원소로 "현재 진행 중인 시즌"을 넣어도 안전하다).
+    """
+    frames = [build_training_table(season, cache_dir, features_path) for season in seasons]
+    return pd.concat(frames, ignore_index=True)
+
+
+def build_training_table(season: int, cache_dir: Path, features_path: Path | None = None) -> pd.DataFrame:
+    """win_rate.py 학습용 games 테이블.
+
+    features_path 를 주면 B strength.py 결과(features_v1)를 조인해 home_strength/
+    away_strength 를 실제로 채운다. 안 주면(기본값) 전처럼 NaN 으로 비워둔다 —
+    features_v1 없이도 나머지 파이프라인이 독립적으로 도는지 테스트할 때 쓸 것.
+    """
     finished = fetch_finished_games(season)
     print(f"[{season}] 끝난 경기 {len(finished):,}건")
 
@@ -258,8 +359,11 @@ def build_training_table(season: int, cache_dir: Path) -> pd.DataFrame:
     finished = add_last10(finished)
     finished = add_starter_era(finished, season, cache_dir)
 
-    finished["home_strength"] = pd.NA  # win_rate.py 가 team_season 과 조인해서 채울 것
-    finished["away_strength"] = pd.NA
+    if features_path is not None:
+        finished = add_team_strength(finished, features_path)
+    else:
+        finished["home_strength"] = pd.NA
+        finished["away_strength"] = pd.NA
 
     cols = [
         "game_pk", "season", "game_date", "league", "home_team", "away_team",
@@ -269,7 +373,9 @@ def build_training_table(season: int, cache_dir: Path) -> pd.DataFrame:
     return finished[cols]
 
 
-def build_today_table(cache_dir: Path, recent_history: pd.DataFrame | None = None) -> pd.DataFrame:
+def build_today_table(
+    cache_dir: Path, recent_history: pd.DataFrame | None = None, features_path: Path | None = None
+) -> pd.DataFrame:
     """game.py 서빙용 — 오늘 경기. last10 을 채우려면 과거 결과(recent_history)가 필요.
 
     recent_history 는 build_training_table(당해 시즌) 로 미리 받아둔 결과를 넘기면 된다.
@@ -285,20 +391,27 @@ def build_today_table(cache_dir: Path, recent_history: pd.DataFrame | None = Non
 
     today_only = combined[combined["game_pk"].isin(today["game_pk"])].copy()
     today_only = add_starter_era(today_only, season, cache_dir)
-    today_only["home_strength"] = pd.NA
-    today_only["away_strength"] = pd.NA
+    if features_path is not None:
+        today_only = add_team_strength(today_only, features_path)
+    else:
+        today_only["home_strength"] = pd.NA
+        today_only["away_strength"] = pd.NA
     return today_only
 
 
 if __name__ == "__main__":
     ROOT = Path(__file__).resolve().parent
     CACHE = ROOT / ".cache"
+    FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
 
-    train = build_training_table(season=2025, cache_dir=CACHE)
-    train.to_csv(ROOT / "games_train_2025.csv", index=False)
-    print(f"저장 완료: games_train_2025.csv ({len(train):,}행)")
+    # 마지막 원소(2026)는 진행 중인 시즌 — 지금까지 끝난 경기만 자동으로 걸러져 들어간다.
+    SEASONS = [2023, 2024, 2025, 2026]
+    train = build_training_table_multi(CACHE, seasons=SEASONS, features_path=FEATURES_PATH)
+    train.to_csv(ROOT / "games_train.csv", index=False)
+    print(f"저장 완료: games_train.csv ({len(train):,}행, 시즌 {SEASONS})")
+    print(f"home_strength 결측: {train['home_strength'].isna().sum()}/{len(train)}")
 
-    today_games = build_today_table(CACHE, recent_history=train)
+    today_games = build_today_table(CACHE, recent_history=train, features_path=FEATURES_PATH)
     print(f"오늘 경기 {len(today_games):,}건")
     if not today_games.empty:
-        print(today_games[["home_team", "away_team", "home_sp_era", "away_sp_era"]])
+        print(today_games[["home_team", "away_team", "home_strength", "away_strength", "home_sp_era", "away_sp_era"]])

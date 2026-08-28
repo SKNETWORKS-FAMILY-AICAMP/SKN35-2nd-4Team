@@ -16,6 +16,23 @@ from contextlib import contextmanager
 
 import streamlit as st
 
+# ── 색상 유틸 (팀 아이덴티티 색을 --navy 계열 토큰으로 변환할 때 사용) ──
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def _mix_hex(hex_a: str, hex_b: str, t: float) -> str:
+    """hex_a 와 hex_b 를 t(0~1) 비율로 섞는다. t=0 -> a, t=1 -> b."""
+    ra, ga, ba = _hex_to_rgb(hex_a)
+    rb, gb, bb = _hex_to_rgb(hex_b)
+    r = round(ra + (rb - ra) * t)
+    g = round(ga + (gb - ga) * t)
+    b = round(ba + (bb - ba) * t)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
 FONT_LINK = (
     '<link rel="stylesheet" '
     'href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">'
@@ -24,7 +41,8 @@ FONT_LINK = (
 CSS = """
 <style>
 :root{
-  --navy:#16325C; --navy-2:#1D3E73; --navy-soft:#E9EEF6; --ink:#1F2937; --muted:#6B7280; --faint:#9CA3AF;
+  --navy:#16325C; --navy-2:#1D3E73; --navy-soft:#E9EEF6; --team-accent:#3E6FB0; --hero-glow:#23477E;
+  --ink:#1F2937; --muted:#6B7280; --faint:#9CA3AF;
   --line:#E5E7EB; --paper:#F5F4F1; --card:#FFF;
   --risk:#D94F4F; --risk-bg:#FCEDED; --gain:#15805E; --gain-bg:#E6F4EF;
   --warn:#B4700A; --warn-bg:#FBF2DF; --violet:#6D4FC2; --violet-bg:#EFEAFB;
@@ -44,7 +62,8 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 
 /* ── topbar (st.container(key="topbar")) ── */
 .st-key-topbar{background:linear-gradient(180deg,var(--navy-2),var(--navy));padding:14px 26px;
-  margin-bottom:0;box-shadow:var(--shadow-md);position:relative;z-index:5}
+  margin-bottom:0;box-shadow:var(--shadow-md);position:relative;z-index:5;
+  border-bottom:3px solid var(--team-accent);transition:background .3s ease,border-color .3s ease}
 .st-key-topbar .mt-ab{width:34px;height:34px;border-radius:10px;background:#fff;color:var(--navy);
   display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;
   box-shadow:0 2px 6px rgba(0,0,0,.18);letter-spacing:.3px}
@@ -99,8 +118,8 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 .gm-progress-label{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
 
 /* ── hero (st.container(key="hero")) — 진입화면 ── */
-.st-key-hero{background:radial-gradient(1200px 500px at 15% -10%, #23477E 0%, var(--navy) 55%);
-  padding:52px 26px 40px}
+.st-key-hero{background:radial-gradient(1200px 500px at 15% -10%, var(--hero-glow) 0%, var(--navy) 55%);
+  padding:52px 26px 40px;transition:background .3s ease}
 .gm-header-block{max-width:900px;margin:0 auto 6px}
 .st-key-hero .gm-kicker{color:rgba(255,255,255,.55)}
 .st-key-hero .gm-title{color:#fff;font-size:33px;text-shadow:0 1px 2px rgba(0,0,0,.1)}
@@ -136,10 +155,20 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 div[data-testid="stButton"] button{
   border-radius:20px !important;border:1px solid var(--line) !important;background:#fff !important;
   color:var(--muted) !important;font-size:12.5px !important;padding:6px 16px !important;
-  box-shadow:var(--shadow-sm);transition:all .15s}
+  box-shadow:var(--shadow-sm);transition:all .15s;position:relative;overflow:hidden}
 div[data-testid="stButton"] button:hover{border-color:var(--navy) !important;color:var(--navy) !important;
   box-shadow:var(--shadow-md);transform:translateY(-1px)}
 .st-key-hero div[data-testid="stButton"] button:hover{color:var(--navy) !important}
+
+/* 버튼 hover 시 카드처럼 스치는 광택 — 모든 stButton 공통 */
+@keyframes gm-shine{0%{transform:translateX(-140%) skewX(-18deg)}100%{transform:translateX(240%) skewX(-18deg)}}
+div[data-testid="stButton"] button::after{content:"";position:absolute;top:0;left:0;width:38%;height:100%;
+  background:linear-gradient(115deg,transparent,rgba(255,255,255,.55),transparent);
+  transform:translateX(-140%) skewX(-18deg);pointer-events:none}
+div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forwards}
+@media (prefers-reduced-motion: reduce){
+  div[data-testid="stButton"] button:hover::after{animation:none}
+}
 
 /* dataframe 라운딩 */
 [data-testid="stDataFrame"]{border-radius:12px;overflow:hidden;border:1px solid var(--line);
@@ -153,6 +182,66 @@ div[data-testid="stButton"] button:hover{border-color:var(--navy) !important;col
 /* expander 살짝 카드화 */
 [data-testid="stExpander"]{border-radius:14px !important;border:1px solid var(--line) !important;
   box-shadow:var(--shadow-sm);overflow:hidden}
+
+/* ══ 영입 후보 카드 — FIFA 얼티밋팀 스타일 ══ */
+.gm-pcard-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.gm-pcard{position:relative;width:100%;border-radius:16px;padding:14px 12px 12px;overflow:hidden;
+  animation:gm-pop .55s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 100ms);
+  transition:transform .18s ease, box-shadow .18s ease;border:1px solid rgba(255,255,255,.12)}
+.gm-pcard::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(115deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 30%);pointer-events:none}
+.gm-pcard:hover{transform:translateY(-5px) scale(1.025)}
+@keyframes gm-pop{from{opacity:0;transform:translateY(22px) scale(.82) rotate(-2deg)}
+  to{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+
+.gm-pcard.tier-gold{background:linear-gradient(160deg,#7A5B15,#E3B438 45%,#F8E29A 58%,#8A6417);
+  box-shadow:0 8px 18px rgba(180,130,10,.35)}
+.gm-pcard.tier-silver{background:linear-gradient(160deg,#57616D,#A6B0BC 45%,#EAEEF2 58%,#636E7A);
+  box-shadow:0 8px 18px rgba(60,70,90,.22)}
+.gm-pcard.tier-bronze{background:linear-gradient(160deg,#5A3A22,#9C6A3E 45%,#C99B6C 58%,#5A3A22);
+  box-shadow:0 8px 18px rgba(90,50,20,.22)}
+.gm-pcard.selected{box-shadow:0 0 0 3px var(--navy),0 12px 26px rgba(22,50,92,.4);transform:translateY(-4px)}
+.gm-pcard.selected::before{content:"✓ 선택됨";position:absolute;top:8px;right:8px;font-size:9.5px;
+  font-weight:800;color:var(--navy);background:#fff;border-radius:20px;padding:2px 8px;z-index:2;
+  box-shadow:0 1px 4px rgba(0,0,0,.25)}
+
+.gm-pcard .pc-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1}
+.gm-pcard .pc-ovr{font-size:25px;font-weight:800;color:#fff;line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.gm-pcard .pc-pos{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.9);margin-top:3px;letter-spacing:.4px}
+.gm-pcard .pc-rank{font-size:9.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.28);
+  border-radius:20px;padding:3px 8px;height:fit-content}
+.gm-pcard .pc-avatar{width:58px;height:58px;border-radius:50%;margin:10px auto 7px;display:flex;
+  align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;
+  background:radial-gradient(circle at 35% 28%, rgba(255,255,255,.4), rgba(255,255,255,.08) 65%);
+  border:2.5px solid var(--team-accent);text-shadow:0 1px 3px rgba(0,0,0,.45);
+  position:relative;z-index:1;overflow:hidden;
+  box-shadow:0 2px 6px rgba(0,0,0,.25), inset 0 0 10px rgba(0,0,0,.15)}
+.gm-pcard .pc-avatar svg{position:absolute;inset:0;width:100%;height:100%;opacity:.4;color:#fff}
+.gm-pcard .pc-avatar .pc-initials{position:relative;z-index:1;letter-spacing:.5px}
+.gm-pcard .pc-name{text-align:center;font-size:12.5px;font-weight:800;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  position:relative;z-index:1}
+.gm-pcard .pc-team{text-align:center;font-size:10px;color:rgba(255,255,255,.75);margin-bottom:9px;
+  position:relative;z-index:1;letter-spacing:.3px}
+.gm-pcard .pc-stats{display:flex;flex-direction:column;gap:4px;margin-bottom:9px;position:relative;z-index:1}
+.gm-pcard .pc-stat-row{display:flex;align-items:center;gap:6px;font-size:9.5px;color:rgba(255,255,255,.92);
+  font-weight:600}
+.gm-pcard .pc-stat-label{width:28px;font-weight:800;flex-shrink:0}
+.gm-pcard .pc-stat-track{flex:1;height:5px;border-radius:3px;background:rgba(0,0,0,.4);overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.gm-pcard .pc-stat-fill{height:100%;background:linear-gradient(90deg,#fff,#EAF1FF);border-radius:3px;
+  box-shadow:0 0 4px rgba(255,255,255,.8)}
+.gm-pcard .pc-net{text-align:center;font-size:12px;font-weight:800;border-radius:8px;padding:4px 0;
+  background:rgba(0,0,0,.24);color:#fff;position:relative;z-index:1}
+
+/* 카드 바로 아래 선택 버튼 — 카드와 한 세트로 보이게 */
+.st-key-pcard_section div[data-testid="stButton"] button{width:100%;font-size:11px !important;
+  padding:6px 4px !important;margin-top:6px;border-radius:9px !important;font-weight:700 !important}
+.st-key-pcard_section div[data-testid="stButton"] button:hover{
+  border-color:var(--team-accent) !important;box-shadow:0 4px 12px rgba(0,0,0,.15) !important}
+.st-key-pcard_section div[data-testid="stButton"] button:disabled{
+  background:var(--navy) !important;color:#fff !important;border-color:var(--navy) !important;opacity:1 !important;
+  box-shadow:inset 0 0 0 2px var(--team-accent) !important}
 </style>
 """
 
@@ -185,6 +274,37 @@ DIVISIONS: dict[str, list[tuple[str, str]]] = {
 }
 TEAM_NAMES: dict[str, str] = {code: name for teams in DIVISIONS.values() for code, name in teams}
 
+# 구단별 (주 색상, 보조 색상) — 각 구단이 실제로 쓰는 브랜드 컬러(공개된 사실 정보).
+# 선택된 팀에 따라 --navy 계열 토큰을 이 색으로 갈아끼워 화면 전체에 아이덴티티를 준다.
+TEAM_COLORS: dict[str, tuple[str, str]] = {
+    "NYY": ("#0C2340", "#C4CED4"), "BOS": ("#BD3039", "#0C2340"), "TOR": ("#134A8E", "#1D2D5C"),
+    "TBR": ("#092C5C", "#8FBCE6"), "BAL": ("#DF4601", "#000000"),
+    "CLE": ("#00385D", "#E50022"), "MIN": ("#002B5C", "#D31145"), "CHW": ("#27251F", "#C4CED4"),
+    "DET": ("#0C2340", "#FA4616"), "KCR": ("#004687", "#BD9B60"),
+    "HOU": ("#002D62", "#EB6E1F"), "SEA": ("#0C2C56", "#005C5C"), "TEX": ("#003278", "#C0111F"),
+    "LAA": ("#BA0021", "#003263"), "ATH": ("#003831", "#EFB21E"),
+    "ATL": ("#13274F", "#CE1141"), "NYM": ("#002D72", "#FF5910"), "PHI": ("#E81828", "#002D72"),
+    "MIA": ("#00A3E0", "#EF3340"), "WSN": ("#AB0003", "#14225A"),
+    "MIL": ("#12284B", "#FFC52F"), "CHC": ("#0E3386", "#CC3433"), "STL": ("#C41E3A", "#0C2340"),
+    "CIN": ("#C6011F", "#000000"), "PIT": ("#27251F", "#FDB827"),
+    "LAD": ("#005A9C", "#A5ACAF"), "SDP": ("#2F241D", "#FFC425"), "SFG": ("#FD5A1E", "#27251F"),
+    "ARI": ("#A71930", "#E3D4AD"), "COL": ("#33006F", "#C4CED4"),
+}
+
+
+def _team_theme_css(team_code: str | None) -> str:
+    """선택된 팀의 브랜드 컬러로 --navy 계열 토큰을 오버라이드하는 <style> 블록."""
+    primary, secondary = TEAM_COLORS.get(team_code or "", ("#16325C", "#1D3E73"))
+    navy_2 = _mix_hex(primary, "#FFFFFF", 0.18)
+    navy_soft = _mix_hex(primary, "#FFFFFF", 0.9)
+    hero_glow = _mix_hex(primary, secondary, 0.4)
+    return (
+        "<style>:root{"
+        f"--navy:{primary}; --navy-2:{navy_2}; --navy-soft:{navy_soft}; "
+        f"--team-accent:{secondary}; --hero-glow:{hero_glow};"
+        "}</style>"
+    )
+
 PAGES = [
     ("구단 상황실", "pages/1_Club_Operations_Center.py"),
     ("선수 리포트", "pages/2_Player_Report.py"),
@@ -195,7 +315,8 @@ PAGES = [
 def inject_css() -> None:
     # st.markdown 은 큰 <style> 블록을 마크다운 파서가 중간에 텍스트로 흘려버리는
     # 경우가 있다. st.html() 은 마크다운 파싱을 거치지 않고 그대로 주입한다.
-    st.html(FONT_LINK + CSS)
+    team_code = st.session_state.get("team_code")
+    st.html(FONT_LINK + CSS + _team_theme_css(team_code))
 
 
 def init_state() -> None:
@@ -295,6 +416,64 @@ def kpi_card(label: str, value: str, icon: str = "", color: str = "var(--ink)") 
         f'<div class="gm-kpi-v" style="color:{color}">{value}</div>'
         "</div>",
         unsafe_allow_html=True,
+    )
+
+
+# 실제 선수 사진은 초상권 때문에 쓸 수 없어, 특정 인물을 특정하지 않는 일반 실루엣으로
+# "카드에 사진이 있는" 느낌만 준다. 이니셜 배지를 그 위에 겹쳐 식별성을 준다.
+_PLAYER_SILHOUETTE_SVG = (
+    '<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true">'
+    '<circle cx="50" cy="36" r="19" fill="currentColor"/>'
+    '<path d="M12 104C12 72 28 54 50 54C72 54 88 72 88 104Z" fill="currentColor"/>'
+    "</svg>"
+)
+
+
+def _card_tier(ovr: float) -> str:
+    if ovr >= 65:
+        return "gold"
+    if ovr >= 50:
+        return "silver"
+    return "bronze"
+
+
+def player_card_html(
+    *,
+    index: int,
+    rank: int,
+    ovr: float,
+    position_label: str,
+    name: str,
+    team: str,
+    stat_rows: list[tuple[str, float]],
+    net_effect_pct: float,
+    selected: bool = False,
+) -> str:
+    """FIFA 얼티밋팀 느낌의 영입 후보 카드 HTML. 실사진이 없어 이니셜 아바타로 대체한다."""
+    tier = _card_tier(ovr)
+    initials = "".join(part[0] for part in name.replace("-", " ").split()[:2]).upper() or "?"
+    stats_html = "".join(
+        f'<div class="pc-stat-row"><span class="pc-stat-label">{label}</span>'
+        f'<span class="pc-stat-track"><span class="pc-stat-fill" style="width:{max(0, min(100, pct)):.0f}%"></span></span>'
+        f"</div>"
+        for label, pct in stat_rows
+    )
+    net_sign = "+" if net_effect_pct >= 0 else ""
+    net_color = "var(--gain)" if net_effect_pct >= 0 else "var(--risk)"
+    selected_cls = " selected" if selected else ""
+    return (
+        f'<div class="gm-pcard tier-{tier}{selected_cls}" style="--i:{index}">'
+        '<div class="pc-top">'
+        f'<div><div class="pc-ovr">{ovr:.0f}</div><div class="pc-pos">{position_label}</div></div>'
+        f'<div class="pc-rank">#{rank} 추천</div>'
+        "</div>"
+        f'<div class="pc-avatar">{_PLAYER_SILHOUETTE_SVG}<span class="pc-initials">{initials}</span></div>'
+        f'<div class="pc-name">{name}</div>'
+        f'<div class="pc-team">{team}</div>'
+        f'<div class="pc-stats">{stats_html}</div>'
+        f'<div class="pc-net" style="color:{net_color};background:rgba(255,255,255,.9)">'
+        f"{net_sign}{net_effect_pct:.1f}%p</div>"
+        "</div>"
     )
 
 
