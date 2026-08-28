@@ -244,7 +244,56 @@ class StrengthLSTM(BaseModel):
 
     name, task, kind, owner = "strength_lstm", "strength", "dl", "D"
 
+    def fit_with_validation(self, X_train, y_train, X_val, y_val, n_trials: int = 25, timeout: int = 300):
+        """departure_lstm과 동일한 패턴(2026-08-28 추가) - Optuna로 검증 MAE를
+        최소화하는 하이퍼파라미터(units/dropout/lr/weight_decay/batch_size)를
+        찾은 뒤 train+val로 최종 학습한다. 예전엔 고정 units=32/dropout=0.2였다."""
+        import numpy as _np
+        from sklearn.metrics import mean_absolute_error
+
+        X_train = _np.asarray(X_train, dtype="float32")
+        y_train = _np.asarray(y_train, dtype="float32")
+        X_val = _np.asarray(X_val, dtype="float32")
+        y_val = _np.asarray(y_val, dtype="float32")
+
+        def objective(trial) -> float:
+            params = {
+                "units": trial.suggest_categorical("units", [16, 32, 48, 64]),
+                "dropout": trial.suggest_float("dropout", 0.1, 0.4),
+                "lr": trial.suggest_float("lr", 1e-4, 1e-2, log=True),
+                "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True),
+                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128]),
+                "epochs": 30,
+                "patience": 5,
+            }
+            trial_model = StrengthLSTM(**params)
+            trial_model._fit_arrays(X_train, y_train, X_val, y_val)
+            pred = trial_model._predict(X_val)
+            return mean_absolute_error(y_val, pred)
+
+        import optuna
+
+        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=42))
+        study.optimize(objective, n_trials=n_trials, timeout=timeout)
+        self.best_params_ = study.best_params
+
+        best_params = dict(study.best_params)
+        best_params.setdefault("epochs", 40)
+        best_params.setdefault("patience", 5)
+        self.params = best_params
+        combined_X = _np.concatenate([X_train, X_val])
+        combined_y = _np.concatenate([y_train, y_val])
+        # departure_lstm과 동일한 버그를 미리 피한다 - _fit_arrays()를 직접
+        # 부르면 BaseModel.fit()을 안 거쳐 feature_names 등이 안 채워진다.
+        # 회귀 태스크라 classes_ 관련 크래시는 안 나지만(evaluate.py의 회귀
+        # 경로는 classes_를 안 씀) 일관성을 위해 여기도 fit()을 통해서 간다.
+        self.fit(combined_X, combined_y)
+        return study.best_value
+
     def _fit(self, X, y):
+        self._fit_arrays(np.asarray(X, dtype="float32"), np.asarray(y, dtype="float32"))
+
+    def _fit_arrays(self, X, y, X_val=None, y_val=None):
         import torch
         import torch.nn as nn
 
@@ -252,22 +301,26 @@ class StrengthLSTM(BaseModel):
 
         _limit_torch_threads(torch)
 
-        X = np.asarray(X, dtype="float32")
-        y = np.asarray(y, dtype="float32")
         n_feat = X.shape[2]
         units = self.params.get("units", 32)
         dropout = self.params.get("dropout", 0.2)
         epochs = self.params.get("epochs", 40)
         batch_size = self.params.get("batch_size", 64)
         patience = self.params.get("patience", 5)
+        lr = self.params.get("lr", 1e-3)
+        weight_decay = self.params.get("weight_decay", 0.0)
 
-        # validation_split=0.15 와 동일 — 뒤쪽 15% 를 검증에 쓴다
-        n_val = max(1, int(len(X) * 0.15))
-        Xtr, Xva = torch.tensor(X[:-n_val]), torch.tensor(X[-n_val:])
-        ytr, yva = torch.tensor(y[:-n_val]), torch.tensor(y[-n_val:])
+        if X_val is not None and y_val is not None:
+            Xtr, Xva = torch.tensor(X), torch.tensor(np.asarray(X_val, dtype="float32"))
+            ytr, yva = torch.tensor(y), torch.tensor(np.asarray(y_val, dtype="float32"))
+        else:
+            # validation_split=0.15 와 동일 — 뒤쪽 15% 를 검증에 쓴다
+            n_val = max(1, int(len(X) * 0.15))
+            Xtr, Xva = torch.tensor(X[:-n_val]), torch.tensor(X[-n_val:])
+            ytr, yva = torch.tensor(y[:-n_val]), torch.tensor(y[-n_val:])
 
         self.model = MaskedLSTMNet(n_feat, units, dropout)
-        opt = torch.optim.Adam(self.model.parameters())
+        opt = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
         loss_fn = nn.MSELoss()
 
         best_state, best_val, bad_epochs = None, float("inf"), 0
@@ -392,10 +445,11 @@ if __name__ == "__main__":
 
     try:
         lstm = StrengthLSTM()
-        lstm.fit(X_seq[tr_mask], y_seq[tr_mask])
+        best_mae = lstm.fit_with_validation(X_seq[tr_mask], y_seq[tr_mask], X_seq[va_mask], y_seq[va_mask])
+        print(f"검증 MAE: {best_mae:.4f} / best_params: {lstm.best_params_}")
         metrics = evaluate(lstm, X_seq[te_mask], y_seq[te_mask])
         lstm.set_metrics(**metrics)
-        path = lstm.save(note=f"PyTorch MaskedLSTM, SEQ_LEN={SEQ_LEN}")
+        path = lstm.save(note=f"PyTorch MaskedLSTM, SEQ_LEN={SEQ_LEN}, Optuna 튜닝, train+val로 최종학습")
         print(f"[{lstm.name}] test mae={metrics.get('mae', float('nan')):.4f} r2={metrics.get('r2', float('nan')):.4f} -> {path}")
     except ImportError as exc:
         print(f"  torch 미설치로 StrengthLSTM 학습 건너뜀: {exc}")

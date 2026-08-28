@@ -30,8 +30,10 @@ import pandas as pd
 import requests
 
 # ── 설정 ──────────────────────────────────────────────────────────
-START_YEAR = 2000
-END_YEAR = 2025  # 학습 구간과 동일하게. 당해 연도(2026)는 별도로 필요시 추가 호출
+# strength.py의 YEAR_FLOOR(2009)보다 이전 데이터는 어차피 안 쓰여서 재수집
+# 범위에서 뺐다 - API 호출 수를 줄인다. END_YEAR는 2026(진행중 시즌)까지 포함.
+START_YEAR = 2009
+END_YEAR = 2026
 SEASON_MONTHS = (3, 11)  # 시즌 관련 거래는 대략 3월(스프링캠프)~11월(월드시리즈)에 몰림
 REQUEST_DELAY_SEC = 0.3  # MLB Stats API 에 과도한 부하를 주지 않기 위한 최소 대기
 
@@ -137,21 +139,74 @@ def filter_injury_transactions(tx: pd.DataFrame) -> pd.DataFrame:
     return injury_tx
 
 
+# ── 3b) 복귀일 매칭 (2026-08-28 추가) ────────────────────────────────
+# 예전엔 "activated"(복귀) 거래를 감지만 해두고 실제로 안 썼다 - IL 등재일만
+# 있고 해제일이 없어서 "실제 며칠 결장했는지"를 몰랐다(docs/label_spec.md
+# Rev.5 초안이 지적한 바로 그 한계). merge_asof로 각 등재 거래에 그 이후
+# 가장 가까운 같은 선수의 "activated" 거래를 매칭해 복귀일을 근사한다.
+#
+# 한계 (근사치임, 확정 아님) - 정직하게 문서화해둔다:
+#   - 한 선수가 매칭 전에 여러 번 등재되면(재등재 등) 같은 복귀 거래가
+#     여러 등재에 중복 매칭될 수 있다.
+#   - 시즌이 끝날 때까지 복귀 거래가 안 잡히면(시즌아웃 부상 등) 복귀일은
+#     결측으로 남는다 - "복귀 못함"으로 임의 확정하지 않는다.
+#   - MAX_RECOVERY_DAYS 제한 없이 그냥 forward 매칭만 하면, 어떤 선수는
+#     그 뒤로 "activated" 거래가 수년간 하나도 없다가 완전히 무관한(다른
+#     부상의) 복귀 거래에 매칭돼 복귀일수가 9,000일 넘게 나오는 사고가
+#     실측으로 발생했다 - 명백히 다른 사건인데 잘못 이어붙인 것이므로
+#     tolerance로 매칭 자체를 막는다(억지로 값을 만들지 않고 결측 처리).
+MAX_RECOVERY_DAYS = 400  # 토미존 서저리 등 최장기 재활도 넉넉히 포함하는 상한
+
+
+def match_recovery_dates(injury_tx: pd.DataFrame, id_map: pd.DataFrame) -> pd.DataFrame:
+    merged = injury_tx.merge(id_map, on="mlbam_id", how="inner")
+    merged["date"] = pd.to_datetime(merged["date"])
+
+    placements = merged[~merged["is_activation"]].sort_values("date").reset_index(drop=True)
+    activations = (
+        merged[merged["is_activation"]][["playerID", "date"]]
+        .rename(columns={"date": "return_date"})
+        .sort_values("return_date")
+        .reset_index(drop=True)
+    )
+
+    matched = pd.merge_asof(
+        placements, activations,
+        left_on="date", right_on="return_date",
+        by="playerID", direction="forward",
+        tolerance=pd.Timedelta(days=MAX_RECOVERY_DAYS),
+    )
+    matched["recovery_days"] = (matched["return_date"] - matched["date"]).dt.days
+    return matched
+
+
 # ── 4) 선수×시즌 단위 집계 ─────────────────────────────────────────
 def aggregate_to_player_season(injury_tx: pd.DataFrame, id_map: pd.DataFrame) -> pd.DataFrame:
-    merged = injury_tx.merge(id_map, on="mlbam_id", how="inner")  # mlbam_id -> playerID 역매핑
-    placed = merged[~merged["is_activation"]]
+    matched = match_recovery_dates(injury_tx, id_map)
 
     agg = (
-        placed.groupby(["playerID", "season"])
+        matched.groupby(["playerID", "season"])
         .agg(
             il_stint_count=("date", "count"),
             first_il_date=("date", "min"),
             injury_note_sample=("description", "first"),  # 참고용, 확정 사실 아님을 명시할 것
+            total_recovery_days=("recovery_days", lambda s: s.fillna(0).sum()),
+            unresolved_stints=("recovery_days", lambda s: s.isna().sum()),
         )
         .reset_index()
     )
     agg["had_injury"] = 1  # 이 표에 있는 행은 전부 IL 등재가 확인된 선수·시즌
+
+    # reason.py가 이미 기대하고 있던 컬럼명(MODEL_FEATURE_CANDIDATES,
+    # add_reason_features의 "injury_risk_score" 분기) 그대로 채운다 -
+    # reason.py 쪽은 전혀 안 고쳐도 이 컬럼이 생기는 순간 자동으로 쓰인다.
+    # 60일(장기 IL 기준) 대비 실제 결장일수 비율로 0~1 스케일.
+    agg["injury_risk_score"] = (agg["total_recovery_days"] / 60).clip(upper=1.0)
+    # 복귀 거래가 안 잡힌 스틴트(시즌 안에 복귀 못 봄 - 심각했을 가능성)가
+    # 있으면, 관측된 회복일수만으로 과소평가되지 않게 최소 심각도를 보정한다.
+    unresolved = agg["unresolved_stints"] > 0
+    agg.loc[unresolved, "injury_risk_score"] = agg.loc[unresolved, "injury_risk_score"].clip(lower=0.7)
+
     return agg.rename(columns={"playerID": "player_id"})
 
 
@@ -178,7 +233,7 @@ def run(lahman_dir: Path, cache_dir: Path, out_path: Path) -> pd.DataFrame:
 if __name__ == "__main__":
     ROOT = Path(__file__).resolve().parent
     run(
-        lahman_dir=ROOT / "data" / "raw" / "lahman",  # 실제 프로젝트 경로로 조정 필요
+        lahman_dir=ROOT / "data" / "raw" / "lahman",
         cache_dir=ROOT / ".cache",
-        out_path=ROOT / "player_injury_stints.csv",
+        out_path=ROOT / "data" / "final" / "player_injury_stints.csv",  # build.py가 직접 읽는 위치
     )

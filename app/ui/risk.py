@@ -61,6 +61,47 @@ def load_reason_model(model_version: int) -> ReasonRandomForest | None:
         return None
 
 
+INJURY_STINTS_PATH = ROOT / "data" / "final" / "player_injury_stints.csv"
+
+
+@st.cache_data(show_spinner=False)
+def _load_real_injury_data(data_version: int) -> pd.DataFrame | None:
+    """mlb_injury_pipeline.py가 만든 실제 IL 데이터(2026-08-28부터 복귀일 매칭 포함,
+    injury_risk_score 포함). 파일이 없으면 None - 호출부가 0-fill로 대체한다."""
+    del data_version
+    if not INJURY_STINTS_PATH.exists():
+        return None
+    try:
+        return pd.read_csv(INJURY_STINTS_PATH)
+    except (OSError, ValueError):
+        return None
+
+
+def _merge_injury(df: pd.DataFrame) -> pd.DataFrame:
+    """실제 IL 데이터를 (player_id, season)로 붙인다. 매칭 안 되는 행은 0으로
+    채운다 — "부상 없음"이 아니라 "이 데이터에서 IL 기록이 관측 안 됨"이라는
+    reason.py의 기존 구분을 그대로 따른다(merge_injury_data와 동일한 취지,
+    reason.py 자체는 안 건드림 - injury_risk_score 컬럼명도 그쪽이 이미
+    기대하던 이름 그대로라 reason.py 코드 변경 없이 자동으로 쓰인다)."""
+    injury = _load_real_injury_data(
+        INJURY_STINTS_PATH.stat().st_mtime_ns if INJURY_STINTS_PATH.exists() else 0
+    )
+    out = df.copy()
+    if injury is None:
+        if "had_injury" not in out.columns:
+            out["had_injury"] = 0.0
+        if "il_stint_count" not in out.columns:
+            out["il_stint_count"] = 0.0
+        return out
+
+    keep = [c for c in ["player_id", "season", "had_injury", "il_stint_count", "injury_risk_score"]
+            if c in injury.columns]
+    out = out.merge(injury[keep], on=["player_id", "season"], how="left")
+    out["had_injury"] = out["had_injury"].fillna(0.0)
+    out["il_stint_count"] = out["il_stint_count"].fillna(0.0)
+    return out
+
+
 @st.cache_resource(show_spinner=False)
 def load_reason_thresholds(data_version: int) -> ReasonThresholds | None:
     """reason.py 학습 때와 동일한 기준(2021년까지만)으로 임계값을 다시 계산한다.
@@ -75,9 +116,7 @@ def load_reason_thresholds(data_version: int) -> ReasonThresholds | None:
         df = contract.load_features()
     except Exception:
         return None
-    df = df.copy()
-    if "had_injury" not in df.columns:
-        df["had_injury"] = 0.0
+    df = _merge_injury(df)
     try:
         featured = add_reason_features(df)
         return fit_reason_thresholds(featured)
@@ -110,9 +149,10 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
 
     overall_score_delta(전 시즌 대비 변화)를 계산하려면 그 선수의 과거 시즌
     행이 같이 필요하다 — all_seasons는 features_v1 전체(다시즌)를 넘겨야 한다.
-    had_injury/il_stint_count는 features_v1에 아직 없어(부상 데이터 별도 파이프라인
-    미병합) next_strength.py와 동일하게 0으로 채운다 — 값을 지어내지 않고
-    "부상 신호 없음"으로 보수적으로 처리한다는 뜻.
+    had_injury/il_stint_count/injury_risk_score는 features_v1에 없어
+    mlb_injury_pipeline.py가 만든 실제 IL 데이터(_merge_injury)를 여기서
+    직접 붙인다 - 그 파일도 없으면 next_strength.py와 동일하게 0으로
+    채운다(값을 지어내지 않고 "부상 신호 없음"으로 보수적으로 처리).
 
     Returns:
         player_id, reason_tag, reason_proba(dict[str,float] 클래스별 확률),
@@ -127,11 +167,7 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
     if model is None or not len(target_ids):
         return empty
 
-    df = all_seasons.copy()
-    if "had_injury" not in df.columns:
-        df["had_injury"] = 0.0
-    if "il_stint_count" not in df.columns:
-        df["il_stint_count"] = 0.0
+    df = _merge_injury(all_seasons)
 
     try:
         featured = add_reason_features(df)

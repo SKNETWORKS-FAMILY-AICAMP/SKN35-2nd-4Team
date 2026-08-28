@@ -6,7 +6,7 @@
   "is_regression": false,
   "format": "pickle",
   "path": "models/reason_rf.pkl",
-  "n_features": 14,
+  "n_features": 15,
   "features": [
     "age",
     "exp",
@@ -21,7 +21,8 @@
     "whip_z",
     "team_wr",
     "had_injury",
-    "il_stint_count"
+    "il_stint_count",
+    "injury_risk_score"
   ],
   "classes": [
     "career_stage",
@@ -39,22 +40,22 @@
     "n_jobs": "-1"
   },
   "metrics": {
-    "accuracy": 0.9093,
-    "macro_f1": 0.8561,
-    "weighted_f1": 0.9123,
+    "accuracy": 0.8874,
+    "macro_f1": 0.8554,
+    "weighted_f1": 0.8919,
     "f1_per_class": {
-      "career_stage": 0.5902,
-      "injury_associated": 0.9333,
-      "mixed": 0.9172,
-      "performance_decline": 0.9038,
-      "unknown": 0.9361
+      "career_stage": 0.6667,
+      "injury_associated": 0.9263,
+      "mixed": 0.8508,
+      "performance_decline": 0.8964,
+      "unknown": 0.9369
     },
     "support_per_class": {
-      "career_stage": 24,
-      "injury_associated": 131,
-      "mixed": 252,
-      "performance_decline": 119,
-      "unknown": 202
+      "career_stage": 42,
+      "injury_associated": 45,
+      "mixed": 146,
+      "performance_decline": 207,
+      "unknown": 288
     },
     "labels": [
       "career_stage",
@@ -65,46 +66,46 @@
     ],
     "confusion_matrix": [
       [
-        18,
+        35,
         0,
         0,
         0,
-        6
+        7
       ],
       [
         0,
-        126,
-        5,
+        44,
+        1,
         0,
         0
       ],
       [
         0,
-        13,
-        227,
-        12,
+        6,
+        134,
+        6,
         0
       ],
       [
         0,
         0,
-        11,
-        108,
+        34,
+        173,
         0
       ],
       [
-        19,
+        28,
         0,
         0,
         0,
-        183
+        260
       ]
     ],
-    "log_loss": 0.2209,
+    "log_loss": 0.3027,
     "n_test": 728,
-    "valid_macro_f1": 0.8616,
+    "valid_macro_f1": 0.8515,
     "n_valid": 1546
   },
   "note": "실제 features_v1 및 player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T17:41:27"
+  "saved_at": "2026-08-28T18:19:48"
 }
