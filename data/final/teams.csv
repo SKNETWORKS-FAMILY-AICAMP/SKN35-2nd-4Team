@@ -1,0 +1,781 @@
+year,team_id,lg_id,franch_id,div_id,rank,g,w,l,win_rate,name,park
+2000,LAA,AL,LAA,W,3,162,82,80,0.506,Anaheim Angels,Edison International Field
+2000,ARI,NL,ARI,W,3,162,85,77,0.525,Arizona Diamondbacks,Bank One Ballpark
+2000,ATL,NL,ATL,E,1,162,95,67,0.586,Atlanta Braves,Turner Field
+2000,BAL,AL,BAL,E,4,162,74,88,0.457,Baltimore Orioles,Oriole Park at Camden Yards
+2000,BOS,AL,BOS,E,2,162,85,77,0.525,Boston Red Sox,Fenway Park II
+2000,CHA,AL,CHW,C,1,162,95,67,0.586,Chicago White Sox,Comiskey Park II
+2000,CHN,NL,CHC,C,6,162,65,97,0.401,Chicago Cubs,Wrigley Field
+2000,CIN,NL,CIN,C,2,163,85,77,0.525,Cincinnati Reds,Cinergy Field
+2000,CLE,AL,CLE,C,2,162,90,72,0.556,Cleveland Indians,Jacobs Field
+2000,COL,NL,COL,W,4,162,82,80,0.506,Colorado Rockies,Coors Field
+2000,DET,AL,DET,C,3,162,79,83,0.488,Detroit Tigers,Comerica Park
+2000,MIA,NL,MIA,E,3,161,79,82,0.491,Florida Marlins,Pro Player Stadium
+2000,HOU,NL,HOU,C,4,162,72,90,0.444,Houston Astros,Enron Field
+2000,KCA,AL,KCR,C,4,162,77,85,0.475,Kansas City Royals,Kauffman Stadium
+2000,LAN,NL,LAD,W,2,162,86,76,0.531,Los Angeles Dodgers,Dodger Stadium
+2000,MIL,NL,MIL,C,3,163,73,89,0.451,Milwaukee Brewers,County Stadium
+2000,MIN,AL,MIN,C,5,162,69,93,0.426,Minnesota Twins,Hubert H Humphrey Metrodome
+2000,WAS,NL,WSH,E,4,162,67,95,0.414,Montreal Expos,Stade Olympique
+2000,NYA,AL,NYY,E,1,161,87,74,0.54,New York Yankees,Yankee Stadium II
+2000,NYN,NL,NYM,E,2,162,94,68,0.58,New York Mets,Shea Stadium
+2000,ATH,AL,ATH,W,1,161,91,70,0.565,Oakland Athletics,Oakland Coliseum
+2000,PHI,NL,PHI,E,5,162,65,97,0.401,Philadelphia Phillies,Veterans Stadium
+2000,PIT,NL,PIT,C,5,162,69,93,0.426,Pittsburgh Pirates,Three Rivers Stadium
+2000,SDN,NL,SDP,W,5,162,76,86,0.469,San Diego Padres,Qualcomm Stadium
+2000,SEA,AL,SEA,W,2,162,91,71,0.562,Seattle Mariners,Safeco Field
+2000,SFN,NL,SFG,W,1,162,97,65,0.599,San Francisco Giants,PacBell Park
+2000,SLN,NL,STL,C,1,162,95,67,0.586,St. Louis Cardinals,Busch Stadium II
+2000,TBA,AL,TB,E,5,161,69,92,0.429,Tampa Bay Devil Rays,Tropicana Field
+2000,TEX,AL,TEX,W,4,162,71,91,0.438,Texas Rangers,The Ballpark at Arlington
+2000,TOR,AL,TOR,E,3,162,83,79,0.512,Toronto Blue Jays,Skydome
+2001,LAA,AL,LAA,W,3,162,75,87,0.463,Anaheim Angels,Edison International Field
+2001,ARI,NL,ARI,W,1,162,92,70,0.568,Arizona Diamondbacks,Bank One Ballpark
+2001,ATL,NL,ATL,E,1,162,88,74,0.543,Atlanta Braves,Turner Field
+2001,BAL,AL,BAL,E,4,162,63,98,0.391,Baltimore Orioles,Oriole Park at Camden Yards
+2001,BOS,AL,BOS,E,2,161,82,79,0.509,Boston Red Sox,Fenway Park II
+2001,CHA,AL,CHW,C,3,162,83,79,0.512,Chicago White Sox,Comiskey Park II
+2001,CHN,NL,CHC,C,3,162,88,74,0.543,Chicago Cubs,Wrigley Field
+2001,CIN,NL,CIN,C,5,162,66,96,0.407,Cincinnati Reds,Cinergy Field
+2001,CLE,AL,CLE,C,1,162,91,71,0.562,Cleveland Indians,Jacobs Field
+2001,COL,NL,COL,W,5,162,73,89,0.451,Colorado Rockies,Coors Field
+2001,DET,AL,DET,C,4,162,66,96,0.407,Detroit Tigers,Comerica Park
+2001,MIA,NL,MIA,E,4,162,76,86,0.469,Florida Marlins,Pro Player Stadium
+2001,HOU,NL,HOU,C,1,162,93,69,0.574,Houston Astros,Enron Field
+2001,KCA,AL,KCR,C,5,162,65,97,0.401,Kansas City Royals,Kauffman Stadium
+2001,LAN,NL,LAD,W,3,162,86,76,0.531,Los Angeles Dodgers,Dodger Stadium
+2001,MIL,NL,MIL,C,4,162,68,94,0.42,Milwaukee Brewers,Miller Park
+2001,MIN,AL,MIN,C,2,162,85,77,0.525,Minnesota Twins,Hubert H Humphrey Metrodome
+2001,WAS,NL,WSH,E,5,162,68,94,0.42,Montreal Expos,Stade Olympique
+2001,NYA,AL,NYY,E,1,161,95,65,0.594,New York Yankees,Yankee Stadium II
+2001,NYN,NL,NYM,E,3,162,82,80,0.506,New York Mets,Shea Stadium
+2001,ATH,AL,ATH,W,2,162,102,60,0.63,Oakland Athletics,Oakland Coliseum
+2001,PHI,NL,PHI,E,2,162,86,76,0.531,Philadelphia Phillies,Veterans Stadium
+2001,PIT,NL,PIT,C,6,162,62,100,0.383,Pittsburgh Pirates,PNC Park
+2001,SDN,NL,SDP,W,4,162,79,83,0.488,San Diego Padres,Qualcomm Stadium
+2001,SEA,AL,SEA,W,1,162,116,46,0.716,Seattle Mariners,Safeco Field
+2001,SFN,NL,SFG,W,2,162,90,72,0.556,San Francisco Giants,PacBell Park
+2001,SLN,NL,STL,C,2,162,93,69,0.574,St. Louis Cardinals,Busch Stadium II
+2001,TBA,AL,TB,E,5,162,62,100,0.383,Tampa Bay Devil Rays,Tropicana Field
+2001,TEX,AL,TEX,W,4,162,73,89,0.451,Texas Rangers,The Ballpark at Arlington
+2001,TOR,AL,TOR,E,3,162,80,82,0.494,Toronto Blue Jays,Skydome
+2002,LAA,AL,LAA,W,2,162,99,63,0.611,Anaheim Angels,Edison International Field
+2002,ARI,NL,ARI,W,1,162,98,64,0.605,Arizona Diamondbacks,Bank One Ballpark
+2002,ATL,NL,ATL,E,1,161,101,59,0.631,Atlanta Braves,Turner Field
+2002,BAL,AL,BAL,E,4,162,67,95,0.414,Baltimore Orioles,Oriole Park at Camden Yards
+2002,BOS,AL,BOS,E,2,162,93,69,0.574,Boston Red Sox,Fenway Park II
+2002,CHA,AL,CHW,C,2,162,81,81,0.5,Chicago White Sox,Comiskey Park II
+2002,CHN,NL,CHC,C,5,162,67,95,0.414,Chicago Cubs,Wrigley Field
+2002,CIN,NL,CIN,C,3,162,78,84,0.481,Cincinnati Reds,Cinergy Field
+2002,CLE,AL,CLE,C,3,162,74,88,0.457,Cleveland Indians,Jacobs Field
+2002,COL,NL,COL,W,4,162,73,89,0.451,Colorado Rockies,Coors Field
+2002,DET,AL,DET,C,5,161,55,106,0.342,Detroit Tigers,Comerica Park
+2002,MIA,NL,MIA,E,4,162,79,83,0.488,Florida Marlins,Pro Player Stadium
+2002,HOU,NL,HOU,C,2,162,84,78,0.519,Houston Astros,Minute Maid Park
+2002,KCA,AL,KCR,C,4,162,62,100,0.383,Kansas City Royals,Kauffman Stadium
+2002,LAN,NL,LAD,W,3,162,92,70,0.568,Los Angeles Dodgers,Dodger Stadium
+2002,MIL,NL,MIL,C,6,162,56,106,0.346,Milwaukee Brewers,Miller Park
+2002,MIN,AL,MIN,C,1,161,94,67,0.584,Minnesota Twins,Hubert H Humphrey Metrodome
+2002,WAS,NL,WSH,E,2,162,83,79,0.512,Montreal Expos,Stade Olympique
+2002,NYA,AL,NYY,E,1,161,103,58,0.64,New York Yankees,Yankee Stadium II
+2002,NYN,NL,NYM,E,5,161,75,86,0.466,New York Mets,Shea Stadium
+2002,ATH,AL,ATH,W,1,162,103,59,0.636,Oakland Athletics,Oakland Coliseum
+2002,PHI,NL,PHI,E,3,161,80,81,0.497,Philadelphia Phillies,Veterans Stadium
+2002,PIT,NL,PIT,C,4,161,72,89,0.447,Pittsburgh Pirates,PNC Park
+2002,SDN,NL,SDP,W,5,162,66,96,0.407,San Diego Padres,Qualcomm Stadium
+2002,SEA,AL,SEA,W,3,162,93,69,0.574,Seattle Mariners,Safeco Field
+2002,SFN,NL,SFG,W,2,162,95,66,0.59,San Francisco Giants,PacBell Park
+2002,SLN,NL,STL,C,1,162,97,65,0.599,St. Louis Cardinals,Busch Stadium II
+2002,TBA,AL,TB,E,5,161,55,106,0.342,Tampa Bay Devil Rays,Tropicana Field
+2002,TEX,AL,TEX,W,4,162,72,90,0.444,Texas Rangers,The Ballpark at Arlington
+2002,TOR,AL,TOR,E,3,162,78,84,0.481,Toronto Blue Jays,Skydome
+2003,LAA,AL,LAA,W,3,162,77,85,0.475,Anaheim Angels,Edison International Field
+2003,ARI,NL,ARI,W,3,162,84,78,0.519,Arizona Diamondbacks,Bank One Ballpark
+2003,ATL,NL,ATL,E,1,162,101,61,0.623,Atlanta Braves,Turner Field
+2003,BAL,AL,BAL,E,4,163,71,91,0.438,Baltimore Orioles,Oriole Park at Camden Yards
+2003,BOS,AL,BOS,E,2,162,95,67,0.586,Boston Red Sox,Fenway Park II
+2003,CHA,AL,CHW,C,2,162,86,76,0.531,Chicago White Sox,U.S. Cellular Field
+2003,CHN,NL,CHC,C,1,162,88,74,0.543,Chicago Cubs,Wrigley Field
+2003,CIN,NL,CIN,C,5,162,69,93,0.426,Cincinnati Reds,Great American Ball Park
+2003,CLE,AL,CLE,C,4,162,68,94,0.42,Cleveland Indians,Jacobs Field
+2003,COL,NL,COL,W,4,162,74,88,0.457,Colorado Rockies,Coors Field
+2003,DET,AL,DET,C,5,162,43,119,0.265,Detroit Tigers,Comerica Park
+2003,MIA,NL,MIA,E,2,162,91,71,0.562,Florida Marlins,Pro Player Stadium
+2003,HOU,NL,HOU,C,2,162,87,75,0.537,Houston Astros,Minute Maid Park
+2003,KCA,AL,KCR,C,3,162,83,79,0.512,Kansas City Royals,Kauffman Stadium
+2003,LAN,NL,LAD,W,2,162,85,77,0.525,Los Angeles Dodgers,Dodger Stadium
+2003,MIL,NL,MIL,C,6,162,68,94,0.42,Milwaukee Brewers,Miller Park
+2003,MIN,AL,MIN,C,1,162,90,72,0.556,Minnesota Twins,Hubert H Humphrey Metrodome
+2003,WAS,NL,WSH,E,4,162,83,79,0.512,Montreal Expos,Stade Olympique/Hiram Bithorn Stadium
+2003,NYA,AL,NYY,E,1,163,101,61,0.623,New York Yankees,Yankee Stadium II
+2003,NYN,NL,NYM,E,5,161,66,95,0.41,New York Mets,Shea Stadium
+2003,ATH,AL,ATH,W,1,162,96,66,0.593,Oakland Athletics,Oakland Coliseum
+2003,PHI,NL,PHI,E,3,162,86,76,0.531,Philadelphia Phillies,Veterans Stadium
+2003,PIT,NL,PIT,C,4,162,75,87,0.463,Pittsburgh Pirates,PNC Park
+2003,SDN,NL,SDP,W,5,162,64,98,0.395,San Diego Padres,Qualcomm Stadium
+2003,SEA,AL,SEA,W,2,162,93,69,0.574,Seattle Mariners,Safeco Field
+2003,SFN,NL,SFG,W,1,161,100,61,0.621,San Francisco Giants,PacBell Park
+2003,SLN,NL,STL,C,3,162,85,77,0.525,St. Louis Cardinals,Busch Stadium II
+2003,TBA,AL,TB,E,5,162,63,99,0.389,Tampa Bay Devil Rays,Tropicana Field
+2003,TEX,AL,TEX,W,4,162,71,91,0.438,Texas Rangers,The Ballpark at Arlington
+2003,TOR,AL,TOR,E,3,162,86,76,0.531,Toronto Blue Jays,Skydome
+2004,LAA,AL,LAA,W,1,162,92,70,0.568,Anaheim Angels,Angels Stadium of Anaheim
+2004,ARI,NL,ARI,W,5,162,51,111,0.315,Arizona Diamondbacks,Bank One Ballpark
+2004,ATL,NL,ATL,E,1,162,96,66,0.593,Atlanta Braves,Turner Field
+2004,BAL,AL,BAL,E,3,162,78,84,0.481,Baltimore Orioles,Oriole Park at Camden Yards
+2004,BOS,AL,BOS,E,2,162,98,64,0.605,Boston Red Sox,Fenway Park II
+2004,CHA,AL,CHW,C,2,162,83,79,0.512,Chicago White Sox,U.S. Cellular Field
+2004,CHN,NL,CHC,C,3,162,89,73,0.549,Chicago Cubs,Wrigley Field
+2004,CIN,NL,CIN,C,4,162,76,86,0.469,Cincinnati Reds,Great American Ball Park
+2004,CLE,AL,CLE,C,3,162,80,82,0.494,Cleveland Indians,Jacobs Field
+2004,COL,NL,COL,W,4,162,68,94,0.42,Colorado Rockies,Coors Field
+2004,DET,AL,DET,C,4,162,72,90,0.444,Detroit Tigers,Comerica Park
+2004,MIA,NL,MIA,E,3,162,83,79,0.512,Florida Marlins,Pro Player Stadium
+2004,HOU,NL,HOU,C,2,162,92,70,0.568,Houston Astros,Minute Maid Park
+2004,KCA,AL,KCR,C,5,162,58,104,0.358,Kansas City Royals,Kauffman Stadium
+2004,LAN,NL,LAD,W,1,162,93,69,0.574,Los Angeles Dodgers,Dodger Stadium
+2004,MIL,NL,MIL,C,6,161,67,94,0.416,Milwaukee Brewers,Miller Park
+2004,MIN,AL,MIN,C,1,162,92,70,0.568,Minnesota Twins,Hubert H Humphrey Metrodome
+2004,WAS,NL,WSH,E,5,162,67,95,0.414,Montreal Expos,Stade Olympique/Hiram Bithorn Stadium
+2004,NYA,AL,NYY,E,1,162,101,61,0.623,New York Yankees,Yankee Stadium II
+2004,NYN,NL,NYM,E,4,162,71,91,0.438,New York Mets,Shea Stadium
+2004,ATH,AL,ATH,W,2,162,91,71,0.562,Oakland Athletics,Network Associates Coliseum
+2004,PHI,NL,PHI,E,2,162,86,76,0.531,Philadelphia Phillies,Citizens Bank Park
+2004,PIT,NL,PIT,C,5,161,72,89,0.447,Pittsburgh Pirates,PNC Park
+2004,SDN,NL,SDP,W,3,162,87,75,0.537,San Diego Padres,Petco Park
+2004,SEA,AL,SEA,W,4,162,63,99,0.389,Seattle Mariners,Safeco Field
+2004,SFN,NL,SFG,W,2,162,91,71,0.562,San Francisco Giants,SBC Park
+2004,SLN,NL,STL,C,1,162,105,57,0.648,St. Louis Cardinals,Busch Stadium II
+2004,TBA,AL,TB,E,4,161,70,91,0.435,Tampa Bay Devil Rays,Tropicana Field
+2004,TEX,AL,TEX,W,3,162,89,73,0.549,Texas Rangers,The Ballpark at Arlington
+2004,TOR,AL,TOR,E,5,161,67,94,0.416,Toronto Blue Jays,Skydome
+2005,ARI,NL,ARI,W,2,162,77,85,0.475,Arizona Diamondbacks,Bank One Ballpark
+2005,ATL,NL,ATL,E,1,162,90,72,0.556,Atlanta Braves,Turner Field
+2005,BAL,AL,BAL,E,4,162,74,88,0.457,Baltimore Orioles,Oriole Park at Camden Yards
+2005,BOS,AL,BOS,E,2,162,95,67,0.586,Boston Red Sox,Fenway Park II
+2005,CHA,AL,CHW,C,1,162,99,63,0.611,Chicago White Sox,U.S. Cellular Field
+2005,CHN,NL,CHC,C,4,162,79,83,0.488,Chicago Cubs,Wrigley Field
+2005,CIN,NL,CIN,C,5,163,73,89,0.451,Cincinnati Reds,Great American Ball Park
+2005,CLE,AL,CLE,C,2,162,93,69,0.574,Cleveland Indians,Jacobs Field
+2005,COL,NL,COL,W,5,162,67,95,0.414,Colorado Rockies,Coors Field
+2005,DET,AL,DET,C,4,162,71,91,0.438,Detroit Tigers,Comerica Park
+2005,MIA,NL,MIA,E,3,162,83,79,0.512,Florida Marlins,Dolphin Stadium
+2005,HOU,NL,HOU,C,2,163,89,73,0.549,Houston Astros,Minute Maid Park
+2005,KCA,AL,KCR,C,5,162,56,106,0.346,Kansas City Royals,Kauffman Stadium
+2005,LAA,AL,LAA,W,1,162,95,67,0.586,Los Angeles Angels of Anaheim,Angel Stadium
+2005,LAN,NL,LAD,W,4,162,71,91,0.438,Los Angeles Dodgers,Dodger Stadium
+2005,MIL,NL,MIL,C,3,162,81,81,0.5,Milwaukee Brewers,Miller Park
+2005,MIN,AL,MIN,C,3,162,83,79,0.512,Minnesota Twins,Hubert H Humphrey Metrodome
+2005,NYA,AL,NYY,E,1,162,95,67,0.586,New York Yankees,Yankee Stadium II
+2005,NYN,NL,NYM,E,3,162,83,79,0.512,New York Mets,Shea Stadium
+2005,ATH,AL,ATH,W,2,162,88,74,0.543,Oakland Athletics,McAfee Coliseum
+2005,PHI,NL,PHI,E,2,162,88,74,0.543,Philadelphia Phillies,Citizens Bank Park
+2005,PIT,NL,PIT,C,6,162,67,95,0.414,Pittsburgh Pirates,PNC Park
+2005,SDN,NL,SDP,W,1,162,82,80,0.506,San Diego Padres,Petco Park
+2005,SEA,AL,SEA,W,4,162,69,93,0.426,Seattle Mariners,Safeco Field
+2005,SFN,NL,SFG,W,3,162,75,87,0.463,San Francisco Giants,SBC Park
+2005,SLN,NL,STL,C,1,162,100,62,0.617,St. Louis Cardinals,Busch Stadium II
+2005,TBA,AL,TB,E,5,162,67,95,0.414,Tampa Bay Devil Rays,Tropicana Field
+2005,TEX,AL,TEX,W,3,162,79,83,0.488,Texas Rangers,Ameriquest Field
+2005,TOR,AL,TOR,E,3,162,80,82,0.494,Toronto Blue Jays,Rogers Centre
+2005,WAS,NL,WSH,E,5,162,81,81,0.5,Washington Nationals,R.F.K. Stadium
+2006,ARI,NL,ARI,W,4,162,76,86,0.469,Arizona Diamondbacks,Chase Field
+2006,ATL,NL,ATL,E,3,162,79,83,0.488,Atlanta Braves,Turner Field
+2006,BAL,AL,BAL,E,4,162,70,92,0.432,Baltimore Orioles,Oriole Park at Camden Yards
+2006,BOS,AL,BOS,E,3,162,86,76,0.531,Boston Red Sox,Fenway Park II
+2006,CHA,AL,CHW,C,3,162,90,72,0.556,Chicago White Sox,U.S. Cellular Field
+2006,CHN,NL,CHC,C,6,162,66,96,0.407,Chicago Cubs,Wrigley Field
+2006,CIN,NL,CIN,C,3,162,80,82,0.494,Cincinnati Reds,Great American Ball Park
+2006,CLE,AL,CLE,C,4,162,78,84,0.481,Cleveland Indians,Jacobs Field
+2006,COL,NL,COL,W,4,162,76,86,0.469,Colorado Rockies,Coors Field
+2006,DET,AL,DET,C,2,162,95,67,0.586,Detroit Tigers,Comerica Park
+2006,MIA,NL,MIA,E,4,162,78,84,0.481,Florida Marlins,Dolphin Stadium
+2006,HOU,NL,HOU,C,2,162,82,80,0.506,Houston Astros,Minute Maid Park
+2006,KCA,AL,KCR,C,5,162,62,100,0.383,Kansas City Royals,Kauffman Stadium
+2006,LAA,AL,LAA,W,2,162,89,73,0.549,Los Angeles Angels of Anaheim,Angel Stadium
+2006,LAN,NL,LAD,W,2,162,88,74,0.543,Los Angeles Dodgers,Dodger Stadium
+2006,MIL,NL,MIL,C,4,162,75,87,0.463,Milwaukee Brewers,Miller Park
+2006,MIN,AL,MIN,C,1,162,96,66,0.593,Minnesota Twins,Hubert H Humphrey Metrodome
+2006,NYA,AL,NYY,E,1,162,97,65,0.599,New York Yankees,Yankee Stadium II
+2006,NYN,NL,NYM,E,1,162,97,65,0.599,New York Mets,Shea Stadium
+2006,ATH,AL,ATH,W,1,162,93,69,0.574,Oakland Athletics,McAfee Coliseum
+2006,PHI,NL,PHI,E,2,162,85,77,0.525,Philadelphia Phillies,Citizens Bank Park
+2006,PIT,NL,PIT,C,5,162,67,95,0.414,Pittsburgh Pirates,PNC Park
+2006,SDN,NL,SDP,W,1,162,88,74,0.543,San Diego Padres,Petco Park
+2006,SEA,AL,SEA,W,4,162,78,84,0.481,Seattle Mariners,Safeco Field
+2006,SFN,NL,SFG,W,3,161,76,85,0.472,San Francisco Giants,AT&T Park
+2006,SLN,NL,STL,C,1,161,83,78,0.516,St. Louis Cardinals,Busch Stadium III
+2006,TBA,AL,TB,E,5,162,61,101,0.377,Tampa Bay Devil Rays,Tropicana Field
+2006,TEX,AL,TEX,W,3,162,80,82,0.494,Texas Rangers,Ameriquest Field
+2006,TOR,AL,TOR,E,2,162,87,75,0.537,Toronto Blue Jays,Rogers Centre
+2006,WAS,NL,WSH,E,5,162,71,91,0.438,Washington Nationals,R.F.K. Stadium
+2007,ARI,NL,ARI,W,1,162,90,72,0.556,Arizona Diamondbacks,Chase Field
+2007,ATL,NL,ATL,E,3,162,84,78,0.519,Atlanta Braves,Turner Field
+2007,BAL,AL,BAL,E,4,162,69,93,0.426,Baltimore Orioles,Oriole Park at Camden Yards
+2007,BOS,AL,BOS,E,1,162,96,66,0.593,Boston Red Sox,Fenway Park II
+2007,CHA,AL,CHW,C,4,162,72,90,0.444,Chicago White Sox,U.S. Cellular Field
+2007,CHN,NL,CHC,C,1,162,85,77,0.525,Chicago Cubs,Wrigley Field
+2007,CIN,NL,CIN,C,5,162,72,90,0.444,Cincinnati Reds,Great American Ball Park
+2007,CLE,AL,CLE,C,1,162,96,66,0.593,Cleveland Indians,Jacobs Field
+2007,COL,NL,COL,W,2,163,90,73,0.552,Colorado Rockies,Coors Field
+2007,DET,AL,DET,C,2,162,88,74,0.543,Detroit Tigers,Comerica Park
+2007,MIA,NL,MIA,E,5,162,71,91,0.438,Florida Marlins,Dolphin Stadium
+2007,HOU,NL,HOU,C,4,162,73,89,0.451,Houston Astros,Minute Maid Park
+2007,KCA,AL,KCR,C,5,162,69,93,0.426,Kansas City Royals,Kauffman Stadium
+2007,LAA,AL,LAA,W,1,162,94,68,0.58,Los Angeles Angels of Anaheim,Angel Stadium
+2007,LAN,NL,LAD,W,4,162,82,80,0.506,Los Angeles Dodgers,Dodger Stadium
+2007,MIL,NL,MIL,C,2,162,83,79,0.512,Milwaukee Brewers,Miller Park
+2007,MIN,AL,MIN,C,3,162,79,83,0.488,Minnesota Twins,Hubert H Humphrey Metrodome
+2007,NYA,AL,NYY,E,2,162,94,68,0.58,New York Yankees,Yankee Stadium II
+2007,NYN,NL,NYM,E,2,162,88,74,0.543,New York Mets,Shea Stadium
+2007,ATH,AL,ATH,W,3,162,76,86,0.469,Oakland Athletics,McAfee Coliseum
+2007,PHI,NL,PHI,E,1,162,89,73,0.549,Philadelphia Phillies,Citizens Bank Park
+2007,PIT,NL,PIT,C,6,162,68,94,0.42,Pittsburgh Pirates,PNC Park
+2007,SDN,NL,SDP,W,3,163,89,74,0.546,San Diego Padres,Petco Park
+2007,SEA,AL,SEA,W,2,162,88,74,0.543,Seattle Mariners,Safeco Field
+2007,SFN,NL,SFG,W,5,162,71,91,0.438,San Francisco Giants,AT&T Park
+2007,SLN,NL,STL,C,3,162,78,84,0.481,St. Louis Cardinals,Busch Stadium III
+2007,TBA,AL,TB,E,5,162,66,96,0.407,Tampa Bay Devil Rays,Tropicana Field
+2007,TEX,AL,TEX,W,4,162,75,87,0.463,Texas Rangers,Rangers Ballpark in Arlington
+2007,TOR,AL,TOR,E,3,162,83,79,0.512,Toronto Blue Jays,Rogers Centre
+2007,WAS,NL,WSH,E,4,162,73,89,0.451,Washington Nationals,R.F.K. Stadium
+2008,ARI,NL,ARI,W,2,162,82,80,0.506,Arizona Diamondbacks,Chase Field
+2008,ATL,NL,ATL,E,4,162,72,90,0.444,Atlanta Braves,Turner Field
+2008,BAL,AL,BAL,E,5,161,68,93,0.422,Baltimore Orioles,Oriole Park at Camden Yards
+2008,BOS,AL,BOS,E,2,162,95,67,0.586,Boston Red Sox,Fenway Park II
+2008,CHA,AL,CHW,C,1,163,89,74,0.546,Chicago White Sox,U.S. Cellular Field
+2008,CHN,NL,CHC,C,1,161,97,64,0.602,Chicago Cubs,Wrigley Field
+2008,CIN,NL,CIN,C,5,162,74,88,0.457,Cincinnati Reds,Great American Ball Park
+2008,CLE,AL,CLE,C,3,162,81,81,0.5,Cleveland Indians,Jacobs Field
+2008,COL,NL,COL,W,3,162,74,88,0.457,Colorado Rockies,Coors Field
+2008,DET,AL,DET,C,5,162,74,88,0.457,Detroit Tigers,Comerica Park
+2008,MIA,NL,MIA,E,3,161,84,77,0.522,Florida Marlins,Dolphin Stadium
+2008,HOU,NL,HOU,C,3,161,86,75,0.534,Houston Astros,Minute Maid Park
+2008,KCA,AL,KCR,C,4,162,75,87,0.463,Kansas City Royals,Kauffman Stadium
+2008,LAA,AL,LAA,W,1,162,100,62,0.617,Los Angeles Angels of Anaheim,Angel Stadium
+2008,LAN,NL,LAD,W,1,162,84,78,0.519,Los Angeles Dodgers,Dodger Stadium
+2008,MIL,NL,MIL,C,2,162,90,72,0.556,Milwaukee Brewers,Miller Park
+2008,MIN,AL,MIN,C,2,163,88,75,0.54,Minnesota Twins,Hubert H Humphrey Metrodome
+2008,NYA,AL,NYY,E,3,162,89,73,0.549,New York Yankees,Yankee Stadium II
+2008,NYN,NL,NYM,E,2,162,89,73,0.549,New York Mets,Shea Stadium
+2008,ATH,AL,ATH,W,3,161,75,86,0.466,Oakland Athletics,McAfee Coliseum
+2008,PHI,NL,PHI,E,1,162,92,70,0.568,Philadelphia Phillies,Citizens Bank Park
+2008,PIT,NL,PIT,C,6,162,67,95,0.414,Pittsburgh Pirates,PNC Park
+2008,SDN,NL,SDP,W,5,162,63,99,0.389,San Diego Padres,Petco Park
+2008,SEA,AL,SEA,W,4,162,61,101,0.377,Seattle Mariners,Safeco Field
+2008,SFN,NL,SFG,W,4,162,72,90,0.444,San Francisco Giants,AT&T Park
+2008,SLN,NL,STL,C,4,162,86,76,0.531,St. Louis Cardinals,Busch Stadium III
+2008,TBA,AL,TB,E,1,162,97,65,0.599,Tampa Bay Rays,Tropicana Field
+2008,TEX,AL,TEX,W,2,162,79,83,0.488,Texas Rangers,Rangers Ballpark in Arlington
+2008,TOR,AL,TOR,E,4,162,86,76,0.531,Toronto Blue Jays,Rogers Centre
+2008,WAS,NL,WSH,E,5,161,59,102,0.366,Washington Nationals,Nationals Park
+2009,ARI,NL,ARI,W,5,162,70,92,0.432,Arizona Diamondbacks,Chase Field
+2009,ATL,NL,ATL,E,3,162,86,76,0.531,Atlanta Braves,Turner Field
+2009,BAL,AL,BAL,E,5,162,64,98,0.395,Baltimore Orioles,Oriole Park at Camden Yards
+2009,BOS,AL,BOS,E,2,162,95,67,0.586,Boston Red Sox,Fenway Park II
+2009,CHA,AL,CHW,C,3,162,79,83,0.488,Chicago White Sox,U.S. Cellular Field
+2009,CHN,NL,CHC,C,2,161,83,78,0.516,Chicago Cubs,Wrigley Field
+2009,CIN,NL,CIN,C,4,162,78,84,0.481,Cincinnati Reds,Great American Ball Park
+2009,CLE,AL,CLE,C,4,162,65,97,0.401,Cleveland Indians,Jacobs Field
+2009,COL,NL,COL,W,2,162,92,70,0.568,Colorado Rockies,Coors Field
+2009,DET,AL,DET,C,2,163,86,77,0.528,Detroit Tigers,Comerica Park
+2009,MIA,NL,MIA,E,2,162,87,75,0.537,Florida Marlins,Dolphin Stadium
+2009,HOU,NL,HOU,C,5,162,74,88,0.457,Houston Astros,Minute Maid Park
+2009,KCA,AL,KCR,C,4,162,65,97,0.401,Kansas City Royals,Kauffman Stadium
+2009,LAA,AL,LAA,W,1,162,97,65,0.599,Los Angeles Angels of Anaheim,Angel Stadium
+2009,LAN,NL,LAD,W,1,162,95,67,0.586,Los Angeles Dodgers,Dodger Stadium
+2009,MIL,NL,MIL,C,3,162,80,82,0.494,Milwaukee Brewers,Miller Park
+2009,MIN,AL,MIN,C,1,163,87,76,0.534,Minnesota Twins,Hubert H Humphrey Metrodome
+2009,NYA,AL,NYY,E,1,162,103,59,0.636,New York Yankees,Yankee Stadium III
+2009,NYN,NL,NYM,E,4,162,70,92,0.432,New York Mets,Citi Field
+2009,ATH,AL,ATH,W,4,162,75,87,0.463,Oakland Athletics,Oakland-Alameda County Coliseum
+2009,PHI,NL,PHI,E,1,162,93,69,0.574,Philadelphia Phillies,Citizens Bank Park
+2009,PIT,NL,PIT,C,6,161,62,99,0.385,Pittsburgh Pirates,PNC Park
+2009,SDN,NL,SDP,W,4,162,75,87,0.463,San Diego Padres,Petco Park
+2009,SEA,AL,SEA,W,3,162,85,77,0.525,Seattle Mariners,Safeco Field
+2009,SFN,NL,SFG,W,3,162,88,74,0.543,San Francisco Giants,AT&T Park
+2009,SLN,NL,STL,C,1,162,91,71,0.562,St. Louis Cardinals,Busch Stadium III
+2009,TBA,AL,TB,E,3,162,84,78,0.519,Tampa Bay Rays,Tropicana Field
+2009,TEX,AL,TEX,W,2,162,87,75,0.537,Texas Rangers,Rangers Ballpark in Arlington
+2009,TOR,AL,TOR,E,4,162,75,87,0.463,Toronto Blue Jays,Rogers Centre
+2009,WAS,NL,WSH,E,5,162,59,103,0.364,Washington Nationals,Nationals Park
+2010,ARI,NL,ARI,W,5,162,65,97,0.401,Arizona Diamondbacks,Chase Field
+2010,ATL,NL,ATL,E,2,162,91,71,0.562,Atlanta Braves,Turner Field
+2010,BAL,AL,BAL,E,5,162,66,96,0.407,Baltimore Orioles,Oriole Park at Camden Yards
+2010,BOS,AL,BOS,E,3,162,89,73,0.549,Boston Red Sox,Fenway Park II
+2010,CHA,AL,CHW,C,2,162,88,74,0.543,Chicago White Sox,U.S. Cellular Field
+2010,CHN,NL,CHC,C,5,162,75,87,0.463,Chicago Cubs,Wrigley Field
+2010,CIN,NL,CIN,C,1,162,91,71,0.562,Cincinnati Reds,Great American Ball Park
+2010,CLE,AL,CLE,C,4,162,69,93,0.426,Cleveland Indians,Jacobs Field
+2010,COL,NL,COL,W,3,162,83,79,0.512,Colorado Rockies,Coors Field
+2010,DET,AL,DET,C,3,162,81,81,0.5,Detroit Tigers,Comerica Park
+2010,MIA,NL,MIA,E,3,162,80,82,0.494,Florida Marlins,Dolphin Stadium
+2010,HOU,NL,HOU,C,4,162,76,86,0.469,Houston Astros,Minute Maid Park
+2010,KCA,AL,KCR,C,5,162,67,95,0.414,Kansas City Royals,Kauffman Stadium
+2010,LAA,AL,LAA,W,3,162,80,82,0.494,Los Angeles Angels of Anaheim,Angel Stadium
+2010,LAN,NL,LAD,W,4,162,80,82,0.494,Los Angeles Dodgers,Dodger Stadium
+2010,MIL,NL,MIL,C,3,162,77,85,0.475,Milwaukee Brewers,Miller Park
+2010,MIN,AL,MIN,C,1,162,94,68,0.58,Minnesota Twins,Target Field
+2010,NYA,AL,NYY,E,2,162,95,67,0.586,New York Yankees,Yankee Stadium III
+2010,NYN,NL,NYM,E,4,162,79,83,0.488,New York Mets,Citi Field
+2010,ATH,AL,ATH,W,2,162,81,81,0.5,Oakland Athletics,Oakland-Alameda County Coliseum
+2010,PHI,NL,PHI,E,1,162,97,65,0.599,Philadelphia Phillies,Citizens Bank Park
+2010,PIT,NL,PIT,C,6,162,57,105,0.352,Pittsburgh Pirates,PNC Park
+2010,SDN,NL,SDP,W,2,162,90,72,0.556,San Diego Padres,Petco Park
+2010,SEA,AL,SEA,W,4,162,61,101,0.377,Seattle Mariners,Safeco Field
+2010,SFN,NL,SFG,W,1,162,92,70,0.568,San Francisco Giants,AT&T Park
+2010,SLN,NL,STL,C,2,162,86,76,0.531,St. Louis Cardinals,Busch Stadium III
+2010,TBA,AL,TB,E,1,162,96,66,0.593,Tampa Bay Rays,Tropicana Field
+2010,TEX,AL,TEX,W,1,162,90,72,0.556,Texas Rangers,Rangers Ballpark in Arlington
+2010,TOR,AL,TOR,E,4,162,85,77,0.525,Toronto Blue Jays,Rogers Centre
+2010,WAS,NL,WSH,E,5,162,69,93,0.426,Washington Nationals,Nationals Park
+2011,ARI,NL,ARI,W,1,162,94,68,0.58,Arizona Diamondbacks,Chase Field
+2011,ATL,NL,ATL,E,2,162,89,73,0.549,Atlanta Braves,Turner Field
+2011,BAL,AL,BAL,E,5,162,69,93,0.426,Baltimore Orioles,Oriole Park at Camden Yards
+2011,BOS,AL,BOS,E,3,162,90,72,0.556,Boston Red Sox,Fenway Park II
+2011,CHA,AL,CHW,C,3,162,79,83,0.488,Chicago White Sox,U.S. Cellular Field
+2011,CHN,NL,CHC,C,5,162,71,91,0.438,Chicago Cubs,Wrigley Field
+2011,CIN,NL,CIN,C,3,162,79,83,0.488,Cincinnati Reds,Great American Ball Park
+2011,CLE,AL,CLE,C,2,162,80,82,0.494,Cleveland Indians,Jacobs Field
+2011,COL,NL,COL,W,4,162,73,89,0.451,Colorado Rockies,Coors Field
+2011,DET,AL,DET,C,1,162,95,67,0.586,Detroit Tigers,Comerica Park
+2011,MIA,NL,MIA,E,5,162,72,90,0.444,Florida Marlins,Sun Life Stadium
+2011,HOU,NL,HOU,C,6,162,56,106,0.346,Houston Astros,Minute Maid Park
+2011,KCA,AL,KCR,C,4,162,71,91,0.438,Kansas City Royals,Kauffman Stadium
+2011,LAA,AL,LAA,W,2,162,86,76,0.531,Los Angeles Angels of Anaheim,Angel Stadium
+2011,LAN,NL,LAD,W,3,161,82,79,0.509,Los Angeles Dodgers,Dodger Stadium
+2011,MIL,NL,MIL,C,1,162,96,66,0.593,Milwaukee Brewers,Miller Park
+2011,MIN,AL,MIN,C,5,162,63,99,0.389,Minnesota Twins,Target Field
+2011,NYA,AL,NYY,E,1,162,97,65,0.599,New York Yankees,Yankee Stadium III
+2011,NYN,NL,NYM,E,4,162,77,85,0.475,New York Mets,Citi Field
+2011,ATH,AL,ATH,W,3,162,74,88,0.457,Oakland Athletics,Oakland-Alameda County Coliseum
+2011,PHI,NL,PHI,E,1,162,102,60,0.63,Philadelphia Phillies,Citizens Bank Park
+2011,PIT,NL,PIT,C,4,162,72,90,0.444,Pittsburgh Pirates,PNC Park
+2011,SDN,NL,SDP,W,5,162,71,91,0.438,San Diego Padres,Petco Park
+2011,SEA,AL,SEA,W,4,162,67,95,0.414,Seattle Mariners,Safeco Field
+2011,SFN,NL,SFG,W,2,162,86,76,0.531,San Francisco Giants,AT&T Park
+2011,SLN,NL,STL,C,2,162,90,72,0.556,St. Louis Cardinals,Busch Stadium III
+2011,TBA,AL,TB,E,2,162,91,71,0.562,Tampa Bay Rays,Tropicana Field
+2011,TEX,AL,TEX,W,1,162,96,66,0.593,Texas Rangers,Rangers Ballpark in Arlington
+2011,TOR,AL,TOR,E,4,162,81,81,0.5,Toronto Blue Jays,Rogers Centre
+2011,WAS,NL,WSH,E,3,161,80,81,0.497,Washington Nationals,Nationals Park
+2012,ARI,NL,ARI,W,3,162,81,81,0.5,Arizona Diamondbacks,Chase Field
+2012,ATL,NL,ATL,E,2,162,94,68,0.58,Atlanta Braves,Turner Field
+2012,BAL,AL,BAL,E,2,162,93,69,0.574,Baltimore Orioles,Oriole Park at Camden Yards
+2012,BOS,AL,BOS,E,5,162,69,93,0.426,Boston Red Sox,Fenway Park II
+2012,CHA,AL,CHW,C,2,162,85,77,0.525,Chicago White Sox,U.S. Cellular Field
+2012,CHN,NL,CHC,C,5,162,61,101,0.377,Chicago Cubs,Wrigley Field
+2012,CIN,NL,CIN,C,1,162,97,65,0.599,Cincinnati Reds,Great American Ball Park
+2012,CLE,AL,CLE,C,4,162,68,94,0.42,Cleveland Indians,Progressive Field
+2012,COL,NL,COL,W,5,162,64,98,0.395,Colorado Rockies,Coors Field
+2012,DET,AL,DET,C,1,162,88,74,0.543,Detroit Tigers,Comerica Park
+2012,HOU,NL,HOU,C,6,162,55,107,0.34,Houston Astros,Minute Maid Park
+2012,KCA,AL,KCR,C,3,162,72,90,0.444,Kansas City Royals,Kauffman Stadium
+2012,LAA,AL,LAA,W,3,162,89,73,0.549,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2012,LAN,NL,LAD,W,2,162,86,76,0.531,Los Angeles Dodgers,Dodger Stadium
+2012,MIA,NL,MIA,E,5,162,69,93,0.426,Miami Marlins,Marlins Park
+2012,MIL,NL,MIL,C,3,162,83,79,0.512,Milwaukee Brewers,Miller Park
+2012,MIN,AL,MIN,C,5,162,66,96,0.407,Minnesota Twins,Target Field
+2012,NYA,AL,NYY,E,1,162,95,67,0.586,New York Yankees,Yankee Stadium III
+2012,NYN,NL,NYM,E,4,162,74,88,0.457,New York Mets,Citi Field
+2012,ATH,AL,ATH,W,1,162,94,68,0.58,Oakland Athletics,O.co Coliseum
+2012,PHI,NL,PHI,E,3,162,81,81,0.5,Philadelphia Phillies,Citizens Bank Park
+2012,PIT,NL,PIT,C,4,162,79,83,0.488,Pittsburgh Pirates,PNC Park
+2012,SDN,NL,SDP,W,4,162,76,86,0.469,San Diego Padres,Petco Park
+2012,SEA,AL,SEA,W,4,162,75,87,0.463,Seattle Mariners,Safeco Field
+2012,SFN,NL,SFG,W,1,162,94,68,0.58,San Francisco Giants,AT&T Park
+2012,SLN,NL,STL,C,2,162,88,74,0.543,St. Louis Cardinals,Busch Stadium III
+2012,TBA,AL,TB,E,3,162,90,72,0.556,Tampa Bay Rays,Tropicana Field
+2012,TEX,AL,TEX,W,2,162,93,69,0.574,Texas Rangers,Rangers Ballpark in Arlington
+2012,TOR,AL,TOR,E,4,162,73,89,0.451,Toronto Blue Jays,Rogers Centre
+2012,WAS,NL,WSH,E,1,162,98,64,0.605,Washington Nationals,Nationals Park
+2013,ARI,NL,ARI,W,2,162,81,81,0.5,Arizona Diamondbacks,Chase Field
+2013,ATL,NL,ATL,E,1,162,96,66,0.593,Atlanta Braves,Turner Field
+2013,BAL,AL,BAL,E,3,162,85,77,0.525,Baltimore Orioles,Oriole Park at Camden Yards
+2013,BOS,AL,BOS,E,1,162,97,65,0.599,Boston Red Sox,Fenway Park II
+2013,CHA,AL,CHW,C,5,162,63,99,0.389,Chicago White Sox,U.S. Cellular Field
+2013,CHN,NL,CHC,C,5,162,66,96,0.407,Chicago Cubs,Wrigley Field
+2013,CIN,NL,CIN,C,3,162,90,72,0.556,Cincinnati Reds,Great American Ball Park
+2013,CLE,AL,CLE,C,2,162,92,70,0.568,Cleveland Indians,Progressive Field
+2013,COL,NL,COL,W,5,162,74,88,0.457,Colorado Rockies,Coors Field
+2013,DET,AL,DET,C,1,162,93,69,0.574,Detroit Tigers,Comerica Park
+2013,HOU,AL,HOU,W,5,162,51,111,0.315,Houston Astros,Minute Maid Park
+2013,KCA,AL,KCR,C,3,162,86,76,0.531,Kansas City Royals,Kauffman Stadium
+2013,LAA,AL,LAA,W,3,162,78,84,0.481,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2013,LAN,NL,LAD,W,1,162,92,70,0.568,Los Angeles Dodgers,Dodger Stadium
+2013,MIA,NL,MIA,E,5,162,62,100,0.383,Miami Marlins,Marlins Park
+2013,MIL,NL,MIL,C,4,162,74,88,0.457,Milwaukee Brewers,Miller Park
+2013,MIN,AL,MIN,C,4,162,66,96,0.407,Minnesota Twins,Target Field
+2013,NYA,AL,NYY,E,4,162,85,77,0.525,New York Yankees,Yankee Stadium III
+2013,NYN,NL,NYM,E,4,162,74,88,0.457,New York Mets,Citi Field
+2013,ATH,AL,ATH,W,1,162,96,66,0.593,Oakland Athletics,O.co Coliseum
+2013,PHI,NL,PHI,E,4,162,73,89,0.451,Philadelphia Phillies,Citizens Bank Park
+2013,PIT,NL,PIT,C,2,162,94,68,0.58,Pittsburgh Pirates,PNC Park
+2013,SDN,NL,SDP,W,3,162,76,86,0.469,San Diego Padres,Petco Park
+2013,SEA,AL,SEA,W,4,162,71,91,0.438,Seattle Mariners,Safeco Field
+2013,SFN,NL,SFG,W,4,162,76,86,0.469,San Francisco Giants,AT&T Park
+2013,SLN,NL,STL,C,1,162,97,65,0.599,St. Louis Cardinals,Busch Stadium III
+2013,TBA,AL,TB,E,2,163,92,71,0.564,Tampa Bay Rays,Tropicana Field
+2013,TEX,AL,TEX,W,2,163,91,72,0.558,Texas Rangers,Rangers Ballpark in Arlington
+2013,TOR,AL,TOR,E,5,162,74,88,0.457,Toronto Blue Jays,Rogers Centre
+2013,WAS,NL,WSH,E,2,162,86,76,0.531,Washington Nationals,Nationals Park
+2014,ARI,NL,ARI,W,5,162,64,98,0.395,Arizona Diamondbacks,Chase Field
+2014,ATL,NL,ATL,E,2,162,79,83,0.488,Atlanta Braves,Turner Field
+2014,BAL,AL,BAL,E,1,162,96,66,0.593,Baltimore Orioles,Oriole Park at Camden Yards
+2014,BOS,AL,BOS,E,5,162,71,91,0.438,Boston Red Sox,Fenway Park II
+2014,CHA,AL,CHW,C,4,162,73,89,0.451,Chicago White Sox,U.S. Cellular Field
+2014,CHN,NL,CHC,C,5,162,73,89,0.451,Chicago Cubs,Wrigley Field
+2014,CIN,NL,CIN,C,4,162,76,86,0.469,Cincinnati Reds,Great American Ball Park
+2014,CLE,AL,CLE,C,3,162,85,77,0.525,Cleveland Indians,Progressive Field
+2014,COL,NL,COL,W,4,162,66,96,0.407,Colorado Rockies,Coors Field
+2014,DET,AL,DET,C,1,162,90,72,0.556,Detroit Tigers,Comerica Park
+2014,HOU,AL,HOU,W,4,162,70,92,0.432,Houston Astros,Minute Maid Park
+2014,KCA,AL,KCR,C,2,162,89,73,0.549,Kansas City Royals,Kauffman Stadium
+2014,LAA,AL,LAA,W,1,162,98,64,0.605,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2014,LAN,NL,LAD,W,1,162,94,68,0.58,Los Angeles Dodgers,Dodger Stadium
+2014,MIA,NL,MIA,E,4,162,77,85,0.475,Miami Marlins,Marlins Park
+2014,MIL,NL,MIL,C,3,162,82,80,0.506,Milwaukee Brewers,Miller Park
+2014,MIN,AL,MIN,C,5,162,70,92,0.432,Minnesota Twins,Target Field
+2014,NYA,AL,NYY,E,2,162,84,78,0.519,New York Yankees,Yankee Stadium III
+2014,NYN,NL,NYM,E,3,162,79,83,0.488,New York Mets,Citi Field
+2014,ATH,AL,ATH,W,2,162,88,74,0.543,Oakland Athletics,O.co Coliseum
+2014,PHI,NL,PHI,E,5,162,73,89,0.451,Philadelphia Phillies,Citizens Bank Park
+2014,PIT,NL,PIT,C,2,162,88,74,0.543,Pittsburgh Pirates,PNC Park
+2014,SDN,NL,SDP,W,3,162,77,85,0.475,San Diego Padres,Petco Park
+2014,SEA,AL,SEA,W,3,162,87,75,0.537,Seattle Mariners,Safeco Field
+2014,SFN,NL,SFG,W,2,162,88,74,0.543,San Francisco Giants,AT&T Park
+2014,SLN,NL,STL,C,1,162,90,72,0.556,St. Louis Cardinals,Busch Stadium III
+2014,TBA,AL,TB,E,4,162,77,85,0.475,Tampa Bay Rays,Tropicana Field
+2014,TEX,AL,TEX,W,5,162,67,95,0.414,Texas Rangers,Globe Life Park in Arlington
+2014,TOR,AL,TOR,E,3,162,83,79,0.512,Toronto Blue Jays,Rogers Centre
+2014,WAS,NL,WSH,E,1,162,96,66,0.593,Washington Nationals,Nationals Park
+2015,ARI,NL,ARI,W,3,162,79,83,0.488,Arizona Diamondbacks,Chase Field
+2015,ATL,NL,ATL,E,4,162,67,95,0.414,Atlanta Braves,Turner Field
+2015,BAL,AL,BAL,E,3,162,81,81,0.5,Baltimore Orioles,Oriole Park at Camden Yards
+2015,BOS,AL,BOS,E,5,162,78,84,0.481,Boston Red Sox,Fenway Park II
+2015,CHA,AL,CHW,C,4,162,76,86,0.469,Chicago White Sox,U.S. Cellular Field
+2015,CHN,NL,CHC,C,3,162,97,65,0.599,Chicago Cubs,Wrigley Field
+2015,CIN,NL,CIN,C,5,162,64,98,0.395,Cincinnati Reds,Great American Ball Park
+2015,CLE,AL,CLE,C,3,161,81,80,0.503,Cleveland Indians,Progressive Field
+2015,COL,NL,COL,W,5,162,68,94,0.42,Colorado Rockies,Coors Field
+2015,DET,AL,DET,C,5,161,74,87,0.46,Detroit Tigers,Comerica Park
+2015,HOU,AL,HOU,W,2,162,86,76,0.531,Houston Astros,Minute Maid Park
+2015,KCA,AL,KCR,C,1,162,95,67,0.586,Kansas City Royals,Kauffman Stadium
+2015,LAA,AL,LAA,W,3,162,85,77,0.525,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2015,LAN,NL,LAD,W,1,162,92,70,0.568,Los Angeles Dodgers,Dodger Stadium
+2015,MIA,NL,MIA,E,3,162,71,91,0.438,Miami Marlins,Marlins Park
+2015,MIL,NL,MIL,C,4,162,68,94,0.42,Milwaukee Brewers,Miller Park
+2015,MIN,AL,MIN,C,2,162,83,79,0.512,Minnesota Twins,Target Field
+2015,NYA,AL,NYY,E,2,162,87,75,0.537,New York Yankees,Yankee Stadium III
+2015,NYN,NL,NYM,E,1,162,90,72,0.556,New York Mets,Citi Field
+2015,ATH,AL,ATH,W,5,162,68,94,0.42,Oakland Athletics,O.co Coliseum
+2015,PHI,NL,PHI,E,5,162,63,99,0.389,Philadelphia Phillies,Citizens Bank Park
+2015,PIT,NL,PIT,C,2,162,98,64,0.605,Pittsburgh Pirates,PNC Park
+2015,SDN,NL,SDP,W,4,162,74,88,0.457,San Diego Padres,Petco Park
+2015,SEA,AL,SEA,W,4,162,76,86,0.469,Seattle Mariners,Safeco Field
+2015,SFN,NL,SFG,W,2,162,84,78,0.519,San Francisco Giants,AT&T Park
+2015,SLN,NL,STL,C,1,162,100,62,0.617,St. Louis Cardinals,Busch Stadium III
+2015,TBA,AL,TB,E,4,162,80,82,0.494,Tampa Bay Rays,Tropicana Field
+2015,TEX,AL,TEX,W,1,162,88,74,0.543,Texas Rangers,Globe Life Park in Arlington
+2015,TOR,AL,TOR,E,1,162,93,69,0.574,Toronto Blue Jays,Rogers Centre
+2015,WAS,NL,WSH,E,2,162,83,79,0.512,Washington Nationals,Nationals Park
+2016,ARI,NL,ARI,W,4,162,69,93,0.426,Arizona Diamondbacks,Chase Field
+2016,ATL,NL,ATL,E,5,161,68,93,0.422,Atlanta Braves,Turner Field
+2016,BAL,AL,BAL,E,2,162,89,73,0.549,Baltimore Orioles,Oriole Park at Camden Yards
+2016,BOS,AL,BOS,E,1,162,93,69,0.574,Boston Red Sox,Fenway Park II
+2016,CHA,AL,CHW,C,4,162,78,84,0.481,Chicago White Sox,U.S. Cellular Field
+2016,CHN,NL,CHC,C,1,162,103,58,0.64,Chicago Cubs,Wrigley Field
+2016,CIN,NL,CIN,C,5,162,68,94,0.42,Cincinnati Reds,Great American Ball Park
+2016,CLE,AL,CLE,C,1,161,94,67,0.584,Cleveland Indians,Progressive Field
+2016,COL,NL,COL,W,3,162,75,87,0.463,Colorado Rockies,Coors Field
+2016,DET,AL,DET,C,2,161,86,75,0.534,Detroit Tigers,Comerica Park
+2016,HOU,AL,HOU,W,3,162,84,78,0.519,Houston Astros,Minute Maid Park
+2016,KCA,AL,KCR,C,3,162,81,81,0.5,Kansas City Royals,Kauffman Stadium
+2016,LAA,AL,LAA,W,4,162,74,88,0.457,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2016,LAN,NL,LAD,W,1,162,91,71,0.562,Los Angeles Dodgers,Dodger Stadium
+2016,MIA,NL,MIA,E,3,161,79,82,0.491,Miami Marlins,Marlins Park
+2016,MIL,NL,MIL,C,4,162,73,89,0.451,Milwaukee Brewers,Miller Park
+2016,MIN,AL,MIN,C,5,162,59,103,0.364,Minnesota Twins,Target Field
+2016,NYA,AL,NYY,E,4,162,84,78,0.519,New York Yankees,Yankee Stadium III
+2016,NYN,NL,NYM,E,2,162,87,75,0.537,New York Mets,Citi Field
+2016,ATH,AL,ATH,W,5,162,69,93,0.426,Oakland Athletics,O.co Coliseum
+2016,PHI,NL,PHI,E,4,162,71,91,0.438,Philadelphia Phillies,Citizens Bank Park
+2016,PIT,NL,PIT,C,3,162,78,83,0.484,Pittsburgh Pirates,PNC Park
+2016,SDN,NL,SDP,W,5,162,68,94,0.42,San Diego Padres,Petco Park
+2016,SEA,AL,SEA,W,2,162,86,76,0.531,Seattle Mariners,Safeco Field
+2016,SFN,NL,SFG,W,2,162,87,75,0.537,San Francisco Giants,AT&T Park
+2016,SLN,NL,STL,C,2,162,86,76,0.531,St. Louis Cardinals,Busch Stadium III
+2016,TBA,AL,TB,E,5,162,68,94,0.42,Tampa Bay Rays,Tropicana Field
+2016,TEX,AL,TEX,W,1,162,95,67,0.586,Texas Rangers,Globe Life Park in Arlington
+2016,TOR,AL,TOR,E,2,162,89,73,0.549,Toronto Blue Jays,Rogers Centre
+2016,WAS,NL,WSH,E,1,162,95,67,0.586,Washington Nationals,Nationals Park
+2017,ARI,NL,ARI,W,2,162,93,69,0.574,Arizona Diamondbacks,Chase Field
+2017,ATL,NL,ATL,E,3,162,72,90,0.444,Atlanta Braves,SunTrust Park
+2017,BAL,AL,BAL,E,5,162,75,87,0.463,Baltimore Orioles,Oriole Park at Camden Yards
+2017,BOS,AL,BOS,E,1,162,93,69,0.574,Boston Red Sox,Fenway Park II
+2017,CHA,AL,CHW,C,4,162,67,95,0.414,Chicago White Sox,Guaranteed Rate Field
+2017,CHN,NL,CHC,C,1,162,92,70,0.568,Chicago Cubs,Wrigley Field
+2017,CIN,NL,CIN,C,5,162,68,94,0.42,Cincinnati Reds,Great American Ball Park
+2017,CLE,AL,CLE,C,1,162,102,60,0.63,Cleveland Indians,Progressive Field
+2017,COL,NL,COL,W,3,162,87,75,0.537,Colorado Rockies,Coors Field
+2017,DET,AL,DET,C,5,162,64,98,0.395,Detroit Tigers,Comerica Park
+2017,HOU,AL,HOU,W,1,162,101,61,0.623,Houston Astros,Minute Maid Park
+2017,KCA,AL,KCR,C,3,162,80,82,0.494,Kansas City Royals,Kauffman Stadium
+2017,LAA,AL,LAA,W,2,162,80,82,0.494,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2017,LAN,NL,LAD,W,1,162,104,58,0.642,Los Angeles Dodgers,Dodger Stadium
+2017,MIA,NL,MIA,E,2,162,77,85,0.475,Miami Marlins,Marlins Park
+2017,MIL,NL,MIL,C,2,162,86,76,0.531,Milwaukee Brewers,Miller Park
+2017,MIN,AL,MIN,C,2,162,85,77,0.525,Minnesota Twins,Target Field
+2017,NYA,AL,NYY,E,2,162,91,71,0.562,New York Yankees,Yankee Stadium III
+2017,NYN,NL,NYM,E,4,162,70,92,0.432,New York Mets,Citi Field
+2017,ATH,AL,ATH,W,5,162,75,87,0.463,Oakland Athletics,O.co Coliseum
+2017,PHI,NL,PHI,E,5,162,66,96,0.407,Philadelphia Phillies,Citizens Bank Park
+2017,PIT,NL,PIT,C,4,162,75,87,0.463,Pittsburgh Pirates,PNC Park
+2017,SDN,NL,SDP,W,4,162,71,91,0.438,San Diego Padres,Petco Park
+2017,SEA,AL,SEA,W,3,162,78,84,0.481,Seattle Mariners,Safeco Field
+2017,SFN,NL,SFG,W,5,162,64,98,0.395,San Francisco Giants,AT&T Park
+2017,SLN,NL,STL,C,3,162,83,79,0.512,St. Louis Cardinals,Busch Stadium III
+2017,TBA,AL,TB,E,3,162,80,82,0.494,Tampa Bay Rays,Tropicana Field
+2017,TEX,AL,TEX,W,4,162,78,84,0.481,Texas Rangers,Globe Life Park in Arlington
+2017,TOR,AL,TOR,E,4,162,76,86,0.469,Toronto Blue Jays,Rogers Centre
+2017,WAS,NL,WSH,E,1,162,97,65,0.599,Washington Nationals,Nationals Park
+2018,ARI,NL,ARI,W,3,162,82,80,0.506,Arizona Diamondbacks,Chase Field
+2018,ATL,NL,ATL,E,1,162,90,72,0.556,Atlanta Braves,SunTrust Park
+2018,BAL,AL,BAL,E,5,162,47,115,0.29,Baltimore Orioles,Oriole Park at Camden Yards
+2018,BOS,AL,BOS,E,1,162,108,54,0.667,Boston Red Sox,Fenway Park II
+2018,CHA,AL,CHW,C,4,162,62,100,0.383,Chicago White Sox,Guaranteed Rate Field
+2018,CHN,NL,CHC,C,2,163,95,68,0.583,Chicago Cubs,Wrigley Field
+2018,CIN,NL,CIN,C,5,162,67,95,0.414,Cincinnati Reds,Great American Ball Park
+2018,CLE,AL,CLE,C,1,162,91,71,0.562,Cleveland Indians,Progressive Field
+2018,COL,NL,COL,W,2,163,91,72,0.558,Colorado Rockies,Coors Field
+2018,DET,AL,DET,C,3,162,64,98,0.395,Detroit Tigers,Comerica Park
+2018,HOU,AL,HOU,W,1,162,103,59,0.636,Houston Astros,Minute Maid Park
+2018,KCA,AL,KCR,C,5,162,58,104,0.358,Kansas City Royals,Kauffman Stadium
+2018,LAA,AL,LAA,W,4,162,80,82,0.494,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2018,LAN,NL,LAD,W,1,163,92,71,0.564,Los Angeles Dodgers,Dodger Stadium
+2018,MIA,NL,MIA,E,5,161,63,98,0.391,Miami Marlins,Marlins Park
+2018,MIL,NL,MIL,C,1,163,96,67,0.589,Milwaukee Brewers,Miller Park
+2018,MIN,AL,MIN,C,2,162,78,84,0.481,Minnesota Twins,Target Field
+2018,NYA,AL,NYY,E,2,162,100,62,0.617,New York Yankees,Yankee Stadium III
+2018,NYN,NL,NYM,E,4,162,77,85,0.475,New York Mets,Citi Field
+2018,ATH,AL,ATH,W,2,162,97,65,0.599,Oakland Athletics,O.co Coliseum
+2018,PHI,NL,PHI,E,3,162,80,82,0.494,Philadelphia Phillies,Citizens Bank Park
+2018,PIT,NL,PIT,C,4,161,82,79,0.509,Pittsburgh Pirates,PNC Park
+2018,SDN,NL,SDP,W,5,162,66,96,0.407,San Diego Padres,Petco Park
+2018,SEA,AL,SEA,W,3,162,89,73,0.549,Seattle Mariners,Safeco Field
+2018,SFN,NL,SFG,W,4,162,73,89,0.451,San Francisco Giants,AT&T Park
+2018,SLN,NL,STL,C,3,162,88,74,0.543,St. Louis Cardinals,Busch Stadium III
+2018,TBA,AL,TB,E,3,162,90,72,0.556,Tampa Bay Rays,Tropicana Field
+2018,TEX,AL,TEX,W,5,162,67,95,0.414,Texas Rangers,Globe Life Park in Arlington
+2018,TOR,AL,TOR,E,4,162,73,89,0.451,Toronto Blue Jays,Rogers Centre
+2018,WAS,NL,WSH,E,2,162,82,80,0.506,Washington Nationals,Nationals Park
+2019,ARI,NL,ARI,W,2,162,85,77,0.525,Arizona Diamondbacks,Chase Field
+2019,ATL,NL,ATL,E,1,162,97,65,0.599,Atlanta Braves,SunTrust Park
+2019,BAL,AL,BAL,E,5,162,54,108,0.333,Baltimore Orioles,Oriole Park at Camden Yards
+2019,BOS,AL,BOS,E,3,162,84,78,0.519,Boston Red Sox,Fenway Park II
+2019,CHA,AL,CHW,C,3,161,72,89,0.447,Chicago White Sox,Guaranteed Rate Field
+2019,CHN,NL,CHC,C,3,162,84,78,0.519,Chicago Cubs,Wrigley Field
+2019,CIN,NL,CIN,C,4,162,75,87,0.463,Cincinnati Reds,Great American Ball Park
+2019,CLE,AL,CLE,C,2,162,93,69,0.574,Cleveland Indians,Progressive Field
+2019,COL,NL,COL,W,4,162,71,91,0.438,Colorado Rockies,Coors Field
+2019,DET,AL,DET,C,5,161,47,114,0.292,Detroit Tigers,Comerica Park
+2019,HOU,AL,HOU,W,1,162,107,55,0.66,Houston Astros,Minute Maid Park
+2019,KCA,AL,KCR,C,4,162,59,103,0.364,Kansas City Royals,Kauffman Stadium
+2019,LAA,AL,LAA,W,4,162,72,90,0.444,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2019,LAN,NL,LAD,W,1,162,106,56,0.654,Los Angeles Dodgers,Dodger Stadium
+2019,MIA,NL,MIA,E,5,162,57,105,0.352,Miami Marlins,Marlins Park
+2019,MIL,NL,MIL,C,2,162,89,73,0.549,Milwaukee Brewers,Miller Park
+2019,MIN,AL,MIN,C,1,162,101,61,0.623,Minnesota Twins,Target Field
+2019,NYA,AL,NYY,E,1,162,103,59,0.636,New York Yankees,Yankee Stadium III
+2019,NYN,NL,NYM,E,3,162,86,76,0.531,New York Mets,Citi Field
+2019,ATH,AL,ATH,W,2,162,97,65,0.599,Oakland Athletics,O.co Coliseum
+2019,PHI,NL,PHI,E,4,162,81,81,0.5,Philadelphia Phillies,Citizens Bank Park
+2019,PIT,NL,PIT,C,5,162,69,93,0.426,Pittsburgh Pirates,PNC Park
+2019,SDN,NL,SDP,W,5,162,70,92,0.432,San Diego Padres,Petco Park
+2019,SEA,AL,SEA,W,5,162,68,94,0.42,Seattle Mariners,T-Mobile Park
+2019,SFN,NL,SFG,W,3,162,77,85,0.475,San Francisco Giants,Oracle Park
+2019,SLN,NL,STL,C,1,162,91,71,0.562,St. Louis Cardinals,Busch Stadium III
+2019,TBA,AL,TB,E,2,162,96,66,0.593,Tampa Bay Rays,Tropicana Field
+2019,TEX,AL,TEX,W,3,162,78,84,0.481,Texas Rangers,Globe Life Park in Arlington
+2019,TOR,AL,TOR,E,4,162,67,95,0.414,Toronto Blue Jays,Rogers Centre
+2019,WAS,NL,WSH,E,2,162,93,69,0.574,Washington Nationals,Nationals Park
+2020,ARI,NL,ARI,W,5,60,25,35,0.417,Arizona Diamondbacks,Chase Field
+2020,ATL,NL,ATL,E,1,60,35,25,0.583,Atlanta Braves,SunTrust Park
+2020,BAL,AL,BAL,E,4,60,25,35,0.417,Baltimore Orioles,Oriole Park at Camden Yards
+2020,BOS,AL,BOS,E,5,60,24,36,0.4,Boston Red Sox,Fenway Park II
+2020,CHA,AL,CHW,C,2,60,35,25,0.583,Chicago White Sox,Guaranteed Rate Field
+2020,CHN,NL,CHC,C,1,60,34,26,0.567,Chicago Cubs,Wrigley Field
+2020,CIN,NL,CIN,C,2,60,31,29,0.517,Cincinnati Reds,Great American Ball Park
+2020,CLE,AL,CLE,C,2,60,35,25,0.583,Cleveland Indians,Progressive Field
+2020,COL,NL,COL,W,4,60,26,34,0.433,Colorado Rockies,Coors Field
+2020,DET,AL,DET,C,5,58,23,35,0.397,Detroit Tigers,Comerica Park
+2020,HOU,AL,HOU,W,2,60,29,31,0.483,Houston Astros,Minute Maid Park
+2020,KCA,AL,KCR,C,4,60,26,34,0.433,Kansas City Royals,Kauffman Stadium
+2020,LAA,AL,LAA,W,4,60,26,34,0.433,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2020,LAN,NL,LAD,W,1,60,43,17,0.717,Los Angeles Dodgers,Dodger Stadium
+2020,MIA,NL,MIA,E,2,60,31,29,0.517,Miami Marlins,Marlins Park
+2020,MIL,NL,MIL,C,4,60,29,31,0.483,Milwaukee Brewers,Miller Park
+2020,MIN,AL,MIN,C,1,60,36,24,0.6,Minnesota Twins,Target Field
+2020,NYA,AL,NYY,E,2,60,33,27,0.55,New York Yankees,Yankee Stadium III
+2020,NYN,NL,NYM,E,4,60,26,34,0.433,New York Mets,Citi Field
+2020,ATH,AL,ATH,W,1,60,36,24,0.6,Oakland Athletics,O.co Coliseum
+2020,PHI,NL,PHI,E,3,60,28,32,0.467,Philadelphia Phillies,Citizens Bank Park
+2020,PIT,NL,PIT,C,5,60,19,41,0.317,Pittsburgh Pirates,PNC Park
+2020,SDN,NL,SDP,W,2,60,37,23,0.617,San Diego Padres,Petco Park
+2020,SEA,AL,SEA,W,3,60,27,33,0.45,Seattle Mariners,T-Mobile Park
+2020,SFN,NL,SFG,W,3,60,29,31,0.483,San Francisco Giants,Oracle Park
+2020,SLN,NL,STL,C,3,58,30,28,0.517,St. Louis Cardinals,Busch Stadium III
+2020,TBA,AL,TB,E,1,60,40,20,0.667,Tampa Bay Rays,Tropicana Field
+2020,TEX,AL,TEX,W,5,60,22,38,0.367,Texas Rangers,Globe Life Field
+2020,TOR,AL,TOR,E,3,60,32,28,0.533,Toronto Blue Jays,Sahlen Field
+2020,WAS,NL,WSH,E,4,60,26,34,0.433,Washington Nationals,Nationals Park
+2021,ARI,NL,ARI,W,5,162,52,110,0.321,Arizona Diamondbacks,Chase Field
+2021,ATL,NL,ATL,E,1,161,88,73,0.547,Atlanta Braves,Truist Park
+2021,BAL,AL,BAL,E,5,162,52,110,0.321,Baltimore Orioles,Oriole Park at Camden Yards
+2021,BOS,AL,BOS,E,2,162,92,70,0.568,Boston Red Sox,Fenway Park II
+2021,CHA,AL,CHW,C,1,162,93,69,0.574,Chicago White Sox,Guaranteed Rate Field
+2021,CHN,NL,CHC,C,4,162,71,91,0.438,Chicago Cubs,Wrigley Field
+2021,CIN,NL,CIN,C,3,162,83,79,0.512,Cincinnati Reds,Great American Ball Park
+2021,CLE,AL,CLE,C,2,162,80,82,0.494,Cleveland Indians,Progressive Field
+2021,COL,NL,COL,W,4,161,74,87,0.46,Colorado Rockies,Coors Field
+2021,DET,AL,DET,C,3,162,77,85,0.475,Detroit Tigers,Comerica Park
+2021,HOU,AL,HOU,W,1,162,95,67,0.586,Houston Astros,Minute Maid Park
+2021,KCA,AL,KCR,C,4,162,74,88,0.457,Kansas City Royals,Kauffman Stadium
+2021,LAA,AL,LAA,W,4,162,77,85,0.475,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2021,LAN,NL,LAD,W,2,162,106,56,0.654,Los Angeles Dodgers,Dodger Stadium
+2021,MIA,NL,MIA,E,4,162,67,95,0.414,Miami Marlins,loanDepot park
+2021,MIL,NL,MIL,C,1,162,95,67,0.586,Milwaukee Brewers,American Family Field
+2021,MIN,AL,MIN,C,5,162,73,89,0.451,Minnesota Twins,Target Field
+2021,NYA,AL,NYY,E,2,162,92,70,0.568,New York Yankees,Yankee Stadium III
+2021,NYN,NL,NYM,E,3,162,77,85,0.475,New York Mets,Citi Field
+2021,ATH,AL,ATH,W,3,162,86,76,0.531,Oakland Athletics,O.co Coliseum
+2021,PHI,NL,PHI,E,2,162,82,80,0.506,Philadelphia Phillies,Citizens Bank Park
+2021,PIT,NL,PIT,C,5,162,61,101,0.377,Pittsburgh Pirates,PNC Park
+2021,SDN,NL,SDP,W,3,162,79,83,0.488,San Diego Padres,Petco Park
+2021,SEA,AL,SEA,W,2,162,90,72,0.556,Seattle Mariners,T-Mobile Park
+2021,SFN,NL,SFG,W,1,162,107,55,0.66,San Francisco Giants,Oracle Park
+2021,SLN,NL,STL,C,2,162,90,72,0.556,St. Louis Cardinals,Busch Stadium III
+2021,TBA,AL,TB,E,1,162,100,62,0.617,Tampa Bay Rays,Tropicana Field
+2021,TEX,AL,TEX,W,5,162,60,102,0.37,Texas Rangers,Globe Life Field
+2021,TOR,AL,TOR,E,4,162,91,71,0.562,Toronto Blue Jays,Rogers Centre
+2021,WAS,NL,WSH,E,5,162,65,97,0.401,Washington Nationals,Nationals Park
+2022,ARI,NL,ARI,W,4,162,74,88,0.457,Arizona Diamondbacks,Chase Field
+2022,ATL,NL,ATL,E,1,162,101,61,0.623,Atlanta Braves,Truist Park
+2022,BAL,AL,BAL,E,4,162,83,79,0.512,Baltimore Orioles,Oriole Park at Camden Yards
+2022,BOS,AL,BOS,E,5,162,78,84,0.481,Boston Red Sox,Fenway Park II
+2022,CHA,AL,CHW,C,2,162,81,81,0.5,Chicago White Sox,Guaranteed Rate Field
+2022,CHN,NL,CHC,C,3,162,74,88,0.457,Chicago Cubs,Wrigley Field
+2022,CIN,NL,CIN,C,4,162,62,100,0.383,Cincinnati Reds,Great American Ball Park
+2022,CLE,AL,CLE,C,1,162,92,70,0.568,Cleveland Guardians,Progressive Field
+2022,COL,NL,COL,W,5,162,68,94,0.42,Colorado Rockies,Coors Field
+2022,DET,AL,DET,C,4,162,66,96,0.407,Detroit Tigers,Comerica Park
+2022,HOU,AL,HOU,W,1,162,106,56,0.654,Houston Astros,Minute Maid Park
+2022,KCA,AL,KCR,C,5,162,65,97,0.401,Kansas City Royals,Kauffman Stadium
+2022,LAA,AL,LAA,W,3,162,73,89,0.451,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2022,LAN,NL,LAD,W,1,162,111,51,0.685,Los Angeles Dodgers,Dodger Stadium
+2022,MIA,NL,MIA,E,4,162,69,93,0.426,Miami Marlins,loanDepot park
+2022,MIL,NL,MIL,C,2,162,86,76,0.531,Milwaukee Brewers,American Family Field
+2022,MIN,AL,MIN,C,3,162,78,84,0.481,Minnesota Twins,Target Field
+2022,NYA,AL,NYY,E,1,162,99,63,0.611,New York Yankees,Yankee Stadium III
+2022,NYN,NL,NYM,E,2,162,101,61,0.623,New York Mets,Citi Field
+2022,ATH,AL,ATH,W,5,162,60,102,0.37,Oakland Athletics,O.co Coliseum
+2022,PHI,NL,PHI,E,3,162,87,75,0.537,Philadelphia Phillies,Citizens Bank Park
+2022,PIT,NL,PIT,C,5,162,62,100,0.383,Pittsburgh Pirates,PNC Park
+2022,SDN,NL,SDP,W,2,162,89,73,0.549,San Diego Padres,Petco Park
+2022,SEA,AL,SEA,W,2,162,90,72,0.556,Seattle Mariners,T-Mobile Park
+2022,SFN,NL,SFG,W,3,162,81,81,0.5,San Francisco Giants,Oracle Park
+2022,SLN,NL,STL,C,1,162,93,69,0.574,St. Louis Cardinals,Busch Stadium III
+2022,TBA,AL,TB,E,1,162,86,76,0.531,Tampa Bay Rays,Tropicana Field
+2022,TEX,AL,TEX,W,4,162,68,94,0.42,Texas Rangers,Globe Life Field
+2022,TOR,AL,TOR,E,2,162,92,70,0.568,Toronto Blue Jays,Rogers Centre
+2022,WAS,NL,WSH,E,5,162,55,107,0.34,Washington Nationals,Nationals Park
+2023,ARI,NL,ARI,W,2,162,84,78,0.519,Arizona Diamondbacks,Chase Field
+2023,ATL,NL,ATL,E,1,162,104,58,0.642,Atlanta Braves,Truist Park
+2023,BAL,AL,BAL,E,1,162,101,61,0.623,Baltimore Orioles,Oriole Park at Camden Yards
+2023,BOS,AL,BOS,E,5,162,78,84,0.481,Boston Red Sox,Fenway Park
+2023,CHA,AL,CHW,C,4,162,61,101,0.377,Chicago White Sox,Guaranteed Rate Field
+2023,CHN,NL,CHC,C,2,162,83,79,0.512,Chicago Cubs,Wrigley Field
+2023,CIN,NL,CIN,C,3,162,82,80,0.506,Cincinnati Reds,Great American Ballpark
+2023,CLE,AL,CLE,C,3,162,76,86,0.469,Cleveland Guardians,Progressive Field
+2023,COL,NL,COL,W,5,162,59,103,0.364,Colorado Rockies,Coors Field
+2023,DET,AL,DET,C,2,162,78,84,0.481,Detroit Tigers,Comerica Park
+2023,HOU,AL,HOU,W,1,162,90,72,0.556,Houston Astros,Minute Maid Park
+2023,KCA,AL,KCR,C,5,162,56,106,0.346,Kansas City Royals,Kauffman Stadium
+2023,LAA,AL,LAA,W,4,162,73,89,0.451,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2023,LAN,NL,LAD,W,1,162,100,62,0.617,Los Angeles Dodgers,Dodger Stadium
+2023,MIA,NL,MIA,E,3,162,84,78,0.519,Miami Marlins,loanDepot park
+2023,MIL,NL,MIL,C,1,162,92,70,0.568,Milwaukee Brewers,American Family Field
+2023,MIN,AL,MIN,C,1,162,87,75,0.537,Minnesota Twins,Target Field
+2023,NYA,AL,NYY,E,4,162,82,80,0.506,New York Yankees,Yankee Stadium II
+2023,NYN,NL,NYM,E,4,162,75,87,0.463,New York Mets,Citi Field
+2023,ATH,AL,ATH,W,5,162,50,112,0.309,Oakland Athletics,Oakland-Alameda County Coliseum
+2023,PHI,NL,PHI,E,2,162,90,72,0.556,Philadelphia Phillies,Citizens Bank Park
+2023,PIT,NL,PIT,C,4,162,76,86,0.469,Pittsburgh Pirates,PNC Park
+2023,SDN,NL,SDP,W,3,162,82,80,0.506,San Diego Padres,PETCO Park
+2023,SEA,AL,SEA,W,3,162,88,74,0.543,Seattle Mariners,T-Mobile Park
+2023,SFN,NL,SFG,W,4,162,79,83,0.488,San Francisco Giants,Oracle Park
+2023,SLN,NL,STL,C,5,162,71,91,0.438,St. Louis Cardinals,Busch Stadium III
+2023,TBA,AL,TB,E,2,162,99,63,0.611,Tampa Bay Rays,Tropicana Field
+2023,TEX,AL,TEX,W,2,162,90,72,0.556,Texas Rangers,Globe Life Field
+2023,TOR,AL,TOR,E,3,162,89,73,0.549,Toronto Blue Jays,Rogers Centre
+2023,WAS,NL,WSH,E,5,162,71,91,0.438,Washington Nationals,Nationals Park
+2024,ARI,NL,ARI,W,3,162,89,73,0.549,Arizona Diamondbacks,Chase Field
+2024,ATL,NL,ATL,E,2,162,89,73,0.549,Atlanta Braves,Truist Park
+2024,BAL,AL,BAL,E,2,162,91,71,0.562,Baltimore Orioles,Oriole Park at Camden Yards
+2024,BOS,AL,BOS,E,3,162,81,81,0.5,Boston Red Sox,Fenway Park
+2024,CHA,AL,CHW,C,5,162,41,121,0.253,Chicago White Sox,Guaranteed Rate Field
+2024,CHN,NL,CHC,C,3,162,83,79,0.512,Chicago Cubs,Wrigley Field
+2024,CIN,NL,CIN,C,4,162,77,85,0.475,Cincinnati Reds,Great American Ballpark
+2024,CLE,AL,CLE,C,1,161,92,69,0.571,Cleveland Guardians,Progressive Field
+2024,COL,NL,COL,W,5,162,61,101,0.377,Colorado Rockies,Coors Field
+2024,DET,AL,DET,C,3,162,86,76,0.531,Detroit Tigers,Comerica Park
+2024,HOU,AL,HOU,W,1,161,88,73,0.547,Houston Astros,Minute Maid Park
+2024,KCA,AL,KCR,C,2,162,86,76,0.531,Kansas City Royals,Kauffman Stadium
+2024,LAA,AL,LAA,W,5,162,63,99,0.389,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2024,LAN,NL,LAD,W,1,162,98,64,0.605,Los Angeles Dodgers,Dodger Stadium
+2024,MIA,NL,MIA,E,5,162,62,100,0.383,Miami Marlins,loanDepot park
+2024,MIL,NL,MIL,C,1,162,93,69,0.574,Milwaukee Brewers,American Family Field
+2024,MIN,AL,MIN,C,4,162,82,80,0.506,Minnesota Twins,Target Field
+2024,NYA,AL,NYY,E,1,162,94,68,0.58,New York Yankees,Yankee Stadium II
+2024,NYN,NL,NYM,E,3,162,89,73,0.549,New York Mets,Citi Field
+2024,ATH,AL,ATH,W,4,162,69,93,0.426,Oakland Athletics,Oakland-Alameda County Coliseum
+2024,PHI,NL,PHI,E,1,162,95,67,0.586,Philadelphia Phillies,Citizens Bank Park
+2024,PIT,NL,PIT,C,5,162,76,86,0.469,Pittsburgh Pirates,PNC Park
+2024,SDN,NL,SDP,W,2,162,93,69,0.574,San Diego Padres,PETCO Park
+2024,SEA,AL,SEA,W,2,162,85,77,0.525,Seattle Mariners,T-Mobile Park
+2024,SFN,NL,SFG,W,4,162,80,82,0.494,San Francisco Giants,Oracle Park
+2024,SLN,NL,STL,C,2,162,83,79,0.512,St. Louis Cardinals,Busch Stadium III
+2024,TBA,AL,TB,E,4,162,80,82,0.494,Tampa Bay Rays,Tropicana Field
+2024,TEX,AL,TEX,W,3,162,78,84,0.481,Texas Rangers,Globe Life Field
+2024,TOR,AL,TOR,E,5,162,74,88,0.457,Toronto Blue Jays,Rogers Centre
+2024,WAS,NL,WSH,E,4,162,71,91,0.438,Washington Nationals,Nationals Park
+2025,ARI,NL,ARI,W,4,162,80,82,0.494,Arizona Diamondbacks,Chase Field
+2025,ATH,AL,ATH,W,4,162,76,86,0.469,Athletics,Sutter Health Park
+2025,ATL,NL,ATL,E,4,162,76,86,0.469,Atlanta Braves,Truist Park
+2025,BAL,AL,BAL,E,5,162,75,87,0.463,Baltimore Orioles,Oriole Park at Camden Yards
+2025,BOS,AL,BOS,E,3,162,89,73,0.549,Boston Red Sox,Fenway Park
+2025,CHA,AL,CHW,C,5,162,60,102,0.37,Chicago White Sox,Rate Field
+2025,CHN,NL,CHC,C,2,162,92,70,0.568,Chicago Cubs,Wrigley Field
+2025,CIN,NL,CIN,C,3,162,83,79,0.512,Cincinnati Reds,Great American Ballpark
+2025,CLE,AL,CLE,C,1,162,88,74,0.543,Cleveland Guardians,Progressive Field
+2025,COL,NL,COL,W,5,162,43,119,0.265,Colorado Rockies,Coors Field
+2025,DET,AL,DET,C,2,162,87,75,0.537,Detroit Tigers,Comerica Park
+2025,HOU,AL,HOU,W,2,162,87,75,0.537,Houston Astros,Daikin Park
+2025,KCA,AL,KCR,C,3,162,82,80,0.506,Kansas City Royals,Kauffman Stadium
+2025,LAA,AL,LAA,W,5,162,72,90,0.444,Los Angeles Angels of Anaheim,Angel Stadium of Anaheim
+2025,LAN,NL,LAD,W,1,162,93,69,0.574,Los Angeles Dodgers,Dodger Stadium
+2025,MIA,NL,MIA,E,3,162,79,83,0.488,Miami Marlins,loanDepot park
+2025,MIL,NL,MIL,C,1,162,97,65,0.599,Milwaukee Brewers,American Family Field
+2025,MIN,AL,MIN,C,4,162,70,92,0.432,Minnesota Twins,Target Field
+2025,NYA,AL,NYY,E,2,162,94,68,0.58,New York Yankees,Yankee Stadium II
+2025,NYN,NL,NYM,E,2,162,83,79,0.512,New York Mets,Citi Field
+2025,PHI,NL,PHI,E,1,162,96,66,0.593,Philadelphia Phillies,Citizens Bank Park
+2025,PIT,NL,PIT,C,5,162,71,91,0.438,Pittsburgh Pirates,PNC Park
+2025,SDN,NL,SDP,W,2,162,90,72,0.556,San Diego Padres,Petco Park
+2025,SEA,AL,SEA,W,1,162,90,72,0.556,Seattle Mariners,T-Mobile Park
+2025,SFN,NL,SFG,W,3,162,81,81,0.5,San Francisco Giants,Oracle Park
+2025,SLN,NL,STL,C,4,162,78,84,0.481,St. Louis Cardinals,Busch Stadium III
+2025,TBA,AL,TB,E,4,162,77,85,0.475,Tampa Bay Rays,Steinbrenner Field 
+2025,TEX,AL,TEX,W,3,162,81,81,0.5,Texas Rangers,Globe Life Field
+2025,TOR,AL,TOR,E,1,162,94,68,0.58,Toronto Blue Jays,Rogers Centre
+2025,WAS,NL,WSH,E,5,162,66,96,0.407,Washington Nationals,Nationals Park

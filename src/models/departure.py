@@ -3,7 +3,7 @@ departure.py
 B - 이탈 이진분류 (LGBMClassifier + Optuna, sklearn API 스타일)
 
 원본 코드 대비 수정 사항:
-  1. train_test_split(랜덤) -> 시계열 분할 (학습 ≤2021 / 검증 22~23 / 테스트 24~25)
+  1. train_test_split(랜덤) -> 시계열 분할 (학습 09~21 / 검증 22~23 / 테스트 24~25)
      D의 Day1 Step2 팀 공통 기준. 랜덤 분할은 미래 데이터로 학습하고 과거로
      테스트하는 누수를 만들 수 있어 D의 누수 감시(Day2 Step7)에 걸림.
   2. print(f'...{accuracy_score:.4f}') 버그 수정 (함수 자체를 출력하려던 오타)
@@ -24,9 +24,9 @@ import optuna
 from lightgbm import LGBMClassifier, early_stopping, log_evaluation
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, classification_report
 
-FEATURES_PATH = "data/processed/features_v1.parquet"
+FEATURES_PATH = "data/final/features_v1.parquet"
 
-TRAIN_END_YEAR = 2021
+TRAIN_START_YEAR, TRAIN_END_YEAR = 2009, 2021
 VAL_START_YEAR, VAL_END_YEAR = 2022, 2023
 TEST_START_YEAR, TEST_END_YEAR = 2024, 2025
 
@@ -52,7 +52,7 @@ def attach_dummy_label(df: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
 
 def time_based_split(df: pd.DataFrame):
     """랜덤 분할 대신 연도 기준 시계열 분할 (D의 팀 공통 기준)."""
-    train = df[df.yearID <= TRAIN_END_YEAR]
+    train = df[(df.yearID >= TRAIN_START_YEAR) & (df.yearID <= TRAIN_END_YEAR)]
     val = df[(df.yearID >= VAL_START_YEAR) & (df.yearID <= VAL_END_YEAR)]
     test = df[(df.yearID >= TEST_START_YEAR) & (df.yearID <= TEST_END_YEAR)]
     return train, val, test
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     X_val, y_val = to_xy(val_df)
     X_test, y_test = to_xy(test_df)
 
-    print(f"train: {len(X_train)}건 (~{TRAIN_END_YEAR}) / "
+    print(f"train: {len(X_train)}건 ({TRAIN_START_YEAR}~{TRAIN_END_YEAR}) / "
           f"val: {len(X_val)}건 ({VAL_START_YEAR}~{VAL_END_YEAR}) / "
           f"test: {len(X_test)}건 ({TEST_START_YEAR}~{TEST_END_YEAR})")
 

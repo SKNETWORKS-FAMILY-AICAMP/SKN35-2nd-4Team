@@ -1,11 +1,7 @@
-"""features_v1 계약 정의 + 목업 생성기.
+"""features_v1 계약 정의 + 실제 데이터 로더.
 
 이 파일이 features_v1.parquet 의 **스키마 명세**다.
-B는 이 스키마를 만족하는 실제 데이터를 만들고, 그 전까지 나머지 인원은
-make_mock() 으로 생성한 가짜 데이터로 모델·평가·화면을 개발한다.
-
-실제 파일이 도착하면 load_features() 가 자동으로 실제 데이터를 쓴다.
-호출부 코드는 한 줄도 바꿀 필요가 없다.
+실제 데이터만 사용하며, 테스트용 목업/가짜 데이터는 제공하지 않는다.
 
 담당: D (Day 1)
 """
@@ -14,15 +10,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-FEATURES_PATH = ROOT / "data" / "processed" / "features_v1.parquet"
+FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 
-START_YEAR, END_YEAR = 2000, 2025
+START_YEAR, END_YEAR = 2009, 2025
 LABEL_END_YEAR = 2024          # 2025는 다음 시즌이 없어 라벨 생성 불가
-SPLIT = {"train": (2000, 2021), "valid": (2022, 2023), "test": (2024, 2024)}
+SPLIT = {"train": (2009, 2021), "valid": (2022, 2023), "test": (2024, 2024)}
 
 FA_ELIGIBLE_EXP = 6            # MLB FA 자격 서비스 타임. exp < 6 이면 FA 불가 (확정 규칙)
 
@@ -69,11 +64,12 @@ SCHEMA: dict[str, str] = {
     "y_path": "object",         # L2  PATH_CLASSES — 이탈자만. 잔류자는 NaN
     "y_fa_release": "object",   # L2b FA_RELEASE_CLASSES — offseason_move 만. 그 외 NaN ← Rev.4 신규
     "y_returned": "float64",     # L3  리그이탈자만 0/1, 그 외 NaN
+    "y_core_departed": "float64", # L1' 핵심 이탈위험 타깃; release_certain은 NaN
     "y_next_score": "float64",  # D 회귀 타깃: 다음 시즌 overall_score
 }
 
 KEY = ["player_id", "season"]
-LABEL_COLS = ["y_departed", "y_path", "y_fa_release", "y_returned", "y_next_score"]
+LABEL_COLS = ["y_departed", "y_path", "y_fa_release", "y_returned", "y_core_departed", "y_next_score"]
 # league 는 모델 피처가 아니라 파티션 컨텍스트다. 피처로 넣으면 리그 중립성이 깨진다 (7-7)
 FEATURE_COLS = [c for c in SCHEMA if c not in KEY + LABEL_COLS + ["team_last", "franch_id", "league"]]
 
@@ -84,107 +80,6 @@ ABSOLUTE_STAT_COLS = {
     "ab", "pa", "g", "gs", "avg", "obp", "slg", "ops", "salary",
 }
 
-
-def make_mock(n_players: int = 2200, seed: int = 42) -> pd.DataFrame:
-    """계약을 만족하는 가짜 데이터. 실제 데이터의 분포를 대략 흉내낸다.
-
-    라벨 분포는 실측값에 맞춤 (Rev.4 3-6): 잔류 50.6 / 오프시즌이적 22.6
-    (방출확정 68.2% + FA·방출추정 31.8%) / 리그이탈 20.6 (복귀 23.3%) / 트레이드 6.2
-    """
-    rng = np.random.default_rng(seed)
-    teams = [f"T{i:02d}" for i in range(30)]
-    rows = []
-
-    for i in range(n_players):
-        pid = f"mock{i:05d}"
-        debut = int(rng.integers(START_YEAR, END_YEAR))
-        career = int(rng.integers(1, 11))   # 상한은 아래 break 가 처리한다
-        team = rng.choice(teams)
-        role = rng.choice(ROLE_CLASSES, p=[0.62, 0.36, 0.02])
-        peak = rng.normal(60, 15)
-
-        for k in range(career):
-            season = debut + k
-            if season > END_YEAR:
-                break
-            age = 22 + k + rng.integers(0, 4)
-            # 27세 정점의 aging curve
-            curve = -0.045 * (age - 27) ** 2
-            score = float(np.clip(peak + curve + rng.normal(0, 4), 5, 99))
-            g_ratio = float(np.clip(rng.beta(2, 2) * 1.05, 0.02, 1.0))
-            rows.append(
-                dict(
-                    player_id=pid, season=season, team_last=team,
-                    franch_id=team, league="mlb", role=role, age=float(age), exp=k,
-                    n_stint=int(rng.choice([1, 2, 3], p=[0.86, 0.12, 0.02])),
-                    g_ratio=g_ratio,
-                    off_score=score if role in ("B", "TWO") else np.nan,
-                    pit_score=score if role in ("P", "TWO") else np.nan,
-                    def_score=float(np.clip(rng.normal(55, 12), 0, 100)),
-                    overall_score=score,
-                    ops_z=float(rng.normal(0, 1)),
-                    era_z=float(rng.normal(0, 1)),
-                    whip_z=float(rng.normal(0, 1)),
-                    team_wr=float(np.clip(rng.normal(0.5, 0.07), 0.25, 0.75)),
-                    allstar=int(rng.random() < 0.05),
-                )
-            )
-            if rng.random() < 0.40:      # 이적
-                team = rng.choice(teams)
-
-    df = pd.DataFrame(rows).sort_values(KEY).reset_index(drop=True)
-
-    g = df.groupby("player_id")
-    df["g_ratio_prev"] = g.g_ratio.shift(1)
-    df["g_chg"] = df.g_ratio / df.g_ratio_prev.replace(0, np.nan)
-    df["ops_z_prev"] = g.ops_z.shift(1)
-    df["y_next_score"] = g.overall_score.shift(-1)
-
-    # 라벨 — 판별 규칙 3-5 와 동일한 로직으로 생성
-    nxt_season = g.season.shift(-1)
-    nxt_franch = g.franch_id.shift(-1)
-    has_next = nxt_season == df.season + 1              # 다음 시즌 리그 내 기록 존재
-    same_franch = has_next & (nxt_franch == df.franch_id)
-
-    # L1 — 다음 시즌 동일 franch_id 가 아니면 이탈
-    df["y_departed"] = (~same_franch).astype(float)
-
-    # L2 — 트레이드(시즌 중 팀 변경) 우선, 다음은 오프시즌 이적, 나머지는 리그이탈
-    is_trade = df.n_stint >= 2
-    is_offseason_move = has_next & ~same_franch & ~is_trade
-    is_league_exit = ~has_next & ~is_trade
-    df["y_path"] = np.select(
-        [is_trade, is_offseason_move, is_league_exit],
-        PATH_CLASSES,
-        default=None,
-    )
-    df.loc[same_franch, "y_path"] = None                # 잔류자는 이탈 경로가 없다
-
-    # L2b — 서비스 타임 규칙 (Rev.4 3-3). exp<6 은 방출 확정, exp>=6 은 성적 추이로 추정
-    score_trend = df.overall_score - g.overall_score.shift(1)
-    is_offseason = df.y_path == "offseason_move"
-    release_certain = is_offseason & (df.exp < FA_ELIGIBLE_EXP)
-    release_est = is_offseason & (df.exp >= FA_ELIGIBLE_EXP) & (score_trend < -5)
-    fa_est = is_offseason & (df.exp >= FA_ELIGIBLE_EXP) & ~(score_trend < -5)
-    df["y_fa_release"] = np.select(
-        [release_certain, release_est, fa_est],
-        FA_RELEASE_CLASSES,
-        default=None,
-    )
-
-    # L3 — 리그이탈자가 t+2 이내 재등장하는가
-    seasons = g.season.apply(set).to_dict()
-    df["y_returned"] = [
-        float(bool(seasons[p] & {s + 2, s + 3})) if r == "league_exit" else np.nan
-        for p, s, r in zip(df.player_id, df.season, df.y_path)
-    ]
-
-    # 라벨 생성 불가 구간 마스킹 — 2025는 다음 시즌이 없어 라벨을 만들 수 없다
-    last = df.season > LABEL_END_YEAR
-    df.loc[last, ["y_departed", "y_returned", "y_next_score"]] = np.nan
-    df.loc[last, ["y_path", "y_fa_release"]] = None
-
-    return df[list(SCHEMA)]
 
 
 def validate(df: pd.DataFrame) -> None:
@@ -223,6 +118,13 @@ def validate(df: pd.DataFrame) -> None:
     certain = lab.y_fa_release == "release_certain"
     assert (lab.loc[certain, "exp"] < FA_ELIGIBLE_EXP).all(), "release_certain 인데 exp>=6 (서비스 타임 규칙 위반)"
 
+    bad_core = set(lab.y_core_departed.dropna().astype(float)) - {0.0, 1.0}
+    assert not bad_core, f"정의되지 않은 y_core_departed: {bad_core}"
+    assert lab.loc[certain, "y_core_departed"].isna().all(), "release_certain 행의 y_core_departed는 결측이어야 함"
+    non_release = ~certain
+    assert (lab.loc[non_release, "y_core_departed"].reset_index(drop=True) ==
+            lab.loc[non_release, "y_departed"].reset_index(drop=True)).all(), "y_core_departed와 y_departed 불일치"
+
     # 시즌별 정규화가 됐는지 — 연도별 평균 전력이 비슷해야 한다
     drift = df.groupby("season").overall_score.mean().std()
     assert drift < 5, f"시즌 간 전력 평균 편차 과다: {drift:.2f}"
@@ -233,32 +135,14 @@ def split(df: pd.DataFrame, part: str) -> pd.DataFrame:
     return df[df.season.between(lo, hi)]
 
 
-def load_features(allow_mock: bool = True) -> pd.DataFrame:
-    """실제 파일이 있으면 그것을, 없으면 목업을 반환한다.
+def load_features() -> pd.DataFrame:
+    """실제 features_v1.parquet만 로드하고 계약을 검증한다."""
+    if not FEATURES_PATH.exists():
+        raise FileNotFoundError(
+            f"실제 features 파일이 없습니다: {FEATURES_PATH}. "
+            "목업 데이터로 대체하지 않고 실제 데이터 연결을 확인하세요."
+        )
 
-    B가 features_v1.parquet 을 커밋하는 순간, 호출부 수정 없이 실제 데이터로 전환된다.
-    """
-    if FEATURES_PATH.exists():
-        df = pd.read_parquet(FEATURES_PATH)
-        validate(df)
-        return df
-    if not allow_mock:
-        raise FileNotFoundError(f"{FEATURES_PATH} 없음")
-    print(f"[mock] {FEATURES_PATH.name} 없음 — 목업 데이터 사용 중")
-    df = make_mock()
+    df = pd.read_parquet(FEATURES_PATH)
     validate(df)
     return df
-
-
-if __name__ == "__main__":
-    d = make_mock()
-    validate(d)
-    print(f"rows {len(d):,}  cols {d.shape[1]}")
-    print("\nL2 라벨 분포(%) — 잔류자는 NaN")
-    print((d.y_path.value_counts(normalize=True) * 100).round(1).to_string())
-    print("\nL2b 라벨 분포(%) — 오프시즌 이적자만")
-    print((d.y_fa_release.value_counts(normalize=True) * 100).round(1).to_string())
-    print("\n분할")
-    for p in SPLIT:
-        print(f"  {p:6s} {len(split(d, p)):,}")
-    print(f"\n피처 {len(FEATURE_COLS)}개: {FEATURE_COLS}")

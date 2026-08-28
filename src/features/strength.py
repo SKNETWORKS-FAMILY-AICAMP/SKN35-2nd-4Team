@@ -1,32 +1,63 @@
 """
-strength.py (v3 - 2B/3B/R 컬럼 복원 반영)
+strength.py (v4 - 2009년 이후로 범위 축소 + 부상 페널티 공식 통합)
 B - 전력 점수 계산 모듈
 
-=== 스키마 변경 이력 ===
+=== v4 변경 사항 ===
+1. YEAR_FLOOR = 2009 로 전체 데이터 범위 축소.
+   부상 데이터(player_injury_stints.csv)가 2000~2008년은 기록이 거의 없다가
+   (연 5~15건) 2009년부터 갑자기 촘촘해짐(연 700건+) - 실제로 부상이 급증한 게
+   아니라 기록 수집 체계가 2009년쯤부터 갖춰진 것으로 보임. 이 상태로 전체
+   기간에 부상 페널티를 적용하면 2000년대 초반 선수만 부당하게 페널티를 덜
+   받는 시대 편향이 생겨서, 아예 계산 범위를 2009년부터로 맞춤.
+   [팀 공유 필요] 이 변경으로 D의 팀 공통 분할 기준(학습 1998/2000~2021)이
+   실질적으로 '학습 2009~2021'이 됨 - A/C/D/E 전원에게 공유 필요.
+
+2. 부상 페널티를 전력점수 공식에 직접 통합 (별도 피처 아님, 사용자 결정).
+   il_stint_count(부상 횟수) 비례 페널티: 1회당 5% 감점, 최대 30% 캐핑.
+   playing_time_ratio와 마찬가지로 곱연산으로 적용한 뒤, 시즌 내 Min-Max로
+   0~100 재정규화 (두 개의 곱연산 할인 요소가 겹쳐도 스케일 해석이 유지되도록).
+
+=== 이전 이력 (v1~v3) ===
 v1: 원본 Lahman CSV (2B, 3B, R 모두 존재) 기준
 v2: A의 1차 DB 적재본에서 2B/3B/R이 빠져서 SLG 근사(H+3*HR) + R가중치
     재분배(0.588/0.235/0.176)로 임시 대응
-v3 (현재): A가 batting_stats.csv에 R, 2B, 3B 컬럼을 추가함
-    -> 원래 문서 공식(OPS 0.5 + HR 0.2 + RBI 0.15 + R 0.15) 그대로 복원,
-       SLG도 2루타/3루타 반영한 정확한 계산으로 복원.
-    컬럼명 표기가 대문자로 옴에 유의 (g,ab,h,hr,rbi,bb,hbp,sf는 소문자,
-    R,2B,3B만 대문자) - standardize_batting()에서 그대로 매핑.
-
-=== pitching_stats.csv는 그대로 (ER 대신 era만 존재) ===
-  -> ER = era * IP / 9 로 역산해서 stint 합산 (v2와 동일).
-=== teams.csv도 그대로 (팀 전체 IPouts 없음) ===
-  -> season_IP는 pitching_stats.csv를 팀-연도 단위로 합산해서 만듦
-     (근사 아니고 정의상 정확히 일치).
+v3: A가 batting_stats.csv에 R, 2B, 3B 컬럼을 추가 -> 원래 공식 복원.
+    pitching_stats.csv는 ER 대신 era만 있어 ER=era*IP/9로 역산.
+    teams.csv에 팀 전체 IPouts가 없어 pitching_stats를 팀-연도 단위로 합산.
 """
 
 import pandas as pd
 import numpy as np
+
+YEAR_FLOOR = 2009  # 부상 데이터 신뢰 구간 시작 - 전체 계산이 이 연도부터 시작됨
 
 BATTING_SHRINKAGE_K = 50
 PITCHING_SHRINKAGE_K = 20  # 이닝(IP) 단위
 
 # 타자 전력 가중치 (2B/3B/R 데이터 복원됨 - 원래 문서 공식 그대로 사용)
 BATTING_WEIGHTS = {"OPS": 0.5, "HR": 0.2, "RBI": 0.15, "R": 0.15}
+
+# 부상 페널티: il_stint_count(부상 횟수) 1회당 5% 감점, 최대 30%까지 캐핑
+INJURY_PENALTY_PER_STINT = 0.05
+INJURY_PENALTY_CAP = 0.30
+
+
+def standardize_injuries(df: pd.DataFrame) -> pd.DataFrame:
+    """player_injury_stints.csv 표준화. player_id+season 유니크, 중복 없음(사전 확인됨)."""
+    return df.rename(columns={
+        "player_id": "playerID", "season": "yearID",
+    })[["playerID", "yearID", "il_stint_count"]]
+
+
+def _apply_injury_penalty(df: pd.DataFrame, injuries: pd.DataFrame) -> pd.DataFrame:
+    """
+    부상 횟수(il_stint_count) 비례 페널티. 기록 없는 선수-연도는 0회로 간주
+    (YEAR_FLOOR=2009부터만 계산하므로 부상 데이터 신뢰 구간 내에서만 적용됨).
+    """
+    out = df.merge(injuries, on=["playerID", "yearID"], how="left")
+    out["il_stint_count"] = out["il_stint_count"].fillna(0)
+    out["injury_penalty_factor"] = 1 - (out["il_stint_count"] * INJURY_PENALTY_PER_STINT).clip(upper=INJURY_PENALTY_CAP)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -167,11 +198,14 @@ def _minmax_0_100(s: pd.Series) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 def compute_batting_strength(batting: pd.DataFrame, teams: pd.DataFrame,
-                              pitching_for_denom: pd.DataFrame) -> pd.DataFrame:
+                              pitching_for_denom: pd.DataFrame, injuries: pd.DataFrame) -> pd.DataFrame:
     """
     타자 전력 점수 (0~100).
     공식: OPS(0.5) + HR(0.2) + RBI(0.15) + R(0.15) - 문서 원안 그대로.
+    이후 출전비율(playing_time_ratio)과 부상 페널티(injury_penalty_factor)를
+    곱연산으로 적용하고, 시즌 내 Min-Max로 다시 0~100 스케일을 맞춘다.
     """
+    batting = batting[batting["yearID"] >= YEAR_FLOOR]
     season = aggregate_batting_to_season(batting)
     b = compute_shrunk_ops(season)
 
@@ -184,17 +218,27 @@ def compute_batting_strength(batting: pd.DataFrame, teams: pd.DataFrame,
     denom = _season_denominators(teams, pitching_for_denom)
     b = b.merge(denom[["yearID", "season_games"]], on="yearID", how="left")
     b["playing_time_ratio"] = (b["G"] / b["season_games"]).clip(upper=1.0)
-    b["batting_strength"] = b["batting_strength_before_pt"] * b["playing_time_ratio"]
+
+    b = _apply_injury_penalty(b, injuries)
+    b["batting_strength_scaled"] = (
+        b["batting_strength_before_pt"] * b["playing_time_ratio"] * b["injury_penalty_factor"]
+    )
+    # 출전비율과 부상 페널티 두 개의 곱연산 할인이 겹치므로, 시즌 내에서 다시
+    # Min-Max 0~100으로 재정규화해서 "최고 점수 = 100" 해석을 유지한다.
+    b["batting_strength"] = b.groupby("yearID")["batting_strength_scaled"].transform(_minmax_0_100)
 
     return b[["playerID", "yearID", "teamID", "AB", "G", "OPS", "HR", "RBI", "R",
-              "playing_time_ratio", "batting_strength_before_pt", "batting_strength"]]
+              "playing_time_ratio", "il_stint_count", "injury_penalty_factor",
+              "batting_strength_before_pt", "batting_strength"]]
 
 
-def compute_pitching_strength(pitching: pd.DataFrame, teams: pd.DataFrame) -> pd.DataFrame:
+def compute_pitching_strength(pitching: pd.DataFrame, teams: pd.DataFrame,
+                               injuries: pd.DataFrame) -> pd.DataFrame:
     """
     투수 전력 점수 (0~100).
     공식: ERA(0.35) + WHIP(0.30) + SO9(0.20) + IP(0.15) - 기존과 동일, 컬럼만 표준화됨.
     """
+    pitching = pitching[pitching["yearID"] >= YEAR_FLOOR]
     season = aggregate_pitching_to_season(pitching)
     p = compute_shrunk_pitching_rates(season)
 
@@ -212,10 +256,21 @@ def compute_pitching_strength(pitching: pd.DataFrame, teams: pd.DataFrame) -> pd
     denom = _season_denominators(teams, pitching)
     p = p.merge(denom[["yearID", "season_IP"]], on="yearID", how="left")
     p["playing_time_ratio"] = (p["IP"] / p["season_IP"]).clip(upper=1.0)
-    p["pitching_strength"] = p["pitching_strength_before_pt"] * p["playing_time_ratio"]
+
+    p = _apply_injury_penalty(p, injuries)
+    p["pitching_strength_scaled"] = (
+        p["pitching_strength_before_pt"] * p["playing_time_ratio"] * p["injury_penalty_factor"]
+    )
+
+    # 타자와 달리 투수는 한 명이 팀 전체 이닝(season_IP)의 최대 15~20% 정도밖에
+    # 차지할 수 없어(팀에 투수가 10명 이상 있으므로), before_pt(최대 100) x ratio(최대 ~0.18)를
+    # 하면 최종 점수가 구조적으로 20점 근처에서 눌린다. 부상 페널티까지 곱해지므로
+    # 시즌 내에서 다시 한번 Min-Max 정규화를 적용해 0~100 스케일을 맞춘다.
+    p["pitching_strength"] = p.groupby("yearID")["pitching_strength_scaled"].transform(_minmax_0_100)
 
     return p[["playerID", "yearID", "teamID", "IP", "G", "ERA", "WHIP", "SO9",
-              "playing_time_ratio", "pitching_strength_before_pt", "pitching_strength"]]
+              "playing_time_ratio", "il_stint_count", "injury_penalty_factor",
+              "pitching_strength_before_pt", "pitching_strength"]]
 
 
 def build_features_v1(batting_result: pd.DataFrame, pitching_result: pd.DataFrame) -> pd.DataFrame:
@@ -227,34 +282,31 @@ def build_features_v1(batting_result: pd.DataFrame, pitching_result: pd.DataFram
     merged["is_batter"] = merged["batting_strength"].notna()
     merged["is_pitcher"] = merged["pitching_strength"].notna()
 
+    # 최종 features 경계에서는 contract.py / labels.py와 동일한 공통 키를 사용한다.
+    # 내부 전력 계산은 Lahman 호환 이름을 유지한다.
+    merged = merged.rename(columns={
+        "playerID": "player_id",
+        "yearID": "season",
+        "bat_teamID": "bat_team_id",
+        "pit_teamID": "pit_team_id",
+    })
+
     return merged
 
 
 if __name__ == "__main__":
     import os
 
-    teams_raw = pd.read_csv("data/final/lahman/teams.csv")
-    batting_raw = pd.read_csv("data/final/lahman/batting_stats.csv")
-    pitching_raw = pd.read_csv("data/final/lahman/pitching_stats.csv")
+    teams_raw = pd.read_csv("data/final/teams.csv")
+    batting_raw = pd.read_csv("data/final/batting_stats.csv")
+    pitching_raw = pd.read_csv("data/final/pitching_stats.csv")
+    injuries_raw = pd.read_csv("data/final/player_injury_stints.csv")
 
     teams = standardize_teams(teams_raw)
     batting = standardize_batting(batting_raw)
     pitching = standardize_pitching(pitching_raw)
+    injuries = standardize_injuries(injuries_raw)
 
-    batting_result = compute_batting_strength(batting, teams, pitching)
-    pitching_result = compute_pitching_strength(pitching, teams)
+    batting_result = compute_batting_strength(batting, teams, pitching, injuries)
+    pitching_result = compute_pitching_strength(pitching, teams, injuries)
     features_v1 = build_features_v1(batting_result, pitching_result)
-
-    os.makedirs("data/processed", exist_ok=True)
-    out_path = "data/processed/features_v1.parquet"
-    features_v1.to_parquet(out_path, index=False)
-
-    print(f"저장 완료: {out_path}")
-    print(f"행 수: {len(features_v1)}, 열 수: {features_v1.shape[1]}")
-    print(f"playerID+yearID 중복: {features_v1.duplicated(subset=['playerID','yearID']).sum()}건")
-    print("\n[참고용] 2024시즌 타자 전력 상위 5명:")
-    print(
-        features_v1[features_v1.yearID == 2024]
-        .sort_values("batting_strength", ascending=False)
-        .head(5)[["playerID", "yearID", "AB", "OPS", "batting_strength"]]
-    )
