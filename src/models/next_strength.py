@@ -9,7 +9,6 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from src.models.recommend_constants import LAHMAN_TEAM_TO_UI
 from src.models.strength_ts import LAG_FEATURES, add_lag_features
 
 
@@ -18,8 +17,8 @@ def load_next_strength_model(path: str | Path) -> Any:
     model = joblib.load(path)
     feature_names = list(getattr(model, "feature_names_in_", []))
 
-    # 다른 모델 파일이 잘못 연결되면 조용히 잘못된 예측을 만들지 않게 차단한다.
-    if feature_names and feature_names != LAG_FEATURES:
+    # 현재 D 계약에 없는 피처를 요구하는 다른 모델 파일은 연결하지 않는다.
+    if feature_names and not set(feature_names) <= set(LAG_FEATURES):
         raise ValueError("다음 시즌 전력 모델의 입력 피처 계약이 현재 코드와 다릅니다.")
     return model
 
@@ -27,36 +26,23 @@ def load_next_strength_model(path: str | Path) -> Any:
 def predict_next_season_strength(
     players: pd.DataFrame,
     model: Any,
-    people_path: str | Path,
-    teams_path: str | Path,
 ) -> pd.DataFrame:
-    """전체 선수 이력에서 최신 시즌 선수의 t+1 전력 점수를 만든다."""
-    people = pd.read_csv(
-        people_path,
-        usecols=["playerID", "birthYear"],
-    ).rename(columns={"playerID": "player_id", "birthYear": "birth_year"})
-    teams = pd.read_csv(
-        teams_path,
-        usecols=["yearID", "teamID", "W", "L"],
-    ).rename(columns={"yearID": "season", "teamID": "team_last"})
-    teams["team_last"] = teams["team_last"].replace(LAHMAN_TEAM_TO_UI)
-    games = teams["W"] + teams["L"]
-    teams["team_wr"] = teams["W"].div(games.where(games > 0))
-    teams = teams.sort_values(["season", "team_last"]).drop_duplicates(
-        ["season", "team_last"], keep="last"
-    )
+    """features_v1 전체 이력에서 최신 시즌 선수의 t+1 전력을 만든다."""
+    required = {"player_id", "season", "age", "exp", "team_wr"}
+    missing = required - set(players.columns)
+
+    # D가 확정한 실전 피처 계약이 없으면 임의 값으로 모델 입력을 만들지 않는다.
+    if missing:
+        raise ValueError(f"다음 시즌 전력 예측 피처 누락: {sorted(missing)}")
 
     enriched = players.copy()
     enriched["player_id"] = enriched["player_id"].astype(str)
-    enriched = enriched.merge(people, on="player_id", how="left")
-    enriched = enriched.merge(
-        teams[["season", "team_last", "team_wr"]],
-        on=["season", "team_last"],
-        how="left",
-    )
-    enriched["age"] = enriched["season"] - enriched["birth_year"]
     enriched = enriched.sort_values(["player_id", "season"]).copy()
-    enriched["exp"] = enriched.groupby("player_id").cumcount() + 1
+
+    # update된 lag 함수는 부상 이력을 참조하지만 현재 확정 features_v1에는 아직 없다.
+    if "had_injury" not in enriched.columns:
+        enriched["had_injury"] = 0.0
+
     featured = add_lag_features(enriched)
 
     # 타자·투수 전용 지표가 원본에 없더라도 학습 때와 같은 0 보정을 적용한다.
@@ -71,8 +57,9 @@ def predict_next_season_strength(
     if latest.empty:
         raise ValueError("다음 시즌 전력을 예측할 최신 시즌 선수가 없습니다.")
 
+    model_features = list(getattr(model, "feature_names_in_", LAG_FEATURES))
     predicted = np.asarray(
-        model.predict(latest[LAG_FEATURES].fillna(0.0)), dtype=float
+        model.predict(latest[model_features].fillna(0.0)), dtype=float
     )
 
     # 비정상 모델 출력은 승률 계산에 전달하지 않는다.
