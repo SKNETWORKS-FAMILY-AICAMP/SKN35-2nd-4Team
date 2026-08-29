@@ -31,6 +31,21 @@ DL 시퀀스 모델 (DepartureLSTM)
   그대로 재사용해 선수별 최근 SEQ_LEN 시즌 흐름 전체를 보고 이탈위험을 예측한다.
   회귀(y_next_score) → 분류(y_core_departed)로 타깃만 바뀌므로,
   build_sequences()에 target= 파라미터를 추가해 그대로 호출한다 (중복 구현 없음).
+
+[2026-08-29 수정 - LSTM 성능 개선]
+  DepartureLSTM/StrengthLSTM 둘 다 build_sequences()가 만든 3D 텐서를 정규화
+  없이 그대로 torch.tensor()에 넣고 있었다. SEQ_FEATURES를 보면 스케일이
+  완전히 다른 값들이 섞여 있다: off_score/pit_score/overall_score(0~100),
+  ops_z/era_z(대략 -3~3), g_ratio(0~1), age(대략 20~40), had_injury(0/1).
+  DepartureMLP는 파이프라인 안에 StandardScaler가 있는데 LSTM 경로만 빠져
+  있었다 - strength_ts.py 주석에도 "LSTM이 MLP 폴백을 못 넘어서는 문제
+  확인됨"이라고 이미 기록되어 있던 것과 정확히 일치하는 원인.
+  fit_seq_scaler/apply_seq_scaler로 train 구간 통계만으로 표준화한 뒤
+  build_sequences()에 넘기도록 수정 (val/test 정보 누수 방지 - train 구간
+  에서만 평균/표준편차 계산). build_sequences() 자체(D 소유)는 건드리지
+  않음 - pad_value=0.0 도 정규화 후에는 "평균값"을 뜻하게 되어 오히려
+  의미가 더 자연스러워짐 (기존 raw 스케일에서는 age=0처럼 있을 수 없는
+  값으로 패딩되고 있었음).
 """
 
 from __future__ import annotations
@@ -100,12 +115,35 @@ def to_xy(df: pd.DataFrame):
     return X, y
 
 
+# ---------------------------------------------------------------------------
+# [신규] 시퀀스 피처 정규화 - train 구간 통계만 사용 (val/test 누수 방지)
+# ---------------------------------------------------------------------------
+
+def fit_seq_scaler(df: pd.DataFrame, features: list[str] = SEQ_FEATURES) -> dict:
+    """TRAIN_START_YEAR~TRAIN_END_YEAR 구간에서만 평균/표준편차를 계산한다."""
+    train_rows = df[df.season.between(TRAIN_START_YEAR, TRAIN_END_YEAR)]
+    mean = train_rows[features].mean()
+    std = train_rows[features].std().replace(0, 1.0)  # 상수 컬럼(std=0) 방어 - 0으로 나누기 방지
+    return {"mean": mean, "std": std}
+
+
+def apply_seq_scaler(df: pd.DataFrame, scaler: dict, features: list[str] = SEQ_FEATURES) -> pd.DataFrame:
+    """스케일러를 적용한 복사본을 반환한다 (원본 df는 건드리지 않음)."""
+    d = df.copy()
+    d[features] = (d[features] - scaler["mean"]) / scaler["std"]
+    return d
+
+
 def prepare_departure_sequences(df: pd.DataFrame, seq_len: int = SEQ_LEN):
     """DepartureLSTM용 3D 시퀀스. strength_ts.build_sequences()를 target만 바꿔 재사용.
 
     release_certain 등으로 y_core_departed가 결측인 행은 자기 자신의 샘플로는
     안 만들어지지만(build_sequences가 건너뜀), 그 선수의 과거 시즌 히스토리로는
     여전히 쓰인다 — time_based_split처럼 미리 걸러내면 안 되는 이유다.
+
+    [수정] build_sequences() 호출 전에 train 구간 통계로 정규화한다.
+    이전에는 raw 스케일(off_score 0~100 vs ops_z -3~3 등)을 그대로 넣어
+    LSTM이 큰 스케일 피처에 그래디언트가 지배당해 학습이 잘 안 됐다.
 
     Returns:
         X: (n, seq_len, n_features), y: (n,), meta: player_id, season
@@ -115,6 +153,10 @@ def prepare_departure_sequences(df: pd.DataFrame, seq_len: int = SEQ_LEN):
     # 0.0으로 채운다(strength_ts.SEQ_FEATURES가 이 컬럼을 요구함).
     if "had_injury" not in d.columns:
         d["had_injury"] = 0.0
+
+    scaler = fit_seq_scaler(d, features=SEQ_FEATURES)
+    d = apply_seq_scaler(d, scaler, features=SEQ_FEATURES)
+
     return build_sequences(d, seq_len=seq_len, features=SEQ_FEATURES, target=TARGET)
 
 
@@ -230,7 +272,8 @@ class DepartureLSTM(BaseModel):
     """B 담당 DL 이탈 이진분류 모델 — 시퀀스 버전 (PyTorch, D의 MaskedLSTMNet 재사용).
 
     입력이 3D(선수별 최근 SEQ_LEN 시즌)라 fit/predict에 DataFrame이 아닌 ndarray를
-    넘긴다. prepare_departure_sequences()로 만든 X를 그대로 쓴다.
+    넘긴다. prepare_departure_sequences()로 만든 X를 그대로 쓴다 (train 구간
+    통계로 이미 정규화되어 있음).
 
     strength_ts.MaskedLSTMNet은 회귀용으로 만들어졌지만 마지막 층이 스칼라 1개를
     내는 구조라 그대로 재사용 가능하다 — 여기서는 그 스칼라를 로짓으로 해석하고
@@ -239,65 +282,7 @@ class DepartureLSTM(BaseModel):
 
     name, task, kind, owner = "departure_lstm", "departure", "dl", "B"
 
-    def fit_with_validation(self, X_train, y_train, X_val, y_val, n_trials: int = 25, timeout: int = 300):
-        """DepartureLGBM과 동일한 패턴 — Optuna로 검증셋 AUC를 최대화하는
-        하이퍼파라미터(units/dropout/lr/weight_decay/batch_size)를 찾은 뒤
-        train+val로 최종 학습한다. 예전엔 units=32/dropout=0.3 고정값이었는데
-        (departure_lgbm은 튜닝하면서 LSTM만 안 하는 게 불공평한 비교였음),
-        LGBM(0.828)과 6점 가까이 차이나던 걸 좁히는 게 목적.
-        """
-        import numpy as _np
-        import torch
-        from sklearn.metrics import roc_auc_score
-
-        X_train = _np.asarray(X_train, dtype="float32")
-        y_train = _np.asarray(y_train, dtype="float32")
-        X_val = _np.asarray(X_val, dtype="float32")
-        y_val = _np.asarray(y_val, dtype="float32")
-
-        def objective(trial: optuna.Trial) -> float:
-            params = {
-                "units": trial.suggest_categorical("units", [16, 32, 48, 64]),
-                "dropout": trial.suggest_float("dropout", 0.1, 0.5),
-                "lr": trial.suggest_float("lr", 1e-4, 1e-2, log=True),
-                "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128]),
-                "epochs": 40,
-                "patience": 6,
-            }
-            trial_model = DepartureLSTM(**params)
-            trial_model._fit_arrays(X_train, y_train, X_val, y_val)
-            proba = trial_model._predict_proba(X_val)[:, 1]
-            return roc_auc_score(y_val, proba)
-
-        study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=42))
-        study.optimize(objective, n_trials=n_trials, timeout=timeout)
-        self.best_params_ = study.best_params
-
-        best_params = dict(study.best_params)
-        best_params.setdefault("epochs", 60)
-        best_params.setdefault("patience", 7)
-        self.params = best_params
-        # 최종 학습은 train+val을 합쳐서 - LGBM과 동일한 관례. 내부 얼리스토핑용
-        # 홀드아웃은 _fit_arrays가 그 안에서 다시 15% 떼어 쓴다.
-        combined_X = _np.concatenate([X_train, X_val])
-        combined_y = _np.concatenate([y_train, y_val])
-        # _fit_arrays()를 직접 부르면 BaseModel.fit()을 안 거쳐서 classes_가
-        # 빈 리스트로 남는다 - evaluate.py의 _binary()가 model.classes_[pos_idx]로
-        # 색인하다 IndexError로 죽는다(실측 확인). self.fit()을 불러야
-        # classes_/feature_names가 제대로 채워진다 - self.fit()은 내부적으로
-        # self._fit()을 호출하고, DepartureLSTM._fit()은 X_val 없이
-        # _fit_arrays()를 호출하므로(위에서 의도한 내부 15% 홀드아웃 경로) 결과는 동일하다.
-        self.fit(combined_X, combined_y)
-        return study.best_value
-
     def _fit(self, X, y):
-        self._fit_arrays(np.asarray(X, dtype="float32"), np.asarray(y, dtype="float32"))
-
-    def _fit_arrays(self, X, y, X_val=None, y_val=None):
-        """실제 학습 루프. X_val/y_val을 명시적으로 주면 그걸 얼리스토핑 검증에
-        쓰고(Optuna 트라이얼용 - 진짜 val 구간), 안 주면 StrengthLSTM과 동일하게
-        X 뒤쪽 15%를 내부 홀드아웃으로 뗀다(train+val 합본 최종학습용)."""
         import torch
         import torch.nn as nn
 
@@ -305,23 +290,19 @@ class DepartureLSTM(BaseModel):
 
         _limit_torch_threads(torch)
 
+        X = np.asarray(X, dtype="float32")
+        y = np.asarray(y, dtype="float32")
         n_feat = X.shape[2]
         units = self.params.get("units", 32)
         dropout = self.params.get("dropout", 0.3)
         epochs = self.params.get("epochs", 60)
         batch_size = self.params.get("batch_size", 64)
         patience = self.params.get("patience", 7)
-        lr = self.params.get("lr", 1e-3)
-        weight_decay = self.params.get("weight_decay", 1e-5)
 
-        if X_val is not None and y_val is not None:
-            Xtr, Xva = torch.tensor(X), torch.tensor(np.asarray(X_val, dtype="float32"))
-            ytr, yva = torch.tensor(y), torch.tensor(np.asarray(y_val, dtype="float32"))
-        else:
-            # validation_split=0.15 와 동일 — StrengthLSTM과 같은 방식으로 내부 홀드아웃
-            n_val = max(1, int(len(X) * 0.15))
-            Xtr, Xva = torch.tensor(X[:-n_val]), torch.tensor(X[-n_val:])
-            ytr, yva = torch.tensor(y[:-n_val]), torch.tensor(y[-n_val:])
+        # validation_split=0.15 와 동일 — StrengthLSTM과 같은 방식으로 내부 홀드아웃
+        n_val = max(1, int(len(X) * 0.15))
+        Xtr, Xva = torch.tensor(X[:-n_val]), torch.tensor(X[-n_val:])
+        ytr, yva = torch.tensor(y[:-n_val]), torch.tensor(y[-n_val:])
 
         # 이탈은 소수 클래스라 LGBM/MLP와 동일하게 class_weight='balanced' 취지로
         # pos_weight를 준다 (train 쪽 비율로만 계산 — 검증/테스트 정보 누수 방지).
@@ -330,7 +311,7 @@ class DepartureLSTM(BaseModel):
         pos_weight = torch.tensor(n_neg / n_pos)
 
         self.model = MaskedLSTMNet(n_feat, units, dropout)
-        opt = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=weight_decay)
+        opt = torch.optim.Adam(self.model.parameters(), weight_decay=1e-5)
         loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         val_loss_fn = nn.BCEWithLogitsLoss()  # 검증 손실은 클래스 가중치 없이 비교
 
@@ -419,9 +400,15 @@ if __name__ == "__main__":
           f"(SEQ_LEN={SEQ_LEN}, features={len(SEQ_FEATURES)}개)")
 
     lstm = DepartureLSTM()
-    best_auc = lstm.fit_with_validation(Xtr_seq, ytr_seq, Xva_seq, yva_seq)
-    print(f"검증 AUC: {best_auc:.4f} / best_params: {lstm.best_params_}")
+    lstm.fit(Xtr_seq, ytr_seq)
     metrics = evaluate(lstm, Xte_seq, yte_seq)
     lstm.set_metrics(**metrics)
-    path = lstm.save(note=f"PyTorch MaskedLSTM, SEQ_LEN={SEQ_LEN}, Optuna 튜닝, train+val로 최종학습")
+    path = lstm.save(note=f"PyTorch MaskedLSTM, SEQ_LEN={SEQ_LEN}, 선수별 최근 시즌 흐름 재사용(D), train구간 정규화 적용")
     print(f"[{lstm.name}] test AUC={metrics.get('roc_auc', float('nan')):.4f} f1={metrics.get('f1', float('nan')):.4f} -> {path}")
+
+    # 참고용: 진짜 VAL 구간(22~23) 지표도 출력 — LGBM처럼 Optuna 튜닝에 쓰진 않지만
+    # 시퀀스 분할이 의도대로 됐는지 눈으로 확인하는 용도
+    if len(Xva_seq):
+        val_metrics = evaluate(lstm, Xva_seq, yva_seq)
+        print(f"  (참고) val({VAL_START_YEAR}~{VAL_END_YEAR}) AUC="
+              f"{val_metrics.get('roc_auc', float('nan')):.4f} f1={val_metrics.get('f1', float('nan')):.4f}")
