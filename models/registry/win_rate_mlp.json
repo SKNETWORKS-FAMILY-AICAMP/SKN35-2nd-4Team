@@ -14,25 +14,25 @@
   ],
   "params": {},
   "metrics": {
-    "accuracy": 0.568,
-    "precision": 0.568,
-    "recall": 0.7625,
-    "f1": 0.651,
-    "roc_auc": 0.5887,
-    "log_loss": 0.6787,
+    "accuracy": 0.5766,
+    "precision": 0.5764,
+    "recall": 0.7497,
+    "f1": 0.6518,
+    "roc_auc": 0.6063,
+    "log_loss": 0.6736,
     "confusion_matrix": [
       [
-        1203,
-        2234
+        1315,
+        2122
       ],
       [
-        915,
-        2937
+        964,
+        2888
       ]
     ],
-    "positive_rate": 0.7094,
+    "positive_rate": 0.6873,
     "n_test": 7289
   },
-  "note": "game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10)",
-  "saved_at": "2026-08-28T14:42:04"
+  "note": "game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10·타격/투구/수비 전력)",
+  "saved_at": "2026-08-29T15:52:48"
 }

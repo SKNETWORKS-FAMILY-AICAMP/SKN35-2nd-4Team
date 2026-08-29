@@ -247,6 +247,7 @@ def build_time_aware_features(games):
     games["last10_diff"] = games["home_last10"] - games["away_last10"]
 
     games = add_pitching_quality(games)
+    games = add_batting_defense_quality(games)
 
     return games
 
@@ -308,11 +309,82 @@ def add_pitching_quality(games):
     return games
 
 
+_TEAM_QUALITY_CACHE = None
+
+
+def load_team_quality_table():
+    """team_season.csv에서 타격/수비 전력(bat_strength/def_strength)을 불러온다.
+
+    [2026-08-29 추가] FEATURE_COLS를 보면 투수진 전력(pitching_quality)만 있고
+    팀 타격력·수비력이 아예 안 들어가 있었다 — win_rate 세 모델(logreg/xgb/mlp)
+    전부 AUC 0.58~0.59로 똑같이 낮았던 게(모델을 바꿔도 안 오르는 걸 보면 모델
+    문제가 아니라 피처 문제) 이 구멍 때문일 가능성이 커서 추가한다.
+    load_pitching_quality_table()과 캐시를 분리한 이유: 기존에 검증된
+    pitching_quality 피처 동작을 건드리지 않기 위해서다(그 함수는 그대로 둠).
+    """
+    global _TEAM_QUALITY_CACHE
+    if _TEAM_QUALITY_CACHE is not None:
+        return _TEAM_QUALITY_CACHE
+
+    path = os.path.join(DATA_DIR, "team_season.csv")
+    if not os.path.exists(path):
+        print(f"[안내] team_season.csv를 못 찾아 타격/수비 전력 피처를 건너뜁니다: {path}")
+        _TEAM_QUALITY_CACHE = pd.DataFrame(columns=["year", "team_id", "bat_strength", "def_strength"])
+        return _TEAM_QUALITY_CACHE
+
+    ts = pd.read_csv(path, usecols=["year", "team_id", "bat_strength", "def_strength"])
+    _TEAM_QUALITY_CACHE = ts
+    return ts
+
+
+def add_batting_defense_quality(games):
+    """home/away_batting_quality, home/away_defense_quality와 그 diff를 추가한다.
+
+    add_pitching_quality()와 동일한 패턴(team_season.csv, 시즌 매칭 안 되면
+    그 팀의 가장 최근 시즌 값으로 폴백, 그래도 없으면 리그 평균으로 폴백)을
+    타격/수비 전력에도 그대로 적용한다.
+    """
+    ts = load_team_quality_table()
+    if ts.empty:
+        for side in ("home", "away"):
+            games[f"{side}_batting_quality"] = 0.0
+            games[f"{side}_defense_quality"] = 0.0
+        games["batting_quality_diff"] = 0.0
+        games["defense_quality_diff"] = 0.0
+        return games
+
+    latest_bat = ts.sort_values("year").groupby("team_id")["bat_strength"].last()
+    latest_def = ts.sort_values("year").groupby("team_id")["def_strength"].last()
+    league_avg_bat = float(ts["bat_strength"].mean())
+    league_avg_def = float(ts["def_strength"].mean())
+
+    for side in ("home", "away"):
+        merged = games.merge(
+            ts.rename(columns={"year": "season", "team_id": f"{side}_team"}),
+            on=["season", f"{side}_team"],
+            how="left",
+        )
+        fallback_bat = games[f"{side}_team"].map(latest_bat)
+        fallback_def = games[f"{side}_team"].map(latest_def)
+        games[f"{side}_batting_quality"] = (
+            merged["bat_strength"].fillna(fallback_bat).fillna(league_avg_bat).to_numpy()
+        )
+        games[f"{side}_defense_quality"] = (
+            merged["def_strength"].fillna(fallback_def).fillna(league_avg_def).to_numpy()
+        )
+
+    games["batting_quality_diff"] = games["home_batting_quality"] - games["away_batting_quality"]
+    games["defense_quality_diff"] = games["home_defense_quality"] - games["away_defense_quality"]
+    return games
+
+
 FEATURE_COLS = [
     "home_strength", "away_strength", "strength_diff",
     "home_rest", "away_rest", "rest_diff",
     "home_last10", "away_last10", "last10_diff",
     "home_pitching_quality", "away_pitching_quality", "pitching_quality_diff",
+    "home_batting_quality", "away_batting_quality", "batting_quality_diff",
+    "home_defense_quality", "away_defense_quality", "defense_quality_diff",
 ]
 TARGET_COL = "y_home_win"
 
@@ -496,13 +568,53 @@ class WinRateLogReg(BaseModel):
 class WinRateXGB(BaseModel):
     name, task, kind, owner = "win_rate_xgb", "win_rate", "ml", "A"
 
+    def fit_with_validation(self, X_train, y_train, X_val, y_val, n_trials: int = 30, timeout: int = 180):
+        """strength_xgb/departure_lgbm과 동일한 패턴(2026-08-29 추가) - Optuna로
+        검증 AUC를 최대화하는 하이퍼파라미터를 찾은 뒤 train+val로 최종 학습한다.
+        예전엔 n_estimators=300/max_depth=4/lr=0.03 고정값이었다."""
+        import optuna
+        from sklearn.metrics import roc_auc_score
+        from xgboost import XGBClassifier
+
+        def objective(trial: optuna.Trial) -> float:
+            params = dict(
+                n_estimators=trial.suggest_int("n_estimators", 100, 500),
+                max_depth=trial.suggest_int("max_depth", 3, 8),
+                learning_rate=trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
+                subsample=trial.suggest_float("subsample", 0.6, 1.0),
+                colsample_bytree=trial.suggest_float("colsample_bytree", 0.6, 1.0),
+                reg_lambda=trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
+                reg_alpha=trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
+                min_child_weight=trial.suggest_int("min_child_weight", 1, 20),
+            )
+            trial_model = XGBClassifier(
+                **params, random_state=RANDOM_SEED, eval_metric="logloss", n_jobs=-1,
+            ).fit(X_train, y_train)
+            proba = trial_model.predict_proba(X_val)[:, 1]
+            return roc_auc_score(y_val, proba)
+
+        study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=RANDOM_SEED))
+        study.optimize(objective, n_trials=n_trials, timeout=timeout)
+        self.best_params_ = study.best_params
+        self.params = dict(study.best_params)
+
+        # 최종 학습은 train+val을 합쳐서 - 다른 태스크(strength/departure)와 동일한 관례.
+        combined_X = np.concatenate([X_train, X_val])
+        combined_y = np.concatenate([y_train, y_val])
+        self.fit(combined_X, combined_y)
+        return study.best_value
+
     def _fit(self, X, y):
         from xgboost import XGBClassifier
 
-        self.model = XGBClassifier(
+        defaults = dict(
             n_estimators=300, max_depth=4, learning_rate=0.03,
-            subsample=0.8, colsample_bytree=0.8,
-            reg_lambda=1.0, random_state=RANDOM_SEED, eval_metric="logloss", n_jobs=-1,
+            subsample=0.8, colsample_bytree=0.8, reg_lambda=1.0,
+            reg_alpha=0.0, min_child_weight=1,
+        )
+        defaults.update(self.params)
+        self.model = XGBClassifier(
+            **defaults, random_state=RANDOM_SEED, eval_metric="logloss", n_jobs=-1,
         ).fit(X, y)
 
     def _predict_proba(self, X):
@@ -614,12 +726,22 @@ def main():
     print("\n" + "=" * 60)
     print("4.5) D 공통 레지스트리(BaseModel) 등록")
     print("=" * 60)
+    # win_rate_xgb만 Optuna로 튜닝한다 - train 구간의 마지막 15%(시간순 뒤쪽,
+    # WinRateMLP._fit()의 내부 홀드아웃과 동일한 방식)를 검증셋으로 뗀다.
+    n_val = max(1, int(len(X_train) * 0.15))
+    X_tr_opt, X_val_opt = X_train[:-n_val], X_train[-n_val:]
+    y_tr_opt, y_val_opt = y_train[:-n_val], y_train[-n_val:]
+
     for model_cls in (WinRateLogReg, WinRateXGB, WinRateMLP):
         registry_model = model_cls()
-        registry_model.fit(X_train, y_train)
+        if model_cls is WinRateXGB:
+            best_auc = registry_model.fit_with_validation(X_tr_opt, y_tr_opt, X_val_opt, y_val_opt)
+            print(f"  [{registry_model.name}] 검증 AUC={best_auc:.4f} best_params={registry_model.best_params_}")
+        else:
+            registry_model.fit(X_train, y_train)
         metrics = d_evaluate(registry_model, X_test, y_test)
         registry_model.set_metrics(**metrics)
-        saved_path = registry_model.save(note="game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10)")
+        saved_path = registry_model.save(note="game.py 경기 단위 승부예측 (홈/원정 전력·휴식·최근10·타격/투구/수비 전력)")
         print(f"  [{registry_model.name}] auc={metrics.get('roc_auc', float('nan')):.4f} -> {saved_path}")
 
     print("\n" + "=" * 60)
