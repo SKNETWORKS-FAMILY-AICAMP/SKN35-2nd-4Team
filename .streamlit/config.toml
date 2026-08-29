@@ -1,6 +1,8 @@
 [theme]
-base = "light"
-primaryColor = "#16325C"
-backgroundColor = "#F5F4F1"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#1F2937"
+# 야간 스타디움 다크 테마 — app/ui/theme.py의 :root 팔레트와 값을 맞춘다.
+# (Streamlit 자체 위젯: selectbox / dataframe / expander / radio 등이 이 값을 따른다)
+base = "dark"
+primaryColor = "#FFC94D"
+backgroundColor = "#080D1A"
+secondaryBackgroundColor = "#111A2E"
+textColor = "#EEF3FF"

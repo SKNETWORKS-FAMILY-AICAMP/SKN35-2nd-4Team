@@ -16,7 +16,22 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from src.service.registry import comparison_table, list_models  # noqa: E402
-from ui.theme import badge, inject_css, init_state, kpi_card, page_header, placeholder, progress_bar, require_team, section, topbar, wrap  # noqa: E402
+from ui.theme import (  # noqa: E402
+    badge,
+    icon,
+    inject_css,
+    init_state,
+    kpi_card,
+    model_card_html,
+    model_task_section_html,
+    page_header,
+    placeholder,
+    progress_bar,
+    require_team,
+    section,
+    topbar,
+    wrap,
+)
 
 st.set_page_config(page_title="모델 정보", page_icon="⚾", layout="wide", initial_sidebar_state="collapsed")
 inject_css()
@@ -54,30 +69,67 @@ with wrap():
         placeholder("모델 레지스트리", "아직 저장된 모델이 없습니다. `models/registry/*.json` 확인 필요.")
     else:
         table = comparison_table()
-        # task마다 지표 종류가 다르다 — 회귀(strength: mae/rmse/r2), 이진분류
-        # (win_rate/departure: accuracy/f1/roc_auc), 다중분류(reason: accuracy/
-        # macro_f1). 하나로 합쳐서 보여주고, 해당 없는 칸은 자연히 비워둔다.
-        show_cols = [
-            c for c in [
-                "model", "task", "kind", "owner",
-                "accuracy", "f1", "macro_f1", "roc_auc",
-                "mae", "rmse", "r2", "baseline_mae", "n_test",
-            ] if c in table.columns
-        ]
-        st.dataframe(table[show_cols], use_container_width=True, hide_index=True)
+        # task마다 지표 종류가 달라(회귀 mae/r2, 이진분류 auc/f1, 다중분류 macro_f1)
+        # 표 하나로 합치면 빈 칸투성이가 된다 — 태스크별 카드 그리드로 나눠서
+        # 각 모델의 "대표 지표"를 크게 보여주고, 태스크 1위에 왕관을 씌운다.
+        TASK_ORDER = ["strength", "departure", "win_rate", "reason", "recommend"]
+        # 대표 지표는 값이 클수록 좋은 것(r2/auc/f1/p@3)뿐이라 idxmax 로 1위를 뽑는다
+        BEST_BY = {
+            "strength": "r2", "departure": "roc_auc", "win_rate": "roc_auc",
+            "reason": "macro_f1", "recommend": "precision_at_3",
+        }
+
+        idx = 0
+        blocks = []
+        for task in TASK_ORDER + [t for t in table.task.unique() if t not in TASK_ORDER]:
+            rows = table[table.task == task]
+            if rows.empty:
+                continue
+            best_name = None
+            col = BEST_BY.get(task)
+            if col and col in rows.columns and rows[col].notna().any():
+                best_name = rows.loc[rows[col].idxmax(), "model"]
+
+            cards = []
+            for _, r in rows.iterrows():
+                cards.append(
+                    model_card_html(
+                        name=str(r["model"]),
+                        kind=str(r.get("kind", "")),
+                        owner=str(r.get("owner", "")),
+                        task=task,
+                        metrics={c: r[c] for c in rows.columns if c not in ("model", "task", "kind", "owner")},
+                        is_best=(r["model"] == best_name),
+                        index=idx,
+                    )
+                )
+                idx += 1
+            blocks.append(model_task_section_html(task, "".join(cards)))
+
+        st.markdown("".join(blocks), unsafe_allow_html=True)
+
+        with st.expander("원본 지표 표 보기"):
+            show_cols = [
+                c for c in [
+                    "model", "task", "kind", "owner",
+                    "accuracy", "f1", "macro_f1", "roc_auc",
+                    "mae", "rmse", "r2", "baseline_mae", "n_test",
+                ] if c in table.columns
+            ]
+            st.dataframe(table[show_cols], use_container_width=True, hide_index=True)
 
         strength_rows = table[table.task == "strength"] if "task" in table.columns else pd.DataFrame()
         if not strength_rows.empty and "mae" in strength_rows.columns:
             best = strength_rows.loc[strength_rows.mae.idxmin()]
             c1, c2, c3 = st.columns(3)
             with c1:
-                kpi_card("최고 성능 모델", str(best["model"]), icon="🏆")
+                kpi_card("최고 성능 모델", str(best["model"]), icon=icon("trophy", 13))
             with c2:
-                kpi_card("MAE (전력 점수 0~100 기준)", f"{best.mae:.2f}", icon="🎯")
+                kpi_card("MAE (전력 점수 0~100 기준)", f"{best.mae:.2f}", icon=icon("target", 13))
             with c3:
                 if "baseline_mae" in best and pd.notna(best.baseline_mae):
                     improve = (1 - best.mae / best.baseline_mae) * 100
-                    kpi_card("평균 대입 대비 개선", f"{improve:.0f}%", icon="📈", color="var(--gain)")
+                    kpi_card("평균 대입 대비 개선", f"{improve:.0f}%", icon=icon("trend-up", 13), color="var(--gain)")
 
     section("아직 학습되지 않은 모델", f"{len(PLANNED) - len(trained_tasks & PLANNED.keys())}개 남음")
     missing = {task: v for task, v in PLANNED.items() if task not in trained_tasks}

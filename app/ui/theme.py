@@ -41,33 +41,95 @@ FONT_LINK = (
 
 CSS = """
 <style>
+/* ══════════════════════════════════════════════════════════════════
+   야간 스타디움 다크 테마 (2026-08-29 전면 개편)
+   조명탑이 켜진 밤 경기장 = 이 서비스의 무대. 모든 표면은 그 위에 뜬
+   유리판(글래스모피즘)이고, 팀 컬러가 조명처럼 배경을 물들인다.
+   ── 컴포넌트가 전부 var() 를 통해 색을 쓰므로 이 :root 만 바꾸면
+      전체 톤이 함께 뒤집힌다(하드코딩 색을 새로 넣지 말 것).
+   ══════════════════════════════════════════════════════════════════ */
 :root{
-  --navy:#16325C; --navy-2:#1D3E73; --navy-soft:#E9EEF6; --team-accent:#3E6FB0; --hero-glow:#23477E;
-  --ink:#1F2937; --muted:#6B7280; --faint:#9CA3AF;
-  --line:#E5E7EB; --paper:#F5F4F1; --card:#FFF;
-  --risk:#D94F4F; --risk-bg:#FCEDED; --gain:#15805E; --gain-bg:#E6F4EF;
-  --warn:#B4700A; --warn-bg:#FBF2DF; --violet:#6D4FC2; --violet-bg:#EFEAFB;
-  --shadow-sm: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
-  --shadow-md: 0 4px 10px rgba(16,24,40,.06), 0 2px 4px rgba(16,24,40,.05);
+  --navy:#0F1B33; --navy-2:#16264A; --navy-soft:#1B2A4A; --team-accent:#4E8FD6; --hero-glow:#1E3E77;
+  --ink:#EEF3FF; --muted:#93A2BF; --faint:#64748B;
+  --line:rgba(255,255,255,.10); --paper:#080D1A; --card:rgba(255,255,255,.045);
+  --card-solid:#111A2E;
+  --gold:#FFC94D; --gold-dim:#B8871F;
+  --risk:#FF6B6B; --risk-bg:rgba(255,107,107,.14); --gain:#3FD17B; --gain-bg:rgba(63,209,123,.14);
+  --warn:#FFC94D; --warn-bg:rgba(255,201,77,.14); --violet:#A78BFA; --violet-bg:rgba(167,139,250,.14);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.28);
+  --shadow-md: 0 8px 20px rgba(0,0,0,.42), 0 2px 6px rgba(0,0,0,.3);
+  --glass-blur: saturate(150%) blur(14px);
 }
 html, body, [class*="css"] { font-family: "Pretendard Variable", Pretendard, -apple-system, "Malgun Gothic", sans-serif !important; }
 
 /* Streamlit 기본 크롬 제거 — 우리 topbar 로 대체 */
 [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], footer { display:none !important; }
 .block-container { max-width: 100% !important; padding: 0 0 60px !important; }
-.stApp { background: var(--paper); }
 #MainMenu { visibility:hidden; }
 div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 [data-testid="stAppViewContainer"] { animation: gm-fade .35s ease; }
 @keyframes gm-fade { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
 
+/* ── 무대: 밤 경기장 ────────────────────────────────────────────────
+   .stApp 자체에 별(반복 radial-gradient) + 팀컬러 조명 + 지평선 글로우를
+   깔고, ::after 로 좌우 조명탑 빛기둥을 얹는다. 콘텐츠는 그 위에 뜬다. */
+.stApp{
+  background:
+    radial-gradient(1400px 620px at 50% 104%, rgba(78,143,214,.20) 0%, transparent 62%),
+    radial-gradient(900px 460px at 8% -6%, var(--hero-glow) 0%, transparent 58%),
+    radial-gradient(900px 460px at 92% -6%, var(--hero-glow) 0%, transparent 58%),
+    linear-gradient(180deg,#050912 0%, var(--paper) 42%, #060B17 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+}
+.stApp::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 18%, rgba(255,255,255,.65), transparent),
+    radial-gradient(1.2px 1.2px at 68% 8%,  rgba(255,255,255,.5),  transparent),
+    radial-gradient(1.6px 1.6px at 84% 26%, rgba(255,255,255,.6),  transparent),
+    radial-gradient(1.1px 1.1px at 33% 32%, rgba(255,255,255,.4),  transparent),
+    radial-gradient(1.3px 1.3px at 52% 15%, rgba(255,255,255,.45), transparent),
+    radial-gradient(1.1px 1.1px at 22% 6%,  rgba(255,255,255,.4),  transparent);
+  animation: gm-twinkle 5.5s ease-in-out infinite;
+}
+@keyframes gm-twinkle{0%,100%{opacity:.55}50%{opacity:.95}}
+/* 좌우 조명탑 빛기둥 — 첨부 영상의 플러드라이트 두 줄기 */
+.stApp::after{
+  content:"";position:fixed;inset:0 0 auto;height:78vh;pointer-events:none;z-index:0;
+  background:
+    conic-gradient(from 168deg at 6% 0%,  transparent 0deg, rgba(120,180,255,.13) 8deg, transparent 20deg),
+    conic-gradient(from 172deg at 94% 0%, transparent 0deg, rgba(120,180,255,.13) 8deg, transparent 20deg);
+  animation: gm-floodbeam 7s ease-in-out infinite;
+}
+@keyframes gm-floodbeam{0%,100%{opacity:.6}50%{opacity:1}}
+[data-testid="stAppViewContainer"]{position:relative;z-index:1}
+@media (prefers-reduced-motion: reduce){
+  .stApp::before,.stApp::after{animation:none}
+}
+
+/* ── 큰 숫자 등장 연출 ──────────────────────────────────────────────
+   주의: 이 CSS 문자열 안에는 꺾쇠괄호를 절대 넣지 말 것(주석 안이라도!).
+   st.html() 의 HTML 새니타이저는 CSS 주석을 구분하지 않아서, 꺾쇠가 하나라도
+   있으면 스타일 블록 전체를 통째로 폐기한다(실측 확인). 그래서 CSS 카운트업에
+   쓰는 @property 규칙(값 타입을 꺾쇠로 표기해야 함)은 이 프로젝트에서 못 쓴다
+   — 대신 "아래에서 솟아오르며 선명해지는" 연출로 대체한다. */
+.gm-rise{display:inline-block;animation:gm-rise .7s cubic-bezier(.2,.9,.25,1.1) both;
+  animation-delay:calc(var(--i,0) * 90ms)}
+@keyframes gm-rise{from{opacity:0;transform:translateY(14px) scale(.9);filter:blur(6px)}
+  to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@media (prefers-reduced-motion: reduce){ .gm-rise{animation:none} }
+
 /* ── topbar (st.container(key="topbar")) ── */
 .st-key-topbar{background:linear-gradient(180deg,var(--navy-2),var(--navy));padding:14px 26px;
   margin-bottom:0;box-shadow:var(--shadow-md);position:relative;z-index:5;
   border-bottom:3px solid var(--team-accent);transition:background .3s ease,border-color .3s ease}
-.st-key-topbar .mt-ab{width:34px;height:34px;border-radius:10px;background:#fff;color:var(--navy);
-  display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;
-  box-shadow:0 2px 6px rgba(0,0,0,.18);letter-spacing:.3px}
+.st-key-topbar .mt-ab{position:relative;width:38px;height:38px;border-radius:11px;
+  background:rgba(255,255,255,.96);color:var(--navy);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;
+  box-shadow:0 2px 8px rgba(0,0,0,.28);letter-spacing:.3px}
+.st-key-topbar .mt-ab img{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);
+  object-fit:contain}
 .st-key-topbar .mt-n{font-size:14px;font-weight:700;line-height:1.2;color:#fff}
 .st-key-topbar .mt-s{font-size:10.5px;color:rgba(255,255,255,.55)}
 .st-key-topbar [data-testid="stPageLink"] p { font-size:13px !important; color:rgba(255,255,255,.7) !important; margin:0 !important; transition:color .15s; }
@@ -89,10 +151,17 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
   background:var(--navy);display:inline-block}
 .gm-section-icon{width:17px;height:17px;color:var(--navy);flex-shrink:0}
 
-/* ── 카드 / 배지 / KPI (순수 HTML 문자열이라 중첩 문제 없음) ── */
-.gm-card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-  padding:18px 20px;margin-bottom:10px;box-shadow:var(--shadow-sm);transition:box-shadow .2s, transform .2s}
-.gm-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+/* ── 카드 / 배지 / KPI (순수 HTML 문자열이라 중첩 문제 없음) ──
+   유리판: 반투명 + backdrop-blur + 상단 1px 하이라이트(빛 받는 모서리). */
+.gm-card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:18px 20px;margin-bottom:10px;box-shadow:var(--shadow-sm);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  position:relative;overflow:hidden;
+  transition:box-shadow .22s, transform .22s, border-color .22s}
+.gm-card::before{content:"";position:absolute;top:0;left:14px;right:14px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);pointer-events:none}
+.gm-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);
+  border-color:color-mix(in srgb, var(--team-accent) 45%, transparent)}
 .gm-badge{display:inline-block;font-size:10.5px;padding:3px 10px;border-radius:20px;font-weight:700;
   letter-spacing:.2px}
 .gm-badge.warn{background:var(--warn-bg);color:var(--warn)}
@@ -100,10 +169,11 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 .gm-badge.risk{background:var(--risk-bg);color:var(--risk)}
 .gm-badge.navy{background:var(--navy-soft);color:var(--navy)}
 .gm-badge.violet{background:var(--violet-bg);color:var(--violet)}
-.gm-placeholder{background:linear-gradient(180deg,#FAFAF9,var(--card));border:1px dashed #D7D3CC;
-  border-radius:14px;padding:18px 20px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;
+.gm-placeholder{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:16px;padding:18px 20px;margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;
   transition:border-color .2s}
-.gm-placeholder:hover{border-color:var(--navy)}
+.gm-placeholder:hover{border-color:var(--team-accent)}
 .gm-ph-icon{width:34px;height:34px;border-radius:10px;background:var(--warn-bg);color:var(--warn);
   display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .gm-ph-body b{color:var(--ink);font-size:15px}
@@ -137,30 +207,42 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
 .st-key-hero [data-testid="stTab"] [data-testid="stMarkdownContainer"]{color:inherit !important}
 .st-key-hero [data-testid="stTabs"] [data-baseweb="tab-highlight"]{display:none !important}
 .st-key-hero [data-testid="stTabs"] [data-baseweb="tab-border"]{display:none !important}
-.st-key-hero [data-testid="stTabPanel"]{max-width:900px;margin:0 auto;padding-left:0;padding-right:0}
+/* stTabPanel 은 flex 아이템이라 flex:0 1 auto 로는 내용 폭(≈324px)까지
+   쪼그라든다 — width:100% 를 줘야 max-width 까지 실제로 펼쳐진다(실측 확인). */
+.st-key-hero [data-testid="stTabPanel"]{max-width:1040px;width:100%;flex:1 1 auto;
+  margin:0 auto;padding-left:0;padding-right:0}
 
 .st-key-hero div[data-testid="stButton"] button{
   background:rgba(255,255,255,.07) !important;border:1px solid rgba(255,255,255,.14) !important;
   border-radius:12px !important;color:#fff !important;padding:12px 8px !important;
   width:100%;white-space:pre-wrap;line-height:1.5;font-size:13px !important;
   transition:all .18s cubic-bezier(.2,.8,.2,1);min-height:64px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+/* 구단 선택 버튼 hover — 팀 컬러 조명이 켜지듯 */
 .st-key-hero div[data-testid="stButton"] button:hover{
-  background:#fff !important;color:var(--navy) !important;border-color:#fff !important;
-  transform:translateY(-3px) scale(1.015);box-shadow:0 10px 20px rgba(0,0,0,.25)}
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.06)) !important;
+  color:#fff !important;border-color:var(--gold) !important;
+  transform:translateY(-4px) scale(1.02);
+  box-shadow:0 14px 28px rgba(0,0,0,.45), 0 0 22px rgba(255,201,77,.35)}
 .st-key-hero div[data-testid="stButton"] button:active{transform:translateY(-1px) scale(1)}
 .st-key-hero div[data-testid="stButton"] button p{ color:inherit !important; }
+.st-key-hero div[data-testid="stButton"] button:hover p{ color:#fff !important; }
 .gm-division-label{font-size:11px;color:rgba(255,255,255,.45);letter-spacing:1px;margin:22px 0 9px;
   text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:8px}
 .gm-division-label::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
 
-/* ── 일반(밝은 배경) 버튼 — 뒤로가기 등 ── */
+/* ── 일반 버튼 — 뒤로가기 등 (다크 유리 알약) ── */
 div[data-testid="stButton"] button{
-  border-radius:20px !important;border:1px solid var(--line) !important;background:#fff !important;
-  color:var(--muted) !important;font-size:12.5px !important;padding:6px 16px !important;
+  border-radius:20px !important;border:1px solid var(--line) !important;
+  background:rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  color:var(--ink) !important;font-size:12.5px !important;padding:6px 16px !important;
   box-shadow:var(--shadow-sm);transition:all .15s;position:relative;overflow:hidden}
-div[data-testid="stButton"] button:hover{border-color:var(--navy) !important;color:var(--navy) !important;
-  box-shadow:var(--shadow-md);transform:translateY(-1px)}
-.st-key-hero div[data-testid="stButton"] button:hover{color:var(--navy) !important}
+div[data-testid="stButton"] button:hover{
+  border-color:var(--team-accent) !important;color:#fff !important;
+  background:color-mix(in srgb, var(--team-accent) 26%, transparent) !important;
+  box-shadow:var(--shadow-md), 0 0 18px color-mix(in srgb, var(--team-accent) 35%, transparent);
+  transform:translateY(-1px)}
+div[data-testid="stButton"] button:hover p{color:#fff !important}
 
 /* 버튼 hover 시 카드처럼 스치는 광택 — 모든 stButton 공통 */
 @keyframes gm-shine{0%{transform:translateX(-140%) skewX(-18deg)}100%{transform:translateX(240%) skewX(-18deg)}}
@@ -172,18 +254,27 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   div[data-testid="stButton"] button:hover::after{animation:none}
 }
 
-/* dataframe 라운딩 */
-[data-testid="stDataFrame"]{border-radius:12px;overflow:hidden;border:1px solid var(--line);
-  box-shadow:var(--shadow-sm)}
+/* dataframe 라운딩 — 다크 유리판 위에 얹는다 */
+[data-testid="stDataFrame"]{border-radius:14px;overflow:hidden;border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);background:rgba(255,255,255,.03)}
 
 /* 카드 안 테이블 행 호버 */
-.gm-card table tr:hover td{background:var(--paper)}
+.gm-card table tr:hover td{background:rgba(255,255,255,.05)}
 .gm-card table td{border-bottom:1px solid var(--line)}
 .gm-card table tr:last-child td{border-bottom:none}
 
 /* expander 살짝 카드화 */
-[data-testid="stExpander"]{border-radius:14px !important;border:1px solid var(--line) !important;
-  box-shadow:var(--shadow-sm);overflow:hidden}
+[data-testid="stExpander"]{border-radius:16px !important;border:1px solid var(--line) !important;
+  box-shadow:var(--shadow-sm);overflow:hidden;background:var(--card) !important;
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+[data-testid="stExpander"] summary{color:var(--ink) !important}
+
+/* Streamlit 위젯 라벨/캡션이 다크 위에서 묻히지 않게 */
+[data-testid="stWidgetLabel"] p, [data-testid="stCaptionContainer"], .stCaption{
+  color:var(--muted) !important}
+[data-testid="stMarkdownContainer"] p{color:var(--ink)}
+[data-testid="stAlert"]{background:rgba(78,143,214,.12) !important;border:1px solid var(--line) !important;
+  border-radius:14px !important;color:var(--ink) !important}
 
 /* ══ 영입 후보 카드 — FIFA 얼티밋팀 스타일 ══ */
 .gm-pcard-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
@@ -191,16 +282,32 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   animation:gm-pop .55s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 100ms);
   transition:transform .18s ease, box-shadow .18s ease;border:1px solid rgba(255,255,255,.12)}
 .gm-pcard::after{content:"";position:absolute;inset:0;background:
-  linear-gradient(115deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 30%);pointer-events:none}
+  linear-gradient(115deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,0) 34%);pointer-events:none}
 @keyframes gm-pop{from{opacity:0;transform:translateY(22px) scale(.82) rotate(-2deg)}
   to{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
 
-.gm-pcard.tier-gold{background:linear-gradient(160deg,#7A5B15,#E3B438 45%,#F8E29A 58%,#8A6417);
-  box-shadow:0 8px 18px rgba(180,130,10,.35)}
-.gm-pcard.tier-silver{background:linear-gradient(160deg,#57616D,#A6B0BC 45%,#EAEEF2 58%,#636E7A);
-  box-shadow:0 8px 18px rgba(60,70,90,.22)}
-.gm-pcard.tier-bronze{background:linear-gradient(160deg,#5A3A22,#9C6A3E 45%,#C99B6C 58%,#5A3A22);
-  box-shadow:0 8px 18px rgba(90,50,20,.22)}
+/* 등급 카드 — 첨부 영상의 "어두운 카드 본체 + 등급색으로 빛나는 테두리".
+   밝은 메탈 그라디언트를 그대로 쓰면 다크 테마에서 흰 글씨·게이지가 묻혀
+   읽기 어려워진다(실측). 본체를 어둡게 깔고 등급색은 테두리·상단 글로우·
+   숫자에만 쓰면 대비가 확실히 살아난다. */
+.gm-pcard.tier-gold{--tier:#FFC94D;
+  background:radial-gradient(120% 80% at 50% -10%, rgba(255,201,77,.30), transparent 62%),
+             linear-gradient(165deg,#241B08,#12151F 62%);
+  border-color:rgba(255,201,77,.55);
+  box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 22px rgba(255,201,77,.28)}
+.gm-pcard.tier-silver{--tier:#C9D6E8;
+  background:radial-gradient(120% 80% at 50% -10%, rgba(201,214,232,.24), transparent 62%),
+             linear-gradient(165deg,#1A2130,#10141E 62%);
+  border-color:rgba(201,214,232,.42);
+  box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 18px rgba(201,214,232,.16)}
+.gm-pcard.tier-bronze{--tier:#D89A63;
+  background:radial-gradient(120% 80% at 50% -10%, rgba(216,154,99,.24), transparent 62%),
+             linear-gradient(165deg,#231710,#11141E 62%);
+  border-color:rgba(216,154,99,.42);
+  box-shadow:0 10px 24px rgba(0,0,0,.5), 0 0 18px rgba(216,154,99,.18)}
+/* 등급색을 실제로 읽히는 곳에만 얹는다 (게이지 색은 .pc-stat-fill 본 규칙에서 처리) */
+.gm-pcard .pc-ovr{color:var(--tier,#fff)}
+.gm-pcard .pc-avatar{border-color:var(--tier,var(--team-accent))}
 .gm-pcard.selected{box-shadow:0 0 0 3px var(--navy),0 12px 26px rgba(22,50,92,.4);transform:translateY(-4px);
   animation:gm-swap-in .55s cubic-bezier(.2,.9,.25,1.3)}
 @keyframes gm-swap-in{
@@ -241,10 +348,14 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-pcard .pc-stat-row{display:flex;align-items:center;gap:6px;font-size:9.5px;color:rgba(255,255,255,.92);
   font-weight:600}
 .gm-pcard .pc-stat-label{width:28px;font-weight:800;flex-shrink:0}
-.gm-pcard .pc-stat-track{flex:1;height:5px;border-radius:3px;background:rgba(0,0,0,.4);overflow:hidden;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
-.gm-pcard .pc-stat-fill{height:100%;background:linear-gradient(90deg,#fff,#EAF1FF);border-radius:3px;
-  box-shadow:0 0 4px rgba(255,255,255,.8)}
+/* 트랙: 어두운 카드 위에서는 검은 트랙이 사라지므로 밝은 반투명으로 */
+.gm-pcard .pc-stat-track{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.16);
+  overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
+/* display:block 이 없으면 span 이 inline 으로 남아 width/height 가 아예 먹지
+   않는다 — 게이지가 계속 0px 로 그려지고 있었다(실측으로 확인한 기존 버그). */
+.gm-pcard .pc-stat-fill{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--tier,#fff),#fff);
+  box-shadow:0 0 6px var(--tier,rgba(255,255,255,.8))}
 .gm-pcard .pc-net{text-align:center;font-size:12px;font-weight:800;border-radius:8px;padding:4px 0;
   background:rgba(0,0,0,.24);color:#fff;position:relative;z-index:1}
 
@@ -317,6 +428,24 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-hero-chip{font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:8px;color:#fff;
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18)}
 .gm-hero-radar{position:relative;z-index:1;flex-shrink:0;margin-left:auto}
+/* 첨부 영상의 카드 모션 — 아주 느리게 좌우로 기울며 떠 있는 느낌.
+   과하면 읽기 불편하므로 각도(1.2deg)와 부유 폭(5px)을 작게 잡는다. */
+.gm-hero-card{transform-style:preserve-3d;
+  animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.1) both, gm-hero-float 9s ease-in-out 1s infinite}
+@keyframes gm-hero-float{
+  0%,100%{transform:perspective(1200px) rotateY(-1.2deg) rotateX(.5deg) translateY(0)}
+  50%    {transform:perspective(1200px) rotateY(1.2deg)  rotateX(-.5deg) translateY(-5px)}}
+/* 조명이 카드 표면을 훑고 지나가는 광택 */
+.gm-hero-card::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.10) 47%,transparent 60%);
+  background-size:280% 280%;animation:gm-hero-sheen 7s ease-in-out 1.5s infinite}
+@keyframes gm-hero-sheen{0%{background-position:200% 200%}55%,100%{background-position:-60% -60%}}
+@media (prefers-reduced-motion: reduce){
+  .gm-hero-card{animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.1) both}
+  .gm-hero-card::after{animation:none}
+}
+/* 히어로 하단 스탯 링 묶음 */
+.gm-hero-rings{display:flex;gap:14px;flex-wrap:wrap;position:relative;z-index:1;margin-top:2px}
 .gm-radar-fill{animation:gm-radar-grow .7s cubic-bezier(.2,.8,.2,1) .1s both;transform-origin:center}
 @keyframes gm-radar-grow{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 .gm-radar-dot{animation:gm-badge-pop .35s cubic-bezier(.2,.9,.25,1.4) both}
@@ -328,6 +457,45 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 .gm-trend-line{stroke-dasharray:1400;stroke-dashoffset:1400;animation:gm-trend-draw 1.1s cubic-bezier(.2,.7,.2,1) .1s forwards}
 @keyframes gm-trend-draw{to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion: reduce){ .gm-trend-line{animation:none;stroke-dashoffset:0} }
+
+/* ══ 다이아몬드 라인업 — 로스터를 그라운드 위에 ══ */
+.gm-diamond-wrap{position:relative;border-radius:20px;overflow:hidden;margin-bottom:12px;
+  background:radial-gradient(700px 300px at 50% 0%, rgba(78,143,214,.18), transparent 65%),
+             linear-gradient(180deg,rgba(10,18,38,.85) 0%, rgba(6,11,23,.6) 100%);
+  border:1px solid var(--line);box-shadow:var(--shadow-md);
+  padding:6px 6px 2px}
+.gm-diamond{display:block;width:100%;height:auto}
+.gm-dia-node{opacity:0;animation:gm-dia-in .5s cubic-bezier(.2,.9,.25,1.2) forwards;
+  animation-delay:var(--d,0s);transform-origin:center;cursor:default}
+@keyframes gm-dia-in{from{opacity:0;transform:translateY(14px) scale(.7)}
+  to{opacity:1;transform:translateY(0) scale(1)}}
+/* SVG 필터 참조(filter:url(#...)) 대신 drop-shadow 로 글로우를 준다 — 참조
+   id 없이도 같은 효과가 나고, SVG 정의와 CSS 사이의 의존을 만들지 않는다. */
+.gm-dia-node:hover{filter:brightness(1.18) drop-shadow(0 0 10px var(--tone))}
+/* 위험도가 높은 선수는 링이 계속 맥동한다 — 그라운드를 훑으면 바로 눈에 띈다 */
+.gm-dia-pulse-hot .gm-dia-halo{animation:gm-dia-ring 1.5s ease-out infinite;
+  animation-delay:calc(var(--d,0s) + .3s)}
+.gm-dia-pulse-warm .gm-dia-halo{animation:gm-dia-ring 2.6s ease-out infinite;
+  animation-delay:calc(var(--d,0s) + .3s)}
+@keyframes gm-dia-ring{0%{r:26;opacity:.75;stroke-width:2.5}100%{r:44;opacity:0;stroke-width:.5}}
+@media (prefers-reduced-motion: reduce){
+  .gm-dia-node{opacity:1;animation:none}
+  .gm-dia-pulse-hot .gm-dia-halo,.gm-dia-pulse-warm .gm-dia-halo{animation:none}
+}
+
+/* ══ 원형 게이지 ══ */
+.gm-ring{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.gm-ring svg{display:block}
+.gm-ring-fill{stroke-dashoffset:var(--circ);
+  animation:gm-ring-draw 1.1s cubic-bezier(.2,.8,.2,1) .2s forwards;
+  filter:drop-shadow(0 0 6px var(--tone))}
+@keyframes gm-ring-draw{to{stroke-dashoffset:var(--off)}}
+.gm-ring-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:1px;pointer-events:none}
+.gm-ring-v{font-size:21px;font-weight:800;color:var(--ink);line-height:1;
+  font-variant-numeric:tabular-nums}
+.gm-ring-l{font-size:9px;font-weight:700;color:var(--muted);letter-spacing:.6px;text-transform:uppercase}
+@media (prefers-reduced-motion: reduce){ .gm-ring-fill{animation:none;stroke-dashoffset:var(--off)} }
 
 /* ══ 오늘 경기 — VS 매치업 카드 ══ */
 .gm-vs-grid{display:flex;flex-direction:column;gap:10px}
@@ -366,7 +534,8 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
 /* 모델 예측 배지 — "실시간 중계"가 아니라 "AI 예측"임을 정직하게 표시하면서도
    레퍼런스의 LIVE 펄스 뱃지 느낌을 그대로 가져온다 */
 .gm-live-badge{position:absolute;top:10px;right:14px;z-index:2;display:flex;align-items:center;gap:5px;
-  font-size:9px;font-weight:800;letter-spacing:.6px;color:rgba(255,255,255,.85)}
+  font-size:9px;font-weight:800;letter-spacing:.6px;color:rgba(255,255,255,.85);
+  white-space:nowrap}  /* nowrap 없으면 "AI 예측"이 좁은 칸에서 두 줄로 쪼개진다 */
 .gm-live-dot{width:6px;height:6px;border-radius:50%;background:#3FD17B;flex-shrink:0;
   box-shadow:0 0 0 0 rgba(63,209,123,.6);animation:gm-live-pulse 1.6s ease-out infinite}
 @keyframes gm-live-pulse{0%{box-shadow:0 0 0 0 rgba(63,209,123,.55)}70%{box-shadow:0 0 0 7px rgba(63,209,123,0)}
@@ -384,53 +553,342 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   .gm-live-badge{position:static;justify-content:center;margin-bottom:6px}
 }
 
+/* ══ 승부예측 챌린지 — 사용자가 먼저 찍고, 그 다음 AI 예측이 열린다 ══
+   네이버 스포츠 승부예측처럼 "내 선택 → 결과 공개" 순서를 지키는 게 핵심.
+   AI 확률을 먼저 보여주면 사용자가 그걸 따라 찍게 되어 재미가 사라진다. */
+.gm-pred-board{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  background:radial-gradient(600px 200px at 12% -30%, rgba(255,201,77,.18), transparent 62%),
+             var(--card);
+  border:1px solid rgba(255,201,77,.28);border-radius:18px;padding:16px 22px;margin-bottom:14px;
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  box-shadow:var(--shadow-md)}
+.gm-pred-board-stat{display:flex;flex-direction:column;gap:2px;min-width:78px}
+.gm-pred-board-v{font-size:26px;font-weight:800;line-height:1;color:var(--gold);
+  font-variant-numeric:tabular-nums;text-shadow:0 0 16px rgba(255,201,77,.45)}
+.gm-pred-board-l{font-size:10.5px;font-weight:700;color:var(--muted);letter-spacing:.6px}
+.gm-pred-board-msg{flex:1;min-width:200px;font-size:13px;color:var(--ink);line-height:1.6}
+.gm-pred-streak{font-size:11px;font-weight:800;color:var(--gold);
+  background:rgba(255,201,77,.14);border:1px solid rgba(255,201,77,.3);
+  border-radius:20px;padding:4px 12px;white-space:nowrap}
+
+/* 경기 카드 */
+.gm-pred-card{position:relative;border-radius:18px;padding:14px 18px 6px;margin-bottom:4px;overflow:hidden;
+  background:linear-gradient(150deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 60ms)}
+.gm-pred-card.picked{border-color:color-mix(in srgb, var(--gold) 45%, transparent)}
+.gm-pred-date{font-size:10.5px;font-weight:800;color:var(--faint);letter-spacing:1px;margin-bottom:8px;
+  display:flex;align-items:center;gap:8px}
+.gm-pred-date::after{content:"";flex:1;height:1px;background:var(--line)}
+.gm-pred-q{font-size:12.5px;color:var(--muted);text-align:center;margin:2px 0 8px;font-weight:700}
+.gm-pred-vs{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px}
+.gm-pred-side{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:14px;font-weight:800;color:var(--ink)}
+.gm-pred-side.away{justify-content:flex-end}
+.gm-pred-side.home{justify-content:flex-start}
+/* 구단 로고 — 어두운 배경에서 묻히는 로고가 있어 밝은 원판 위에 올린다 */
+.gm-pred-logo{width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:rgba(255,255,255,.92);padding:3px;object-fit:contain;
+  box-shadow:0 2px 8px rgba(0,0,0,.35);transition:transform .18s}
+.gm-pred-card:hover .gm-pred-logo{transform:scale(1.08)}
+.gm-pred-bolt{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:1.4px;
+  animation:gm-bolt-glow 2.6s ease-in-out infinite}
+@keyframes gm-bolt-glow{0%,100%{opacity:.5;text-shadow:none}
+  50%{opacity:1;text-shadow:0 0 12px var(--team-accent)}}
+
+/* 공개 연출 — 카드가 뒤집히듯 열린다 */
+.gm-pred-reveal{animation:gm-flip-in .62s cubic-bezier(.2,.85,.25,1.05) both;transform-origin:center}
+@keyframes gm-flip-in{
+  0%{opacity:0;transform:perspective(1000px) rotateX(-72deg) scale(.94)}
+  62%{opacity:1;transform:perspective(1000px) rotateX(8deg) scale(1.01)}
+  100%{opacity:1;transform:perspective(1000px) rotateX(0) scale(1)}}
+
+/* 양쪽으로 갈라지는 확률 바 — 가운데(50%)에서 실제 확률까지 벌어진다 */
+.gm-pred-bar{position:relative;height:26px;border-radius:9px;overflow:hidden;display:flex;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);margin:8px 0 6px}
+.gm-pred-bar-away,.gm-pred-bar-home{height:100%;display:flex;align-items:center;
+  font-size:11px;font-weight:800;color:#fff;
+  animation:gm-pred-split .95s cubic-bezier(.2,.85,.2,1) .12s both}
+.gm-pred-bar-away{justify-content:flex-start;padding-left:9px;
+  background:linear-gradient(90deg,var(--away-c,#5B7FB9),rgba(91,127,185,.55))}
+.gm-pred-bar-home{justify-content:flex-end;padding-right:9px;
+  background:linear-gradient(90deg,rgba(214,110,110,.55),var(--home-c,#D66E6E))}
+@keyframes gm-pred-split{from{width:50%}}
+.gm-pred-bar-mid{position:absolute;left:50%;top:0;bottom:0;width:2px;
+  background:rgba(255,255,255,.5);transform:translateX(-1px);z-index:2}
+
+/* 판정 배지 */
+.gm-pred-verdict{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  padding:9px 12px;border-radius:12px;margin:6px 0 4px;font-size:12.5px;font-weight:700}
+.gm-pred-verdict.hit{background:rgba(63,209,123,.13);border:1px solid rgba(63,209,123,.4);color:var(--gain)}
+.gm-pred-verdict.miss{background:rgba(255,201,77,.12);border:1px solid rgba(255,201,77,.36);color:var(--warn)}
+.gm-pred-verdict-icon{font-size:17px;animation:gm-verdict-pop .55s cubic-bezier(.2,.9,.25,1.5) .3s both}
+@keyframes gm-verdict-pop{from{opacity:0;transform:scale(0) rotate(-40deg)}
+  to{opacity:1;transform:scale(1) rotate(0)}}
+.gm-pred-mine{font-weight:800;color:var(--ink)}
+
+/* 4개 모델 개별 투표 칩 — "왜 이렇게 예측했나"를 한 줄로 */
+.gm-pred-models{display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+  padding:6px 0 10px;font-size:10px;color:var(--muted)}
+.gm-pred-chip{font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:7px;
+  border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--muted);
+  animation:gm-badge-pop .4s cubic-bezier(.2,.9,.25,1.4) both;
+  animation-delay:calc(.45s + var(--j,0) * 70ms)}
+.gm-pred-chip.agree{border-color:rgba(63,209,123,.45);color:var(--gain);background:rgba(63,209,123,.1)}
+.gm-pred-conf{font-size:10px;font-weight:800;padding:3px 9px;border-radius:7px;
+  background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--ink);white-space:nowrap}
+
+/* 선택 버튼을 카드와 한 몸으로 */
+.st-key-predpick div[data-testid="stButton"] button{width:100%;min-height:46px;
+  border-radius:12px !important;font-size:13px !important;font-weight:800 !important;
+  background:rgba(255,255,255,.05) !important}
+.st-key-predpick div[data-testid="stButton"] button:hover{
+  border-color:var(--gold) !important;
+  background:rgba(255,201,77,.16) !important;
+  box-shadow:0 8px 20px rgba(0,0,0,.4), 0 0 20px rgba(255,201,77,.3);
+  transform:translateY(-2px) scale(1.015)}
+@media (prefers-reduced-motion: reduce){
+  .gm-pred-reveal,.gm-pred-bar-away,.gm-pred-bar-home,.gm-pred-verdict-icon,.gm-pred-chip{animation:none}
+  .gm-pred-bolt{animation:none}
+}
+
+.gm-icon{display:inline-block;vertical-align:-.14em;flex-shrink:0}
+
+/* ══ 전력 로스터 리스트 ══
+   st.dataframe 은 숫자를 소수점 15자리까지 뿌리고 위험도가 색으로 안 읽힌다.
+   전력/이탈위험을 막대로 만들어 훑기만 해도 순위가 보이게 한다. */
+.gm-roster{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+.gm-roster-head,.gm-roster-row{display:grid;
+  grid-template-columns:26px minmax(96px,1.5fr) 52px 1.25fr 1.25fr minmax(96px,1fr);
+  gap:11px;align-items:center}
+.gm-roster-head{padding:0 13px 3px;font-size:10px;font-weight:800;color:var(--faint);letter-spacing:.6px}
+.gm-roster-row{padding:9px 13px;border-radius:12px;background:rgba(255,255,255,.035);
+  border:1px solid var(--line);transition:background .16s, border-color .16s, transform .16s;
+  animation:gm-pop .42s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 32ms)}
+.gm-roster-row:hover{background:rgba(255,255,255,.075);transform:translateX(3px);
+  border-color:color-mix(in srgb, var(--team-accent) 45%, transparent)}
+.gm-roster-rank{font-size:11px;font-weight:800;color:var(--faint);text-align:center;
+  font-variant-numeric:tabular-nums}
+.gm-roster-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
+  color:var(--ink);min-width:0}
+.gm-roster-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 선수 얼굴 — 로스터를 이름 나열이 아니라 "사람 목록"으로 읽히게 한다 */
+.gm-roster-face{width:28px;height:28px;border-radius:50%;flex-shrink:0;object-fit:cover;
+  background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.04));
+  border:1.5px solid var(--line);transition:border-color .16s, transform .16s}
+.gm-roster-row:hover .gm-roster-face{border-color:var(--team-accent);transform:scale(1.08)}
+.gm-roster-role{font-size:9.5px;font-weight:800;padding:3px 7px;border-radius:6px;text-align:center;
+  border:1px solid var(--line);color:var(--muted);background:rgba(255,255,255,.05);white-space:nowrap}
+.gm-roster-metric{display:flex;align-items:center;gap:7px}
+.gm-roster-num{font-size:11.5px;font-weight:800;width:38px;flex-shrink:0;text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+.gm-roster-track{flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,.10);overflow:hidden}
+.gm-roster-fill{display:block;height:100%;border-radius:4px;
+  animation:gm-bar-grow .75s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 32ms + .12s)}
+.gm-roster-tag{font-size:10px;font-weight:700;color:var(--muted);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+@media (max-width: 760px){
+  .gm-roster-head{display:none}
+  .gm-roster-row{grid-template-columns:26px 1fr;gap:6px 10px}
+  .gm-roster-row .gm-roster-role{justify-self:start}
+}
+@media (prefers-reduced-motion: reduce){
+  .gm-roster-row,.gm-roster-fill{animation:none}
+}
+
+/* ══ 이탈위험 TOP3 카드 — 선수 얼굴이 주인공 ══ */
+.gm-risk-card{position:relative;overflow:visible;padding-top:38px}
+.gm-risk-face{position:absolute;top:-24px;left:50%;transform:translateX(-50%);
+  width:62px;height:62px;border-radius:50%;overflow:hidden;
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
+  border:2.5px solid var(--tone,var(--risk));
+  box-shadow:0 6px 18px rgba(0,0,0,.45), 0 0 16px color-mix(in srgb, var(--tone,red) 45%, transparent);
+  transition:transform .2s}
+.gm-risk-face img{width:100%;height:100%;object-fit:cover;display:block}
+.gm-risk-card:hover .gm-risk-face{transform:translateX(-50%) scale(1.07)}
+/* 위험도 색으로 맥동하는 링 — 카드를 훑을 때 시선을 잡는다 */
+.gm-risk-face::after{content:"";position:absolute;inset:-2.5px;border-radius:50%;
+  border:2px solid var(--tone,var(--risk));
+  animation:gm-risk-ring 2.2s ease-out infinite;pointer-events:none}
+@keyframes gm-risk-ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion: reduce){ .gm-risk-face::after{animation:none;opacity:.35} }
+
+/* ══ 순위 변동 임팩트 패널 ══ */
+.gm-impact{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center;
+  border-radius:18px;padding:18px 22px;margin-bottom:10px;
+  background:linear-gradient(150deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.gm-impact-side{text-align:center}
+.gm-impact-l{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.6px;margin-bottom:5px}
+.gm-impact-v{font-size:30px;font-weight:800;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:-.8px}
+.gm-impact-arrow{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:76px}
+.gm-impact-arrow-icon{font-size:20px;color:var(--team-accent);
+  animation:gm-arrow-slide 1.8s ease-in-out infinite}
+@keyframes gm-arrow-slide{0%,100%{transform:translateX(-3px);opacity:.6}
+  50%{transform:translateX(3px);opacity:1}}
+.gm-impact-delta{font-size:12px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.gm-impact-delta.up{background:var(--gain-bg);color:var(--gain)}
+.gm-impact-delta.down{background:var(--risk-bg);color:var(--risk)}
+.gm-impact-delta.flat{background:rgba(255,255,255,.07);color:var(--muted)}
+@media (prefers-reduced-motion: reduce){ .gm-impact-arrow-icon{animation:none} }
+
+/* ══ 모델 카드 그리드 (모델 정보) ══
+   원시 dataframe 한 덩어리로는 "어느 모델이 좋은지"가 안 읽힌다. 태스크별로
+   묶고, 각 모델의 대표 지표를 큰 숫자 + 게이지로 보여준다. */
+.gm-mcard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:11px;
+  margin-bottom:6px}
+.gm-mcard{position:relative;overflow:hidden;border-radius:16px;padding:14px 15px 12px;
+  background:linear-gradient(155deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 55ms);
+  transition:transform .2s, box-shadow .2s, border-color .2s}
+.gm-mcard:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);
+  border-color:color-mix(in srgb, var(--team-accent) 50%, transparent)}
+/* 태스크 1위 모델에 왕관 + 금색 테두리 */
+.gm-mcard.best{border-color:rgba(255,201,77,.6);
+  box-shadow:var(--shadow-md), 0 0 20px rgba(255,201,77,.22)}
+.gm-mcard-crown{position:absolute;top:9px;right:10px;color:var(--gold);
+  animation:gm-badge-pop .5s cubic-bezier(.2,.9,.25,1.5) .35s both}
+.gm-mcard-head{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.gm-mcard-name{font-size:13px;font-weight:800;color:var(--ink);word-break:break-all}
+.gm-mcard-kind{font-size:9px;font-weight:800;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--muted);background:rgba(255,255,255,.05)}
+.gm-mcard-metric{display:flex;align-items:baseline;gap:6px;margin-bottom:3px}
+.gm-mcard-v{font-size:27px;font-weight:800;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:-.6px}
+.gm-mcard.best .gm-mcard-v{color:var(--gold);text-shadow:0 0 18px rgba(255,201,77,.4)}
+.gm-mcard-mlabel{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.5px}
+.gm-mcard-sub{font-size:10.5px;color:var(--faint);margin-bottom:9px;line-height:1.5}
+.gm-mcard-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.10);overflow:hidden}
+.gm-mcard-bar-fill{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--team-accent),var(--gold));
+  animation:gm-bar-grow .9s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 55ms + .2s)}
+.gm-mcard.best .gm-mcard-bar-fill{background:linear-gradient(90deg,var(--gold),#FFF0C2)}
+.gm-task-head{display:flex;align-items:center;gap:9px;margin:16px 0 9px;font-size:12px;
+  font-weight:800;color:var(--muted);letter-spacing:.6px}
+.gm-task-head::after{content:"";flex:1;height:1px;background:var(--line)}
+@media (prefers-reduced-motion: reduce){
+  .gm-mcard,.gm-mcard-bar-fill,.gm-mcard.best::before{animation:none}
+}
+
+/* ══ 운명의 구단 배정 카드 — 뽑기 결과가 조명 아래 나타나듯 ══ */
+.gm-draw-card{position:relative;overflow:hidden;text-align:center;margin:12px auto 6px;max-width:520px;
+  border-radius:20px;padding:22px 26px;
+  /* -30% 로 두면 그라디언트 대부분이 카드 위로 잘려나가 팀 컬러가 거의 안 보인다.
+     0% 로 내리고 반경을 키워서 팀 컬러가 카드 상단을 실제로 물들이게 한다. */
+  background:radial-gradient(620px 340px at 50% 0%,
+               color-mix(in srgb, var(--team-accent) 85%, transparent), transparent 72%),
+             linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  border:1px solid color-mix(in srgb, var(--team-accent) 50%, transparent);
+  box-shadow:var(--shadow-md), 0 0 34px color-mix(in srgb, var(--team-accent) 30%, transparent);
+  animation:gm-draw-in .7s cubic-bezier(.2,.9,.25,1.15) both}
+@keyframes gm-draw-in{
+  0%{opacity:0;transform:translateY(18px) scale(.9) rotateX(-24deg)}
+  100%{opacity:1;transform:translateY(0) scale(1) rotateX(0)}}
+/* 표면을 훑는 조명 */
+.gm-draw-card::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 36%,rgba(255,255,255,.16) 48%,transparent 60%);
+  background-size:250% 250%;animation:gm-draw-sheen 2.6s ease-in-out .35s infinite}
+@keyframes gm-draw-sheen{0%{background-position:200% 200%}60%,100%{background-position:-60% -60%}}
+.gm-draw-label{font-size:11px;font-weight:800;letter-spacing:1.6px;color:rgba(255,255,255,.6);
+  text-transform:uppercase}
+.gm-draw-name{font-size:27px;font-weight:800;color:#fff;margin:6px 0 4px;letter-spacing:-.4px;
+  text-shadow:0 2px 14px rgba(0,0,0,.5)}
+.gm-draw-sub{font-size:12.5px;font-weight:700;color:rgba(255,255,255,.75)}
+@media (prefers-reduced-motion: reduce){
+  .gm-draw-card,.gm-draw-card::after{animation:none}
+}
+
 /* ══ 예상 순위 — 리빌 인터랙션 ══ */
 .gm-standing-row{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
   border-radius:12px;padding:10px 16px;margin-bottom:7px;box-shadow:var(--shadow-sm);
   animation:gm-pop .45s cubic-bezier(.2,.9,.25,1.15) both;animation-delay:calc(var(--i,0) * 90ms)}
-.gm-standing-row.gm-rank-1{background:linear-gradient(90deg,#FFF8E6,var(--card) 55%);
-  border-color:#F0CB6B;box-shadow:0 4px 14px rgba(212,160,20,.18)}
+/* 상위 3팀은 시상대처럼 — 금/은/동 색이 행 전체에 은은하게 번지고 테두리가 빛난다 */
+.gm-standing-row.gm-rank-1{background:linear-gradient(90deg,rgba(255,201,77,.16),var(--card) 58%);
+  border-color:rgba(255,201,77,.55);box-shadow:0 6px 20px rgba(0,0,0,.42),0 0 20px rgba(255,201,77,.18)}
+.gm-standing-row.gm-rank-2{background:linear-gradient(90deg,rgba(201,214,232,.13),var(--card) 58%);
+  border-color:rgba(201,214,232,.42)}
+.gm-standing-row.gm-rank-3{background:linear-gradient(90deg,rgba(216,154,99,.13),var(--card) 58%);
+  border-color:rgba(216,154,99,.42)}
 .gm-standing-rank{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:13px;font-weight:800;color:#fff;background:var(--navy);flex-shrink:0}
-.gm-standing-row.gm-rank-1 .gm-standing-rank{background:linear-gradient(140deg,#E3B438,#8A6417)}
-.gm-standing-row.gm-rank-2 .gm-standing-rank{background:linear-gradient(140deg,#A6B0BC,#636E7A)}
-.gm-standing-row.gm-rank-3 .gm-standing-rank{background:linear-gradient(140deg,#C99B6C,#5A3A22)}
+  font-size:13px;font-weight:800;color:#fff;background:rgba(255,255,255,.10);flex-shrink:0;
+  border:1px solid rgba(255,255,255,.16);font-variant-numeric:tabular-nums}
+.gm-standing-row.gm-rank-1 .gm-standing-rank{background:linear-gradient(140deg,#FFD97A,#B8871F);
+  color:#2A1F05;border-color:rgba(255,217,122,.8);box-shadow:0 0 12px rgba(255,201,77,.55)}
+.gm-standing-row.gm-rank-2 .gm-standing-rank{background:linear-gradient(140deg,#E4ECF7,#8C99AB);color:#1A2130}
+.gm-standing-row.gm-rank-3 .gm-standing-rank{background:linear-gradient(140deg,#E0AE7C,#8A5A32);color:#2A1810}
+.gm-standing-logo{width:26px;height:26px;object-fit:contain;flex-shrink:0;
+  background:rgba(255,255,255,.92);border-radius:50%;padding:2px;
+  box-shadow:0 1px 5px rgba(0,0,0,.3)}
 .gm-standing-name{flex:1;font-size:14px;font-weight:700;color:var(--ink)}
-.gm-standing-bar-track{width:120px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.gm-standing-bar-track{width:120px;height:8px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
 .gm-standing-bar-fill{height:100%;background:linear-gradient(90deg,var(--navy),var(--team-accent));
   border-radius:4px;animation:gm-bar-grow .7s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0) * 90ms + .1s)}
 @keyframes gm-bar-grow{from{width:0}}
 .gm-standing-pct{width:52px;text-align:right;font-size:13px;font-weight:800;color:var(--ink);
   font-variant-numeric:tabular-nums}
 
-/* ══ 구단 선택 — 미국 지도 위에 "둥둥 뜨는" 핀 마커 ══ */
-.gm-usmap-wrap{position:relative;max-width:900px;margin:0 auto;
-  filter:drop-shadow(0 20px 40px rgba(0,0,0,.35))}
-.gm-usmap-wrap{border-radius:16px;overflow:hidden}
-.gm-usmap-wrap svg{width:100%;height:auto;display:block;overflow:hidden}
-.gm-usmap-state{fill:rgba(255,255,255,.07);stroke:rgba(255,255,255,.22);stroke-width:1;
-  transition:fill .2s}
-.gm-map-marker{cursor:pointer}
-.gm-map-marker .pin-shadow{transform-box:fill-box;transform-origin:center;
-  animation:gm-shadow-breathe 2.6s ease-in-out infinite;animation-delay:calc(var(--i,0) * .12s)}
-.gm-map-marker .pin-float{transform-box:fill-box;transform-origin:center bottom;
-  animation:gm-pin-bob 2.6s ease-in-out infinite;animation-delay:calc(var(--i,0) * .12s);
-  transition:filter .15s ease}
-@keyframes gm-pin-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-@keyframes gm-shadow-breathe{0%,100%{opacity:.4;transform:scaleX(1)}50%{opacity:.2;transform:scaleX(.75)}}
+/* ══ 구단 선택 지도 — 각 구단이 밤 경기장의 조명탑처럼 서 있다 ══ */
+.gm-usmap-wrap{position:relative;width:100%;margin:0 auto;border-radius:20px;overflow:hidden;
+  padding:6px 0;
+  background:radial-gradient(760px 340px at 50% 118%, rgba(78,143,214,.16), transparent 68%);
+  filter:drop-shadow(0 22px 46px rgba(0,0,0,.45))}
+.gm-usmap-wrap svg{width:100%;height:auto;display:block;overflow:visible}
 .gm-usmap-wrap a{text-decoration:none;outline:none}
-.gm-map-marker:hover .pin-float{animation-play-state:paused;transform:translateY(-9px) scale(1.18);
-  filter:drop-shadow(0 8px 10px rgba(0,0,0,.5))}
-.gm-map-marker .pin-ring{transform-box:fill-box;animation:gm-map-pulse 2.4s ease-out infinite;
-  animation-delay:calc(var(--i,0) * .12s);transform-origin:center bottom}
-.gm-map-marker .pin-code{font-size:7.5px;font-weight:800;fill:var(--navy);text-anchor:middle;
-  pointer-events:none}
-.gm-map-marker .pin-name{opacity:0;transition:opacity .15s ease;pointer-events:none}
-.gm-map-marker:hover .pin-name{opacity:1}
-.gm-map-marker .pin-name rect{fill:rgba(10,18,32,.92)}
-.gm-map-marker .pin-name text{font-size:11px;font-weight:700;fill:#fff;text-anchor:middle}
-@keyframes gm-map-pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.6);opacity:0}}
-.gm-map-marker .pop-wrap{animation:gm-pop .5s cubic-bezier(.2,.9,.25,1.2) both;animation-delay:calc(var(--i,0) * 35ms)}
+.gm-usmap-state{fill:url(#gm-map-plate);stroke:rgba(140,180,240,.30);stroke-width:1;
+  transition:fill .25s, stroke .25s}
+.gm-usmap-wrap:hover .gm-usmap-state{stroke:rgba(140,180,240,.42)}
+
+/* 지도를 천천히 훑고 지나가는 레이더 스캔 (아주 은은하게 — 띠가 도드라지면
+   지형보다 스캔이 먼저 보여서 오히려 지저분해진다) */
+.gm-map-scan{animation:gm-map-scan 9s linear infinite;pointer-events:none;opacity:.55;
+  mix-blend-mode:screen}
+@keyframes gm-map-scan{0%{transform:translateX(-200px)}100%{transform:translateX(1010px)}}
+
+/* 주의: 이 g 요소는 SVG transform="translate(x,y)" 속성으로 위치가 정해진다.
+   CSS 애니메이션이 transform 을 건드리면 그 속성을 덮어써서 30개 핀이 전부
+   원점(좌상단)으로 뭉친다(실측 확인) — 등장 연출은 opacity 로만 한다. */
+.gm-pin{cursor:pointer;opacity:0;animation:gm-pin-in .45s ease both;
+  animation-delay:calc(var(--i,0) * 30ms)}
+@keyframes gm-pin-in{to{opacity:1}}
+/* 지면 글로우 — 조명이 땅에 떨어진 자리 */
+.gm-pin-ground{opacity:.30;filter:blur(2.5px);transition:opacity .2s}
+/* 퍼져나가는 레이더 링 */
+.gm-pin-radar{transform-box:fill-box;transform-origin:center;opacity:0;
+  animation:gm-pin-radar 3.2s ease-out infinite;animation-delay:calc(var(--i,0) * .1s)}
+@keyframes gm-pin-radar{0%{transform:scale(.5);opacity:.7}100%{transform:scale(2.8);opacity:0}}
+/* 빛기둥 — 아래에서 위로 옅어지고, 숨쉬듯 밝기가 변한다 */
+.gm-pin-beam{opacity:.30;
+  -webkit-mask-image:linear-gradient(to top, rgba(0,0,0,.95), transparent);
+  mask-image:linear-gradient(to top, rgba(0,0,0,.95), transparent);
+  animation:gm-pin-beam 3.4s ease-in-out infinite;animation-delay:calc(var(--i,0) * .1s);
+  transition:opacity .2s}
+@keyframes gm-pin-beam{0%,100%{opacity:.22}50%{opacity:.48}}
+/* 조명 꼭대기 오브 — 위아래로 아주 조금 부유 */
+.gm-pin-orb{transform-box:fill-box;transform-origin:center;
+  animation:gm-pin-bob 3.4s ease-in-out infinite;animation-delay:calc(var(--i,0) * .1s);
+  transition:transform .18s ease}
+@keyframes gm-pin-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+/* 호버 — 조명이 확 켜지고 이름표가 뜬다 */
+.gm-pin:hover .gm-pin-beam{opacity:.75;animation-play-state:paused}
+.gm-pin:hover .gm-pin-ground{opacity:.6}
+.gm-pin:hover .gm-pin-orb{animation-play-state:paused;transform:translateY(-4px) scale(1.35)}
+.gm-pin-plate{opacity:0;transform-box:fill-box;transition:opacity .16s ease;pointer-events:none}
+.gm-pin:hover .gm-pin-plate{opacity:1}
+.gm-pin:hover{filter:drop-shadow(0 0 12px var(--pin,#fff))}
+/* 스포트라이트 — SVG 에는 z-index 가 없어서 호버한 핀을 맨 앞으로 끌어올릴 수
+   없다(형제 순서로만 겹침이 결정됨). 그래서 반대로 나머지를 어둡게 낮춰
+   이름표가 옆 구단 핀에 가려 읽히지 않던 문제를 해결한다(북동부 밀집 구간
+   에서 실측). 부수적으로 "지금 이 구단을 보고 있다"는 집중 효과도 생긴다. */
+.gm-usmap-wrap:hover .gm-pin{opacity:.28;transition:opacity .18s ease}
+.gm-usmap-wrap:hover .gm-pin:hover{opacity:1}
+
+@media (prefers-reduced-motion: reduce){
+  .gm-pin,.gm-pin-radar,.gm-pin-beam,.gm-pin-orb,.gm-map-scan{animation:none}
+  .gm-pin-radar{opacity:.3}
+}
 
 /* ══ 스트림릿 기본 위젯을 앱 톤에 맞게 재구성 ══ */
 div[data-testid="stRadioGroup"]{display:flex;gap:6px;background:var(--paper);padding:5px;
@@ -515,6 +973,52 @@ TEAM_COLORS: dict[str, tuple[str, str]] = {
 }
 
 
+# ── MLB 공식 팀 ID (로고 CDN 용) ──────────────────────────────────
+# mlb_2026_team_standings.csv 의 team_id 를 UI 팀코드에 매핑한 것.
+# ARI 만 원본이 "D-backs" 라 자동 매칭이 안 돼 직접 넣었다.
+MLB_TEAM_IDS: dict[str, int] = {
+    "ARI": 109,
+    "ATH": 133,
+    "ATL": 144,
+    "BAL": 110,
+    "BOS": 111,
+    "CHC": 112,
+    "CHW": 145,
+    "CIN": 113,
+    "CLE": 114,
+    "COL": 115,
+    "DET": 116,
+    "HOU": 117,
+    "KCR": 118,
+    "LAA": 108,
+    "LAD": 119,
+    "MIA": 146,
+    "MIL": 158,
+    "MIN": 142,
+    "NYM": 121,
+    "NYY": 147,
+    "PHI": 143,
+    "PIT": 134,
+    "SDP": 135,
+    "SEA": 136,
+    "SFG": 137,
+    "STL": 138,
+    "TBR": 139,
+    "TEX": 140,
+    "TOR": 141,
+    "WSN": 120
+}
+
+
+def team_logo_url(team_code: str | None) -> str | None:
+    """MLB 공식 팀 로고 SVG URL. 매핑에 없으면 None(호출부가 대체 표시).
+
+    선수 헤드샷(photos.py)과 동일하게 MLB CDN 을 핫링크한다 — 파일을
+    내려받아 저장하지 않는다.
+    """
+    tid = MLB_TEAM_IDS.get(team_code or "")
+    return f"https://www.mlbstatic.com/team-logos/{tid}.svg" if tid else None
+
 def _team_theme_css(team_code: str | None) -> str:
     """선택된 팀의 브랜드 컬러로 --navy 계열 토큰을 오버라이드하는 <style> 블록."""
     primary, secondary = TEAM_COLORS.get(team_code or "", ("#16325C", "#1D3E73"))
@@ -559,7 +1063,17 @@ def topbar(active_label: str) -> None:
     with st.container(key="topbar"):
         c_badge, c_name, *c_tabs, c_change = st.columns([0.5, 2] + [1.1] * len(PAGES) + [1])
         with c_badge:
-            st.markdown(f'<div class="mt-ab">{team_code}</div>', unsafe_allow_html=True)
+            # 팀 약칭 텍스트 대신 MLB 공식 로고. 로고 로드 실패 시 onerror 로
+            # img 를 숨기면 뒤에 깔린 약칭이 그대로 드러난다(이중 안전장치).
+            logo = team_logo_url(team_code)
+            logo_img = (
+                f'<img src="{logo}" alt="" loading="lazy" '
+                "onerror=\"this.style.display='none'\"/>" if logo else ""
+            )
+            st.markdown(
+                f'<div class="mt-ab"><span>{team_code}</span>{logo_img}</div>',
+                unsafe_allow_html=True,
+            )
         with c_name:
             st.markdown(
                 f'<div class="mt-n">{team_name}</div><div class="mt-s">GM Mode</div>',
@@ -573,7 +1087,7 @@ def topbar(active_label: str) -> None:
                 else:
                     st.page_link(target, label=label)
         with c_change:
-            st.page_link("Home.py", label="⟲ 구단 변경")
+            st.page_link("Home.py", label="구단 변경")
 
 
 @contextmanager
@@ -832,6 +1346,7 @@ def player_hero_card_html(
     photo_url: str | None = None,
     league_rank: int | None = None,
     league_total: int | None = None,
+    rings: list[tuple[str, float]] | None = None,
 ) -> str:
     """선수 리포트용 큰 프로파일 카드 — 왼쪽 아이덴티티 + 오른쪽 레이더 차트.
 
@@ -856,10 +1371,10 @@ def player_hero_card_html(
     if league_rank is not None and league_total:
         pct_from_top = (league_rank - 1) / league_total * 100
         if ovr <= 0.05:
-            note = badge("⚠️ 시즌 최저치", "risk")
+            note = badge(icon("alert", 10) + " 시즌 최저치", "risk")
             detail = f"리그 {league_total}명 중 {league_rank}위 — 정규화 특성상 매 시즌 1명은 항상 0.00이 됩니다"
         elif ovr >= 99.95:
-            note = badge("🏆 시즌 최고치", "gain")
+            note = badge(icon("trophy", 10) + " 시즌 최고치", "gain")
             detail = f"리그 {league_total}명 중 {league_rank}위"
         elif pct_from_top <= 10:
             note = badge(f"상위 {max(pct_from_top, 0.1):.0f}%", "gain")
@@ -887,7 +1402,16 @@ def player_hero_card_html(
         "</div>"
         f'{rank_html}'
         f'<div class="gm-hero-chips">{chips_html}</div>'
-        "</div>"
+        + (
+            '<div class="gm-hero-rings">'
+            + "".join(
+                stat_ring_svg(v, lbl, size=76, tone=(tone[0] if tone else "var(--team-accent)"))
+                for lbl, v, *tone in rings
+            )
+            + "</div>"
+            if rings else ""
+        )
+        + "</div>"
         f'<div class="gm-hero-radar">{radar_chart_svg(radar_axes)}</div>'
         "</div>"
     )
@@ -994,9 +1518,906 @@ def progress_bar(done: int, total: int, label: str = "") -> None:
 
 # ── 구단 선택 화면의 미국 지도 (Wikimedia Commons "Blank US Map", public-domain
 # 스타일 템플릿의 주(州) 외곽선을 그대로 사용 + 떠 있는 핀 마커 오버레이) ──
-_US_MAP_SVG = """<div class="gm-usmap-wrap"><svg viewBox="-10 -35 979 638" xmlns="http://www.w3.org/2000/svg"><path class="gm-usmap-state" d="m 643,467.4 .4,-7.3 -.9,-1.2 -1.7,-.7 -2.5,-2.8 .5,-2.9 48.8,-5.1 -.7,-2.2 -1.5,-1.5 -.5,-1.4 .6,-6.3 -2.4,-5.7 .5,-2.6 .3,-3.7 2.2,-3.8 -.2,-1.1 -1.7,-1 v -3.2 l -1.8,-1.9 -2.9,-6.1 -12.9,-45.8 -45.7,4 1.3,2 -1.3,67 4.4,33.2 .9,-.5 1.3,.1 .6,.4 .8,-.1 2,-3.8 v -2.3 l 1.1,-1.1 1.4,.5 3.4,6.4 v .9 l -3.3,2.2 3.5,-.4 4.9,-1.6 z"/><path class="gm-usmap-state" d="m 139.6,387.6 3,-2.2 .8,-2.4 -1,-1.6 -1.8,-.2 -1.1,-1.6 1.1,-6.9 1.6,-.3 2.4,-3.2 1.6,-7 2.4,-3.6 4.8,-1.7 1.3,-1.3 -.4,-1.9 -2.3,-2.5 -1.2,-5.8 -1.4,-1.8 -1.3,-3.4 .9,-2.1 1.4,-3 .5,-2.9 -.5,-4.9 1,-13.6 3.5,-.6 3.7,1.4 1.2,2.7 h 2 l 2.4,-2.9 3.4,-17.5 46.2,8.2 40,6 -17.4,124.1 -37.3,-5.4 -64.2,-37.5 .5,-2.9 2,-1.8 z"/><path class="gm-usmap-state" d="m 584.2,367 .9,-2.2 1.2,.5 .7,-1 -.8,-.7 .3,-1.5 -1.1,-.9 .6,-1 -.1,-1.5 -1.1,-.1 .8,-.8 1.3,.8 .3,-1.4 -.4,-1.1 .1,-.7 2,.6 -.4,-1.5 1.6,-1.3 -.5,-.9 -1.1,.1 -.6,-.9 .9,-.9 1.6,-.2 .5,-.8 1.4,-.2 -.1,-.8 -.9,-.9 v -.5 h 1.5 l .4,-.7 -1.4,-1 -.1,-.6 -11.2,.8 2.8,-5.1 1.7,-1.5 v -2.2 l -1.6,-2.5 -39.8,2 -39.1,.7 4.1,24.4 -.7,39 2.6,2.3 2.8,-1.3 3.2,.8 .2,11.9 52.3,-1.3 1.2,-1.5 .5,-3 -1.5,-2.3 -.5,-2.2 .9,-.7 v -.8 l -1.7,-1.1 -.1,-.7 1.6,-.9 -1.2,-1.1 1.7,-7.1 3.4,-1.6 v -.8 l -1.1,-1.4 2.9,-5.4 h 1.9 l 1.5,-1.2 -.3,-5.2 3.1,-4.5 1.8,-.6 -.5,-3.1 z"/><path class="gm-usmap-state" d="m 69.4,365.6 3.4,5.2 -1.4,.1 -1.8,-1.9 z m 1.9,-9.8 1.8,4.1 2.6,1 .7,-.6 -1.3,-2.5 -2.6,-2.4 z m -19.9,-19 v 2.4 l 2,1.2 4.4,-.2 1,-1 -3.1,-.2 z m -5.9,.1 3.3,.5 1.4,2.2 h -3.8 z m 47.9,45.5 -1,-3 .2,-3 -.4,-7.9 -1.8,-4.8 -1.2,-1.4 -.6,-1.5 -7,-8.6 -3.6,.1 -2,-1.9 1.1,-1.8 -.7,-3.7 -2.2,-1.2 -3.9,-.6 -2.8,-1.3 -1.5,-1.9 -4.5,-6.6 -2.7,-2.2 -3.7,-.5 -3.1,-2.3 -4.7,-1.5 -2.8,-.3 -2.5,-2.5 .2,-2.8 .8,-4.8 1.8,-5.1 -1.4,-1.6 -4,-9.4 -2.7,-3.7 -.4,-3 -1.6,-2.3 .2,-2.5 -2,-5 -2.9,-2.7 .6,-7.1 2.4,-.8 1.8,-3.1 -.4,-3.2 -1,-.9 h -2.5 l -2.5,-3.3 -1.5,-3.5 v -7.5 l 1.2,-4.2 .2,-2.1 2.5,.2 -.1,1.6 -.8,.7 v 2.5 l 3.7,3.2 v -4.7 l -1.4,-3.4 .5,-1.1 -1,-1.7 2.8,-1.5 -1.9,-3 -1.4,.5 -1.5,3.8 .5,1.3 -.8,1 -.9,-.1 -5.4,-6.1 .7,-5.6 -1.1,-3.9 -6.5,-12.8 .8,-10.7 2.3,-3.6 .2,-6.4 -5.5,-11.1 .3,-5.2 6.9,-7.5 1.7,-2.4 -.1,-1.4 4,-9.2 .1,-8.4 .9,-2.5 66.1,18.6 -16.4,63.1 1.1,3.5 70.4,105 -.9,2.1 1.3,3.4 1.4,1.8 1.2,5.8 2.3,2.5 .4,1.9 -1.3,1.3 -4.8,1.7 -2.4,3.6 -1.6,7 -2.4,3.2 -1.6,.3 -1.1,6.9 1.1,1.6 1.8,.2 1,1.6 -.8,2.4 -3,2.2 -2.2,-.1 z"/><path class="gm-usmap-state" d="m 374.6,323.3 -16.5,-1 -51.7,-4.8 -52.6,-6.5 11.5,-88.3 44.9,5.7 37.5,3.4 33.1,2.4 -1.4,22.1 z"/><path class="gm-usmap-state" d="m 873.5,178.9 .4,-1.1 -3.2,-12.3 -.1,-.3 -14.9,3.4 v .7 l -.9,.3 -.5,-.7 -10.5,2.4 2.8,16.3 1.8,1.5 -3.5,3.4 1.7,2.2 5.4,-4.5 1.7,-1.3 h .8 l 2.4,-3.1 1.4,.1 2.9,-1.1 h 2.1 l 5.3,-2.7 2.8,-.9 1,-1 1.5,.5 z"/><path class="gm-usmap-state" d="m 822.2,226.6 -1.6,.3 -1.5,1.1 -1.2,2.1 7.6,27.1 10.9,-2.3 -2.2,-7.6 -1.1,.5 -3.3,-2.6 -.5,-1.7 -1.8,-1 -.2,-3.7 -2.1,-2.2 -1.1,-.8 -1.2,-1.1 -.4,-3.2 .3,-2.1 1,-2.2 z"/><path class="gm-usmap-state" d="m 751.7,445.1 -4,-.7 -1.7,-.9 -2.2,1.4 v 2.5 l 1.4,2.1 -.5,4.3 -2.1,.6 -1,-1.1 -.6,-3.2 -50.1,3.3 -3.3,-6 -48.8,5.1 -.5,2.9 2.5,2.8 1.7,.7 .9,1.2 -.4,7.3 -1.1,.6 .5,.4 1,-.3 .7,-.8 10.5,-2.7 9.2,-.5 8.1,1.9 8.5,5 2.4,.8 2.2,2 -.1,2.7 h 2.4 l 1.9,-1 2.5,.1 2,-.8 2.9,-2 3.1,-2.9 1.1,-.4 .6,.5 h 1.4 l .5,-.8 -.5,-1.2 -.6,-.6 .2,-.8 2,-1.1 5,-.4 .8,1 1,.1 2.3,1 3,1.8 1.2,1.7 1.1,1.2 2.8,1.4 v 2.4 l 2.8,1.9 1,.1 1.6,1.4 .7,1.6 1,.2 .8,2.1 .7,.6 1,-1.1 2.9,.1 .5,1.4 1.1,.9 v 1.3 l 2.9,2.2 .2,9.6 -1.8,5.8 1,1.2 -.2,3.4 -.8,1.4 .7,1.2 2.3,2.3 .3,1.5 .8,1 -.4,-1.9 1.3,-.6 .8,-3.6 -3,-1.2 .1,-.6 2.6,-.4 .9,2.6 1.1,.6 .1,-2 1.1,.3 .6,.8 -.1,.7 -2.9,4.2 -.2,1.1 -1.7,1.9 v 1.1 l 3.7,3.8 5.3,7.9 1.8,2.1 v 1.8 l 2.8,4.6 2.3,.6 .7,-1.2 -2.1,.3 -3,-4.5 .2,-1.4 1.5,-.8 v -1.5 l -.6,-1.3 .9,-.9 .4,.9 .7,.5 v 4 l -1.2,-.6 -.8,.9 1.4,1.6 1,2.6 1.2,-.6 2.3,1.2 2.1,2.2 1.6,5.1 3.1,4.8 .8,-1.3 2.8,-.5 3.2,1.3 .3,1.7 3.3,3.8 .1,1.1 2.2,2.7 -.7,.5 v 2.7 l 2.7,1.4 h 1.5 l 2.7,-1.8 1.5,.3 1.1,.4 2.3,-1.7 .2,-.7 1.2,.3 2.4,-1.7 1.3,-2.3 -.7,-3.2 -.2,-1.3 1.1,-4 .6,-.2 .6,1.6 .8,-1.8 -.8,-7.2 -.4,-10.5 -1,-6.8 -.7,-1.7 -6.6,-11.1 -5.2,-9.1 -2.2,-3.3 -1.3,-3.6 -.2,-3.4 .9,-.3 v -.9 l -1.1,-2.2 -4,-4 -7.6,-9.7 -5.7,-10.4 -4.3,-10.7 -.6,-3.7 -1.2,-1 -.5,-3.8 z m 9.2,134.5 1.7,-.1 -.7,-1 z m 7.3,-1.1 v -.7 l 1.6,-.2 3.7,-3.3 1.5,-.6 2.4,-.9 .3,1.3 1.7,.8 -2.6,1.2 h -2.4 l -3.9,2.5 z m 17.2,-7.6 -3,1.4 -1,1.3 1.1,.1 z m 3.8,-2.9 -1.1,.3 -1.4,2 1.1,-.2 1.5,-1.6 z m 8.3,-15.7 -1.7,5.6 -.8,1 -1,2.6 -1.2,1.6 -.7,1.7 -1.9,2.2 v .9 l 2.7,-2.8 2.4,-3.5 .6,-2 2.1,-4.9 z"/><path class="gm-usmap-state" d="m 761.8,414.1 v 1.4 l -4.2,6.2 -1.2,.2 1.5,.5 v 2 l -.9,1.1 -.6,6 -2.3,6.2 .5,2 .7,5.1 -3.6,.3 -4,-.7 -1.7,-.9 -2.2,1.4 v 2.5 l 1.4,2.1 -.5,4.3 -2.1,.6 -1,-1.1 -.6,-3.2 -50.1,3.3 -3.3,-6 -.7,-2.2 -1.5,-1.5 -.5,-1.4 .6,-6.3 -2.4,-5.7 .5,-2.6 .3,-3.7 2.2,-3.8 -.2,-1.1 -1.7,-1 v -3.2 l -1.8,-1.9 -2.9,-6.1 -12.9,-45.8 22.9,-2.9 21.4,-3 -.1,1.9 -1.9,1 -1.4,3.2 .2,1.3 6.1,3.8 2.6,-.3 3.1,4 .4,1.7 4.2,5.1 2.6,1.7 1.4,.2 2.2,1.6 1.1,2.2 2,1.6 1.8,.5 2.7,2.7 .1,1.4 2.6,2.8 5,2.3 3.6,6.7 .3,2.7 3.9,2.1 2.5,4.8 .8,3.1 4.2,.4 z"/><path class="gm-usmap-state" d="m 165.3,183.1 -24.4,-5.4 8.5,-37.3 2.9,-5.8 .4,-2.1 .8,-.9 -.9,-2 -2.9,-1.2 .2,-4.2 4,-5.8 2.5,-.8 1.6,-2.3 -.1,-1.6 1.8,-1.6 3.2,-5.5 4.2,-4.8 -.5,-3.2 -3.5,-3.1 -1.6,-3.6 1.1,-4.3 -.7,-4 12.7,-56.1 14.2,3 -4.8,22 3.7,7.4 -1.6,4.8 3.6,4.8 1.9,.7 3.9,8.3 v 2.1 l 2.3,3 h .9 l 1.4,2.1 h 3.2 v 1.6 l -7.1,17 -.5,4.1 1.4,.5 1.6,2.6 2.8,-1.4 3.6,-2.4 1.9,1.9 .5,2.5 -.5,3.2 2.5,9.7 2.6,3.5 2.3,1.4 .4,3 v 4.1 l 2.3,2.3 1.6,-2.3 6.9,1.6 2.1,-1.2 9,1.7 2.8,-3.3 1.8,-.6 1.2,1.8 1.6,4.1 .9,.1 -8.5,54.8 -47.9,-8.2 z"/><path class="gm-usmap-state" d="m 623.5,265.9 -1,5.2 v 2 l 2.4,3.5 v .7 l -.3,.9 .9,1.9 -.3,2.4 -1.6,1.8 -1.3,4.2 -3.8,5.3 -.1,7 h -1 l .9,1.9 v .9 l -2.2,2.7 .1,1.1 1.5,2.2 -.1,.9 -3.7,.6 -.6,1.2 -1.2,-.6 -1,.5 -.4,3.3 1.7,1.8 -.4,2.4 -1.5,.3 -6.9,-3 -4,3.7 .3,1.8 h -2.8 l -1.4,-1.5 -1.8,-3.8 v -1.9 l .8,-.6 .1,-1.3 -1.7,-1.9 -.9,-2.5 -2.7,-4.1 -4.8,-1.3 -7.4,-7.1 -.4,-2.4 2.8,-7.6 -.4,-1.9 1.2,-1.1 v -1.3 l -2.8,-1.5 -3,-.7 -3.4,1.2 -1.3,-2.3 .6,-1.9 -.7,-2.4 -8.6,-8.4 -2.2,-1.5 -2.5,-5.9 -1.2,-5.4 1.4,-3.7 .7,-.7 .1,-2.3 -.7,-.9 1,-1.5 1.8,-.6 .9,-.3 1,-1.2 v -2.4 l 1.7,-2.4 .5,-.5 .1,-3.5 -.9,-1.4 -1,-.3 -1.1,-1.6 1,-4 3,-.8 h 2.4 l 4.2,-1.8 1.7,-2.2 .1,-2.4 1.1,-1.3 1.3,-3.2 -.1,-2.6 -2.8,-3.5 h -1.2 l -.9,-1.1 .2,-1.6 -1.7,-1.7 -2.5,-1.3 .5,-.6 45.9,-2.8 .1,4.6 3.4,4.6 1.2,4.1 1.6,3.2 z"/><path class="gm-usmap-state" d="m 629.2,214.8 -5.1,2.3 -4.7,-1.4 4.1,50.2 -1,5.2 v 2 l 2.4,3.5 v .7 l -.3,.9 .9,1.9 -.3,2.4 -1.6,1.8 -1.3,4.2 -3.8,5.3 -.1,7 h -1 l .9,1.9 1.1,.8 .6,-1 -.7,-1.7 4.6,-.5 .2,1.2 1.1,.2 .4,-.9 -.6,-1.3 .3,-.8 1.3,.8 1.7,-.4 1.7,.6 3.4,2.1 1.8,-2.8 3.5,-2.2 3,3.3 1.6,-2.1 .3,-2.7 3.8,-2.3 .2,1.3 1.9,1.2 3,-.2 1.2,-.7 .1,-3.4 2.5,-3.7 4.6,-4.4 -.1,-1.7 1.2,-3.8 2.2,1 6.7,-4.5 -.4,-1.7 -1.5,-2.1 1,-1.9 -6.6,-57.2 -.1,-1.4 -32.4,3.4 z"/><path class="gm-usmap-state" d="m 556.9,183 2.1,1.6 .6,1.1 -1.6,3.3 -.1,2.5 2,5.5 2.7,1.5 3.3,.7 1.3,2.8 -.5,.6 2.5,1.3 1.7,1.7 -.2,1.6 .9,1.1 h 1.2 l 2.8,3.5 .1,2.6 -1.3,3.2 -1.1,1.3 -.1,2.4 -1.7,2.2 -4.2,1.8 h -2.4 l -3,.8 -1,4 1.1,1.6 1,.3 .9,1.4 -.1,3.5 -.5,.5 -1.7,2.4 v 2.4 l -1,1.2 -.9,.3 -1.8,.6 -1,1.5 .7,.9 -.1,2.3 -.7,.7 -1.5,-.8 -1.1,-1.1 -.6,-1.6 -1.7,-1.3 -14.3,.8 -27.2,1.2 -25.9,-.1 -1.8,-4.4 .7,-2.2 -.8,-3.3 .2,-2.9 -1.3,-.7 -.4,-6.1 -2.8,-5 -.2,-3.7 -2.2,-4.3 -1.3,-3.7 v -1.4 l -.6,-1.7 v -2.3 l -.5,-.9 -.7,-1.7 -.3,-1.3 -1.3,-1.2 1,-4.3 1.7,-5.1 -.7,-2 -1.3,-.4 -.4,-1.6 1,-.5 .1,-1.1 -1.3,-1.5 .1,-1.6 2.2,.1 h 28.2 l 36.3,-.9 18.6,-.7 z"/><path class="gm-usmap-state" d="m 459.1,259.5 -43.7,-1.2 -36,-2 -4.8,67 67.7,2.9 62,.1 -.5,-48.1 -3.2,-.7 -2.6,-4.7 -2.5,-2.5 .5,-2.3 2.7,-2.6 .1,-1.2 -1.5,-2.1 -.9,1 -2,-.6 -2.9,-3 z"/><path class="gm-usmap-state" d="m 692.1,322.5 -20.5,1.4 -5.2,.8 -17.4,1 -2.6,.8 -22.6,2 -.7,-.6 h -3.7 l 1.2,3.2 -.6,.9 -23.3,1.5 1,-2.7 1.4,.9 .7,-.4 1.2,-4.1 -1,-1 1,-2 .2,-.9 -1.3,-.8 -.3,-1.8 4,-3.7 6.9,3 1.5,-.3 .4,-2.4 -1.7,-1.8 .4,-3.3 1,-.5 1.2,.6 .6,-1.2 3.7,-.6 .1,-.9 -1.5,-2.2 -.1,-1.1 2.2,-2.7 0,-.9 1.1,.8 .6,-1 -.7,-1.7 4.6,-.5 .2,1.2 1.1,.2 .4,-.9 -.6,-1.3 .3,-.8 1.3,.8 1.7,-.4 1.7,.6 3.4,2.1 1.8,-2.8 3.5,-2.2 3,3.3 1.6,-2.1 .3,-2.7 3.8,-2.3 .2,1.3 1.9,1.2 3,-.2 1.2,-.7 .1,-3.4 2.5,-3.7 4.6,-4.4 -.1,-1.7 1.2,-3.8 2.2,1 6.7,-4.5 -.4,-1.7 -1.5,-2.1 1,-1.9 1.3,.5 2.2,.1 1.9,-.8 2.9,1.2 2.2,3.4 v 1 l 4.1,.7 2.3,-.2 1.9,2.1 2.2,.2 v -1 l 1.9,-.8 3,.8 1.2,.8 1.3,-.7 h .9 l .6,-1.7 3.4,-1.8 .5,.8 .8,2.9 3.5,1.4 1.2,2.1 -.1,1.1 .6,1 -.6,3.6 1.9,1.6 .8,1.1 1,.6 -.1,.9 4.4,5.6 h 1.4 l 1.5,1.8 1.2,.3 1.4,-.1 -4.9,6.6 -2.9,1 -3,3 -.4,2.2 -2.1,1.3 -.1,1.7 -1.4,1.4 -1.8,.5 -.5,1.9 -1,.4 -6.9,4.2 z m -98,11.3 -.7,-.7 .2,-1 h 1.1 l .7,.7 -.3,1 z"/><path class="gm-usmap-state" d="m 602.5,472.8 -1.2,-1.8 .3,-1.3 -4.8,-6.8 .9,-4.6 1,-1.4 .1,-1.4 -36,2 1.7,-11.9 2.4,-4.8 6,-8.4 -1.8,-2.5 h 2 v -3.3 l -2.4,-2.5 .5,-1.7 -1.2,-1 -1.6,-7.1 .6,-1.4 -52.3,1.3 .5,19.9 .7,3.4 2.6,2.8 .7,5.4 3.8,4.6 .8,4.3 h 1 l -.1,7.3 -3.3,6.4 1.3,2.3 -1.3,1.5 .7,3 -.1,4.3 -2.2,3.5 -.1,.8 -1.7,1.2 1,1.8 1.2,1.1 1.6,-1.3 5.3,-.9 6.1,-.1 9.6,3.8 8,1 1.5,-1.4 1.8,-.2 4.8,2.2 1.6,-.4 1.1,-1.5 -4.2,-1.8 -2.2,1 -1.1,-.2 -1.4,-2 3.3,-2.2 1.6,-.1 v 1.7 l 1.5,-.1 3.4,-.3 .4,2.3 1.1,.4 .6,1.9 4.8,1 1.7,1.6 v .7 h -1.2 l -1.5,1.7 1.7,1.2 5.4,1 2.7,2.8 4.4,-1 -3.7,.2 -.1,-.6 2.8,-.7 .2,-1.8 1.2,-.3 v -1.4 l 1.1,.1 v 1.6 l 2.5,.1 .8,-1.9 .9,.3 .2,2.5 1.2,.2 -1.8,2 2.6,-.9 2,-1.1 2.9,-3.3 h -.7 l -1.3,1.2 -.4,-.1 -.5,-.8 .9,-1.2 v -2.3 l 1.1,-.8 .7,.7 1,-.8 1,-.1 .6,1.3 -.6,1.9 h 2.4 l 5.1,1.7 .5,1.3 1.6,1.4 2.8,.1 1.3,.7 1.8,-1 .9,-1.7 v -1.7 h -1.4 l -1.2,-1.4 -1.1,-1.1 -3.2,-.9 -2.6,.2 -4.2,-2.4 v -2.3 l 1.3,-1 2.4,.6 -3.1,-1.6 .2,-.8 h 3.6 l 2.6,-3.5 -2.6,-1.8 .8,-1.5 -1.2,-.8 h -.8 l -2,2.1 v 2.1 l -.6,.7 -1.1,-.1 -1.6,-1.4 h -1.3 v -1.5 l .6,-.7 .8,.7 1.7,-1.6 .7,-1.6 .8,-.3 z m -10.3,-2.7 1.9,1 .8,1.1 2.5,.1 1.5,.8 .2,1.4 -.4,.6 -.9,-1.5 -1.4,1.2 -.9,1.4 -2.8,.8 -1.6,.1 -3.7,-1 .1,-1.7 2,-2 1.1,-2.4 z m -4.7,1.2 v 1.1 l -1.8,2 h -1.2 v -2.2 l 1.6,-1.5 z"/><path class="gm-usmap-state" d="m 875,128.7 .6,4 3.2,2 .8,2.2 2.3,1.4 1.4,-.3 1,-3 -.8,-2.9 1.6,-.9 .5,-2.8 -.6,-1.3 3.3,-1.9 -2.2,-2.3 .9,-2.4 1.4,-2.2 .5,3.2 1.6,-2 1.3,.9 1.2,-.8 v -1.7 l 3.2,-1.3 .3,-2.9 2.5,-.2 2.7,-3.7 v -.7 l -.9,-.5 -.1,-3.3 .6,-1.1 .2,1.6 1,-.5 -.2,-3.2 -.9,.3 -.1,1.2 -1.2,-1.4 .9,-1.4 .6,.1 1.1,-.4 .5,2.8 2,-.3 2.9,.7 v -1 l -1.1,-1.2 1.3,.1 .1,-2.3 .6,.8 .3,1.9 2.1,1.5 .2,-1 .9,-.2 -.3,-.8 .8,-.6 -.1,-1.6 -1.6,-.2 -2,.7 1.4,-1.6 .7,-.8 1.3,-.2 .4,1.3 1.7,1.6 .4,-2.1 2.3,-1.2 -.9,-1.3 .1,-1.7 1.1,.5 h .7 l 1.7,-1.4 .4,-2.3 2.2,.3 .1,-.7 .2,-1.6 .5,1.4 1.5,-1 2.3,-4.1 -.1,-2.2 -1.4,-2 -3,-3.2 h -1.9 l -.8,2.2 -2.9,-3 .3,-.8 v -1.5 l -1.6,-4.5 -.8,-.2 -.7,.4 h -4.8 l -.3,-3.6 -8.1,-26 -7.3,-3.7 -2.9,-.1 -6.7,6.6 -2.7,-1 -1,-3.9 h -2.7 l -6.9,19.5 .7,6.2 -1.7,2.4 -.4,4.6 1.3,3.7 .8,.2 v 1.6 l -1.6,4.5 -1.5,1.4 -1.3,2.2 -.4,7.8 -2.4,-1 -1.5,.4 z m 34.6,-24.7 -1,.8 v 1.3 l .7,-.8 .9,.8 .4,-.5 1.1,.2 -1,-.8 .4,-.8 z m -1.7,2.6 -1,1.1 .5,.4 -.1,1 h 1.1 v -1.8 z m -3,-1.6 .9,1.3 1,.5 .3,-1 v -1.8 l -1.3,-.7 -.4,1.2 z m -1,5 -1.7,-1.7 1.6,-2.4 .8,.3 .2,1.1 1,.8 v 1.1 l -1,1 z"/><path class="gm-usmap-state" d="m 822.9,269.3 0,-1.7 h -.8 l 0,1.8 z m 11.8,-3.9 1.2,-2.2 .1,-2.5 -.6,-.6 -.7,.9 -.2,2.1 -.8,1.4 -.3,1.1 -4.6,1.6 -.7,.8 -1.3,.2 -.4,.9 -1.3,.6 -.3,-2.5 .4,-.7 -.8,-.5 .2,-1.5 -1.6,1 v -2 l 1.2,-.3 -1.9,-.4 -.7,-.8 .4,-1.3 -.8,-.6 -.7,1.6 .5,.8 -.7,.6 -1.1,.5 -2,-1 -.2,-1.2 -1,-1.1 -1.4,-1.7 1.5,-.8 -1,-.6 v -.9 l .6,-1 1.7,-.3 -1.4,-.6 -.1,-.7 -1.3,-.1 -.4,1.1 -.6,.3 .1,-3.4 1,-1 .8,.7 .1,-1.6 -1,-.9 -.9,1.1 -1,1.4 -.6,-1 .2,-2.4 .9,-1 .9,.9 1.2,-.7 -.4,-1.7 -1,1 -.9,-2.1 -.2,-1.7 1.1,-2.4 1.1,-1.4 1.4,-.2 -.5,-.8 .5,-.6 -.3,-.7 .2,-2.1 -1.5,.4 -.8,1.1 1,1.3 -2.6,3.6 -.9,-.4 -.7,.9 -.6,2.2 -1.8,.5 1.3,.6 1.3,1.3 -.2,.7 .9,1.2 -1.1,1 .5,.3 -.5,1.3 v 2.1 l -.5,1.3 .9,1.1 .7,3.4 1.3,1.4 1.6,1.4 .4,2.8 1.6,2 .4,1.4 v 1 h -.7 l -1.5,-1.2 -.4,.2 -1.2,-.2 -1.7,-1.4 -1.4,-.3 -1,.5 -1.2,-.3 -.4,.2 -1.7,-.8 -1,-1 -1,-1.3 -.6,-.2 -.8,.7 -1.6,1.3 -1.1,-.8 -.4,-2.3 .8,-2.1 -.3,-.5 .3,-.4 -.7,-1 1,-.1 1,-.9 .4,-1.8 1.7,-2.6 -2.6,-1.8 -1,1.7 -.6,-.6 h -1 l -.6,-.1 -.4,-.4 .1,-.5 -1.7,-.6 -.8,.3 -1.2,-.1 -.7,-.7 -.5,-.2 -.2,-.7 .6,-.8 v -.9 l -1.2,-.2 -1,-.9 -.9,.1 -1.6,-.3 -.9,-.4 .2,-1.6 -1,-.5 -.2,-.7 h -.7 l -.8,-1.2 .2,-1 -2.6,.4 -2.2,-1.6 -1.4,.3 -.9,1.4 h -1.3 l -1.7,2.9 -3.3,.4 -1.9,-1 -2.6,3.8 -2.2,-.3 -3.1,3.9 -.9,1.6 -1.8,1.6 -1.7,-11.4 60.5,-11.8 7.6,27.1 10.9,-2.3 0,5.3 -.1,3.1 -1,1.8 z m -13.4,-1.8 -1.3,.9 .8,1.8 1.7,.8 -.4,-1.6 z"/><path class="gm-usmap-state" d="m 899.9,174.2 h 3.4 l .9,-.6 .1,-1.3 -1.9,-1.8 .4,1 -1.5,1.5 h -2.3 l .1,.8 z m -9,1.8 -1.2,-.6 1,-.8 .6,-2.1 1.2,-1 .8,-.2 .6,.9 1.1,.2 .6,-.6 .5,1.9 -1.3,.3 -2.8,.7 z m -34.9,-23.4 18.4,-3.8 1,-1.5 .3,-1.7 1.9,-.6 .5,-1.1 1.7,-1.1 1.3,.3 1.7,3.3 1,.4 1.1,-1.3 .8,1.3 v 1.1 l -3,2.4 .2,.8 -.9,1 .4,.8 -1.3,.3 .9,1.2 -.8,.7 .6,1 .9,-.2 .3,-.8 1.1,.6 h 1.8 l 2.5,2.6 .2,2.6 1.8,.1 .8,1.1 .6,2 1,.7 h 1.9 l 1.9,-.1 .8,-.9 1.6,-1.2 1.1,-.3 -1.2,-2.1 -.3,.9 -1.5,-3.6 h -.8 l -.4,.9 -1.2,-1 1.3,-1.1 1.8,.4 2.3,2.1 1.3,2.7 1.2,3.3 -1,2.8 v -1.8 l -.7,-1 -3.5,2.3 -.9,-.3 -1.6,1 -.1,1.2 -2.2,1.2 -2,2.1 -2,1.9 h -1.2 l 3.3,-3.3 .5,-1.9 -.5,-.6 -.3,-1.3 -.9,-.1 -.1,1.3 -1,1.2 h -1.2 l -.3,1.1 .4,1.2 -1.2,1.1 -1.1,-.2 -.4,1 -1.4,-3 -1.3,-1.1 -2.6,-1.3 -.6,-2.2 h -.8 l -.7,-2.6 -6.5,2 -.1,-.3 -14.9,3.4 v .7 l -.9,.3 -.5,-.7 -10.5,2.4 -.7,-1 .5,-15 z"/><path class="gm-usmap-state" d="m 663.3,209.8 .1,1.4 21.4,-3.5 .5,-1.2 3.9,-5.9 v -4.3 l .8,-2.1 2.2,-.8 2,-7.8 1,-.5 1,.6 -.2,.6 -1.1,.8 .3,.9 .8,.4 1.9,-1.4 .4,-9.8 -1.6,-2.3 -1.2,-3.7 v -2.5 l -2.3,-4.4 v -1.8 l -1.2,-3.3 -2.3,-3 -2.9,-1 -4.8,3 -2.5,4.6 -.2,.9 -3,3.5 -1.5,-.2 -2.9,-2.8 -.1,-3.4 1.5,-1.9 2,-.2 1.2,-1.7 .2,-4 .8,-.8 1.1,-.1 .9,-1.7 -.2,-9.6 -.3,-1.3 -1.2,-1.2 -1.7,-1 -.1,-1.8 .7,-.6 1.8,.8 -.3,-1.7 -1.9,-2.7 -.7,-1.6 -1.1,-1.1 h -2.2 l -8.1,-2.9 -1.4,-1.7 -3.1,-.3 -1.2,.3 -4.4,-2.3 h -1.4 l .5,1 -2.7,-.1 .1,.6 .6,.6 -2.5,2.1 .1,1.8 1.5,2.3 1.5,.2 v .6 l -1.5,.5 -2.1,-.1 -2.8,2.5 .1,2.5 .4,5.8 -2.2,3.4 .8,-4.5 -.8,-.6 -.9,5.3 -1,-2.3 .5,-2.3 -.5,-1 .6,-1.3 -.6,-1.1 1,-1 v -1.2 l -1.3,.6 -1.3,3.1 -.7,.7 -1.3,2.4 -1.7,-.2 -.1,1.2 h -1.6 l .2,1.5 .2,2 -3,1.2 .1,1.3 1,1.7 -.1,5.2 -1.3,4.4 -1.7,2.5 1.2,1.4 .8,3.5 -1,2.5 -.2,2.1 1.7,3.4 2.5,4.9 1.2,1.9 1.6,6.9 -.1,8.8 -.9,3.9 -2,3.2 -.9,3.7 -2,3 -1.2,1 z m -95.8,-96.8 3,3.8 17,3.8 1.4,1 4,.8 .7,.5 2.8,-.2 4.9,.8 1.4,1.5 -1,1 .8,.8 3.8,.7 1.2,1.2 .1,4.4 -1.3,2.8 2,.1 1,-.8 .9,.8 -1.1,3.1 1,1.6 1.2,.3 .8,-1.8 2.9,-4.6 1.6,-6 2.3,-2 -.5,-1.6 .5,-.9 1,1.6 -.3,2.2 2.9,-2.2 .2,-2.3 2.1,.6 .8,-1.6 .7,.6 -.7,1.5 -1,.5 -1,2 1.4,1.8 1.1,-.5 -.5,-.7 1,-1.5 1.9,-1.7 h .8 l .2,-2.6 2,-1.8 7.9,-.5 1.9,-3.1 3.8,-.3 3.8,1.2 4.2,2.7 .7,-.2 -.2,-3.5 .7,-.2 4.5,1.1 1.5,-.2 2.9,-.7 1.7,.4 1.8,.1 v -1.1 l -.7,-.9 -1.5,-.2 -1.1,-.8 .5,-1.4 -.8,-.3 -2.6,.1 -.1,-1 1.1,-.8 .6,.8 .5,-1.8 -.7,-.7 .7,-.2 -1.4,-1.3 .3,-1.3 .1,-1.9 h -1.3 l -1.5,1 -1.9,.1 -.5,1.8 -1.9,.2 -.3,-1.2 -2.2,.1 -1,1.2 -.7,-.1 -.2,-.8 -2.6,.4 -.1,-4.8 1,-2 -.7,-.1 -1.8,1.1 h -2.2 l -3.8,2.7 -6.2,.3 -4.1,.8 -1.9,1.5 -1.4,1.3 -2.5,1.7 -.3,.8 -.6,-1.7 -1.3,-.6 v .6 l .7,.7 v 1.3 l -1.5,-.6 h -.6 l -.3,1.2 -2,-1.9 -1.3,-.2 -1.3,1.5 -3.2,-.1 -.5,-1.4 -2,-1.9 -1.3,-1.6 v -.7 l -1.1,-1.4 -2.6,-1.2 -3.3,-.1 -1.1,-.9 h -1.4 l -.7,.4 -2.2,2.2 -.7,1.1 -1,-.7 .2,-1 .8,-2.1 3.2,-5 .8,-.2 1.7,-1.9 .7,-1.6 3,-.6 .8,-.6 -.1,-1 -.5,-.5 -4.5,.2 -2,.5 -2.6,1.2 -1.2,1.2 -1.7,2.2 -1.8,1 -3.3,3.4 -.4,1.6 -7.4,4.6 -4,.5 -1.8,.4 -2.3,3 -1.8,.7 -4.4,2.3 z m 100.7,3.8 3.8,.1 .6,-.5 -.2,-2 -1.7,-1.8 -1.9,.1 -.1,.5 1.1,.4 -1.6,.8 -.3,1 -.6,-.6 -.4,.8 z m -75.1,-41.9 -2.3,.2 -2.7,1.9 -7.1,5.3 .8,1 1.8,.3 2.8,-2 -1.1,-.5 2.3,-1.6 h 1 l 3,-1.9 -.1,-.9 z m 41.1,62.8 v 1 l 2.1,1.6 -.2,-2.4 z m -.7,2.8 1.1,.1 v .9 h -1 z m 21.4,-21.3 v .9 l .8,-.2 v -.5 z m 4.7,3.1 -.1,-1.1 -1.6,-.2 -.6,-.4 h -.9 l -.4,.3 .9,.4 1.1,1.1 z m -18,1.2 -.1,1.1 -.3,.7 .2,2.2 .4,.3 .7,.1 .5,-.9 .1,-1.6 -.3,-.6 -.1,-1.1 z"/><path class="gm-usmap-state" d="m 464.7,68.6 -1.1,2.8 .8,1.4 -.3,5.1 -.5,1.1 2.7,9.1 1.3,2.5 .7,14 1,2.7 -.4,5.8 2.9,7.4 .3,5.8 -.1,2.1 -.1,2.2 -.9,2 -3.1,1.9 -.3,1.2 1.7,2.5 .4,1.8 2.6,.6 1.5,1.9 -.2,39.5 h 28.2 l 36.3,-.9 18.6,-.7 -1.1,-4.5 -.2,-3 -2.2,-3 -2.8,-.7 -5.2,-3.6 -.6,-3.3 -6.3,-3.1 -.2,-1.3 h -3.3 l -2.2,-2.6 -2,-1.3 .7,-5.1 -.9,-1.6 .5,-5.4 1,-1.8 -.3,-2.7 -1.2,-1.3 -1.8,-.3 v -1.7 l 2.8,-5.8 5.9,-3.9 -.4,-13 .9,.4 .6,-.5 .1,-1.1 .9,-.6 1.4,1.2 .7,-.1 v 0 l -1.2,-2.2 4.3,-3.1 3.1,-3.7 1.6,-.8 4.7,-5.9 6.3,-5.8 3.9,-2.1 6.3,-2.7 7.6,-4.5 -.6,-.4 -3.7,.7 -2.8,.1 -1,-1.6 -1.4,-.9 -9.8,1.2 -1,-2.8 -1.6,-.1 -1.7,.8 -3.7,3.1 h -4.1 l -2.1,-1 -.3,-1.7 -3.9,-.8 -.6,-1.6 -.7,-1.3 -1,.9 -2.6,.1 -9.9,-5.5 h -2.9 l -.8,-.7 -3.1,1.3 -.8,1.3 -3.3,.8 -1.3,-.2 v -1.7 l -.7,-.9 h -5.9 l -.4,-1.4 h -2.6 l -1.1,.4 -2.4,-1.7 .3,-1.4 -.6,-2.4 -.7,-1.1 -.2,-3 -1,-3.1 -2.1,-1.6 h -2.9 l .1,8 -30.9,-.4 z"/><path class="gm-usmap-state" d="m 623.8,468.6 -5,.1 -2.4,-1.5 -7.9,2.5 -.9,-.7 -.5,.2 -.1,1.6 -.6,.1 -2.6,2.7 -.7,-.1 -.6,-.7 -1.2,-1.8 .3,-1.3 -4.8,-6.8 .9,-4.6 1,-1.4 .1,-1.4 -36,2 1.7,-11.9 2.4,-4.8 6,-8.4 -1.8,-2.5 h 2 v -3.3 l -2.4,-2.5 .5,-1.7 -1.2,-1 -1.6,-7.1 .6,-1.4 1.2,-1.5 .5,-3 -1.5,-2.3 -.5,-2.2 .9,-.7 v -.8 l -1.7,-1.1 -.1,-.7 1.6,-.9 -1.2,-1.1 1.7,-7.1 3.4,-1.6 v -.8 l -1.1,-1.4 2.9,-5.4 h 1.9 l 1.5,-1.2 -.3,-5.2 3.1,-4.5 1.8,-.6 -.5,-3.1 38.3,-2.6 1.3,2 -1.3,67 4.4,33.2 z"/><path class="gm-usmap-state" d="m 555.3,248.9 -1.1,-1.1 -.6,-1.6 -1.7,-1.3 -14.3,.8 -27.2,1.2 -25.9,-.1 1.3,1.3 -.3,1.4 2.1,3.7 3.9,6.3 2.9,3 2,.6 .9,-1 1.5,2.1 -.1,1.2 -2.7,2.6 -.5,2.3 2.5,2.5 2.6,4.7 3.2,.7 .5,48.1 .2,10.8 39.1,-.7 39.8,-2 1.6,2.5 v 2.2 l -1.7,1.5 -2.8,5.1 11.2,-.8 1,-2 1.2,-.5 v -.7 l -1.2,-1.1 -.6,-1 1.7,.2 .8,-.7 -1.4,-1.5 1.4,-.5 .1,-1 -.6,-1 v -1.3 l -.7,-.7 .2,-1 h 1.1 l .7,.7 -.3,1 .8,.7 .8,-1 1,-2.7 1.4,.9 .7,-.4 1.2,-4.1 -1,-1 1,-2 .2,-.9 -1.3,-.8 h -2.8 l -1.4,-1.5 -1.8,-3.8 v -1.9 l .8,-.6 .1,-1.3 -1.7,-1.9 -.9,-2.5 -2.7,-4.1 -4.8,-1.3 -7.4,-7.1 -.4,-2.4 2.8,-7.6 -.4,-1.9 1.2,-1.1 v -1.3 l -2.8,-1.5 -3,-.7 -3.4,1.2 -1.3,-2.3 .6,-1.9 -.7,-2.4 -8.6,-8.4 -2.2,-1.5 -2.5,-5.9 -1.2,-5.4 1.4,-3.7 z"/><path class="gm-usmap-state" d="m 247,130.5 57.3,7.9 51,5.3 2,-20.7 5.2,-66.7 -53.5,-5.6 -54.3,-7.7 -65.9,-12.5 -4.8,22 3.7,7.4 -1.6,4.8 3.6,4.8 1.9,.7 3.9,8.3 v 2.1 l 2.3,3 h .9 l 1.4,2.1 h 3.2 v 1.6 l -7.1,17 -.5,4.1 1.4,.5 1.6,2.6 2.8,-1.4 3.6,-2.4 1.9,1.9 .5,2.5 -.5,3.2 2.5,9.7 2.6,3.5 2.3,1.4 .4,3 v 4.1 l 2.3,2.3 1.6,-2.3 6.9,1.6 2.1,-1.2 9,1.7 2.8,-3.3 1.8,-.6 1.2,1.8 1.6,4.1 .9,.1 z"/><path class="gm-usmap-state" d="m 402.5,191.1 38,1.6 3.4,3.2 1.7,.2 2.1,2 1.8,-.1 1.8,-2 1.5,.6 1,-.7 .7,.5 .9,-.4 .7,.4 .9,-.4 1,.5 1.4,-.6 2,.6 .6,1.1 6.1,2.2 1.2,1.3 .9,2.6 1.8,.7 1.5,-.2 .5,.9 v 2.3 l .6,1.7 v 1.4 l 1.3,3.7 2.2,4.3 .2,3.7 2.8,5 .4,6.1 1.3,.7 -.2,2.9 .8,3.3 -.7,2.2 1.8,4.4 1.3,1.3 -.3,1.4 2.1,3.7 3.9,6.3 h -32.4 l -43.7,-1.2 -36,-2 1.4,-22.1 -33.1,-2.4 3.7,-44.2 z"/><path class="gm-usmap-state" d="m 167.6,296.8 -3.4,17.5 -2.4,2.9 h -2 l -1.2,-2.7 -3.7,-1.4 -3.5,.6 -1,13.6 .5,4.9 -.5,2.9 -1.4,3 -70.4,-105 -1.1,-3.5 16.4,-63.1 47,11.2 24.4,5.4 23.3,4.7 z"/><path class="gm-usmap-state" d="m 862.6,93.6 -1.3,.1 -1,-1.1 -1.9,1.4 -.5,6.1 1.2,2.3 -1.1,3.5 2.1,2.8 -.4,1.7 .1,1.3 -1.1,2.1 -1.4,.4 -.6,1.3 -2.1,1 -.7,1.5 1.4,3.4 -.5,2.5 .5,1.5 -1,1.9 .4,1.9 -1.3,1.9 .2,2.2 -.7,1.1 .7,4.5 .7,1.5 -.5,2.6 .9,1.8 -.2,2.5 -.5,1.3 -.1,1.4 2.1,2.6 18.4,-3.8 1,-1.5 .3,-1.7 1.9,-.6 .5,-1.1 1.7,-1.1 1.3,.3 .8,-4.8 -2.3,-1.4 -.8,-2.2 -3.2,-2 -.6,-4 -11.9,-36.8 z"/><path class="gm-usmap-state" d="m 842.5,195.4 -14.6,-4.9 -1.8,2.5 .1,2.2 -3,5.4 1.5,1.8 -.7,2 -1,1 .5,3.6 2.7,.9 1,2.8 2.1,1.1 4.2,3.2 -3.3,2.6 -1.6,2.3 -1.8,3 -1.6,.6 -1.4,1.7 -1,2.2 -.3,2.1 .8,.9 .4,2.3 1.2,.6 2.4,1.5 1.8,.8 1.6,.8 .1,1.1 .8,.1 1.1,-1.2 .8,.4 2.1,.2 -.2,2.9 .2,2.5 1.8,-.7 1.5,-3.9 1.6,-4.8 2.9,-2.8 .6,-3.5 -.6,-1.2 1.7,-2.9 v -1.2 l -.7,-1.1 1.2,-2.7 -.3,-3.6 -.6,-8.2 -1.2,-1.4 v 1.4 l .5,.6 h -1.1 l -.6,-.4 -1.3,-.2 -.9,.6 -1.2,-1.6 .7,-1.7 v -1 l 1.7,-.7 .8,-2.1 z"/><path class="gm-usmap-state" d="m 357.5,332.9 h -.8 l -7.9,99.3 -31.8,-2.6 -34.4,-3.6 -.3,3 2,2.2 -30.8,-4.1 -1.4,10.2 -15.7,-2.2 17.4,-124.1 52.6,6.5 51.7,4.8 z"/><path class="gm-usmap-state" d="m 872.9,181.6 -1.3,.1 -.5,1 z m -30.6,22.7 .7,.6 1.3,-.3 1.1,.3 .9,-1.3 h 1.9 l 2.4,-.9 5.1,-2.1 -.5,-.5 -1.9,.8 -2,.9 .2,-.8 2.6,-1.1 .8,-1 1.2,.1 4.1,-2.3 v .7 l -4.2,3 4.5,-2.8 1.7,-2.2 1.5,-.1 4.5,-3.1 3.2,-3.1 3,-2.3 1,-1.2 -1.7,-.1 -1,1.2 -.2,.7 -.9,.7 -.8,-1.1 -1.7,1 -.1,.9 -.9,-.2 .5,-.9 -1.2,-.7 -.6,.9 .9,.3 .2,.5 -.3,.5 -1.4,2.6 h -1.9 l .9,-1.8 .9,-.6 .3,-1.7 1.4,-1.6 .9,-.8 1.5,-.7 -1.2,-.2 -.7,.9 h -.7 l -1.1,.8 -.2,1 -2.2,2.1 -.4,.9 -1.4,.9 -7.7,1.9 .2,.9 -.9,.7 -2,.3 -1,-.6 -.2,1.1 -1.1,-.4 .1,1 -1.2,-.1 -1.2,.5 -.2,1.1 h -1 l .2,1 h -.7 l .2,1 -1.8,.4 -1.5,2.3 z m -.8,-.4 -1.6,.4 v 1 l -.7,1.6 .6,.7 2.4,-2.3 -.1,-.9 z m -10.1,-95.2 -.6,1.9 1.4,.9 -.4,1.5 .5,3.2 2.2,2.3 -.4,2.2 .6,2 -.4,1 -.3,3.8 3.1,6.7 -.8,1.8 .9,2.2 .9,-1.6 1.9,1.5 3,14.2 -.5,2 1.1,1 -.5,15 .7,1 2.8,16.3 1.8,1.5 -3.5,3.4 1.7,2.2 -1.3,3.3 -1.5,1.7 -1.5,2.3 -.2,-.7 .4,-5.9 -14.6,-4.9 -1.6,-1.1 -1.9,.3 -3,-2.2 -3,-5.8 h -2 l -.4,-1.5 -1.7,-1.1 -70.5,13.9 -.8,-6 4.3,-3.9 .6,-1.7 3.9,-2.5 .6,-2.4 2.3,-2 .8,-1.1 -1.7,-3.3 -1.7,-.5 -1.8,-3 -.2,-3.2 7.6,-3.9 8.2,-1.6 h 4.4 l 3.2,1.6 .9,-.1 1.8,-1.6 3.4,-.7 h 3 l 2.6,-1.3 2.5,-2.6 2.4,-3.1 1.9,-.4 1.1,-.5 .4,-3.2 -1.4,-2.7 -1.2,-.7 2,-1.3 -.1,-1.8 h -1.5 l -2.3,-1.4 -.1,-3.1 6.2,-6.1 .7,-2.4 3.7,-6.3 5.9,-6.4 2.1,-1.7 2.5,.1 20.6,-5.2 z"/><path class="gm-usmap-state" d="m 829,300.1 -29.1,6.1 -39.4,7.3 -29.4,3.5 v 5.2 l -1.5,-.1 -1.4,1.2 -2.4,5.2 -2.6,-1.1 -3.5,2.5 -.7,2.1 -1.5,1.2 -.8,-.8 -.1,-1.5 -.8,-.2 -4,3.3 -.6,3.4 -4.7,2.4 -.5,1.2 -3.2,2.6 -3.6,.5 -4.6,3 -.8,4.1 -1.3,.9 -1.5,-.1 -1.4,1.3 -.1,4.9 21.4,-3 4.4,-1.9 1.3,-.1 7.3,-4.3 23.2,-2.2 .4,.5 -.2,1.4 .7,.3 1.2,-1.5 3.3,3 .1,2.6 19.7,-2.8 24.5,17.1 4,-2.2 3,-.7 h 1.7 l 1.1,1.1 .8,-2 .6,-5 1.7,-3.9 5.4,-6.1 4.1,-3.5 5.4,-2.3 2.5,-.4 1.3,.4 .7,1.1 3.3,-6.6 3.3,-5.3 -.7,-.3 -4.4,6.8 -.5,-.8 2,-2.2 -.4,-1.5 -2,-.5 1,1.3 -1.2,.1 -1.2,-1.8 -1.2,2 -1.6,.2 1,-2.7 .7,-1.7 -.2,-2.9 -2.2,-.1 .9,-.9 1.1,.3 2.7,.1 .8,-.5 h 2.3 l 2,-1.9 .2,-3.2 1.3,-1.4 1.2,-.2 1.3,-1 -.5,-3.7 -2.2,-3.8 -2.7,-.2 -.9,1.6 -.5,-1 -2.7,.2 -1.2,.4 -1.9,1.2 -.3,-.4 h -.9 l -1.8,1.2 -2.6,.5 v -1.3 l .8,-1 1,.7 h 1 l 1.7,-2.1 3.7,-1.7 2,-2.2 h 2.4 l .8,1.3 1.7,.8 -.5,-1.5 -.3,-1.6 -2.8,-3.1 -.3,-1.4 -.4,1 -.9,-1.3 z m 7,31 2.7,-2.5 4.6,-3.3 v -3.7 l -.4,-3.1 -1.7,-4.2 1.5,1.4 1,3.2 .4,7.6 -1.7,.4 -3.1,2.4 -3.2,3.2 z m 1.9,-19.3 -.9,-.2 v 1 l 2.5,2.2 -.2,-1.4 z m 2.9,2.1 -1.4,-2.8 -2.2,-3.4 -2.4,-3 -2.2,-4.3 -.8,-.7 2.2,4.3 .3,1.3 3.4,5.5 1.8,2.1 z"/><path class="gm-usmap-state" d="m 464.7,68.6 -1.1,2.8 .8,1.4 -.3,5.1 -.5,1.1 2.7,9.1 1.3,2.5 .7,14 1,2.7 -.4,5.8 2.9,7.4 .3,5.8 -.1,2.1 -29.5,-.4 -46,-2.1 -39.2,-2.9 5.2,-66.7 44.5,3.4 55.3,1.6 z"/><path class="gm-usmap-state" d="m 685.7,208.8 1.9,-.4 3,1.3 2.1,.6 .7,.9 h 1 l 1,-1.5 1.3,.8 h 1.5 l -.1,1 -3.1,.5 -2,1.1 1.9,.8 1.6,-1.5 2.4,-.4 2.2,1.5 1.5,-.1 2.5,-1.7 3.6,-2.1 5.2,-.3 4.9,-5.9 3.8,-3.1 9.3,-5.1 4.9,29.9 -2.2,1.2 1.4,2.1 -.1,2.2 .6,2 -1.1,3.4 -.1,5.4 -1,3.6 .5,1.1 -.4,2.2 -1.1,.5 -2,3.3 -1.8,2 h -.6 l -1.8,1.7 -1.3,-1.2 -1.5,1.8 -.3,1.2 h -1.3 l -1.3,2.2 .1,2.1 -1,.5 1.4,1.1 v 1.9 l -1,.2 -.7,.8 -1,.5 -.6,-2.1 -1.6,-.5 -1,2.3 -.3,2.2 -1.1,1.3 1.3,3.6 -1.5,.8 -.4,3.5 h -1.5 l -3.2,1.4 -1.2,-2.1 -3.5,-1.4 -.8,-2.9 -.5,-.8 -3.4,1.8 -.6,1.7 h -.9 l -1.3,.7 -1.2,-.8 -3,-.8 -1.9,.8 v 1 l -2.2,-.2 -1.9,-2.1 -2.3,.2 -4.1,-.7 v -1 l -2.2,-3.4 -2.9,-1.2 -1.9,.8 -2.2,-.1 -1.3,-.5 -6.6,-57.2 21.4,-3.5 z"/><path class="gm-usmap-state" d="m 501.5,398.6 -4.6,-3.8 -2.2,-.9 -.5,1.6 -5.1,.3 -.6,-1.5 -5,2.5 -1.6,-.7 -3.7,.3 -.6,1.7 -3.6,.9 -1.3,-1.2 -1.2,.1 -2,-1.8 -2.1,.7 -2,-.5 -1.8,-2 -2.5,4.2 -1.2,.8 -1,-1.8 .3,-2 -1.2,-.7 -2.3,2.5 -1.7,-1.2 -.1,-1.5 -1.3,.5 -2.6,-1.7 -3,2.6 -2.3,-1.1 .7,-2.1 -2.3,.1 -1.9,-3 -3.5,-1.1 -2,2.3 -2.3,-2.2 -1.4,.4 -2,.1 -3.5,-1.9 -2.3,.1 -1.2,-.7 -.5,-2.9 -2.3,-1.7 -1.1,1.5 -1.4,-1 -1.2,-.4 -1.1,1 -1.5,-.3 -2.5,-3 -2.7,-1.3 1.4,-42.7 -52.6,-3.2 .6,-10.6 16.5,1 67.7,2.9 62,.1 .2,10.8 4.1,24.4 -.7,39 z"/><path class="gm-usmap-state" d="m 93.9,166.5 47,11.2 8.5,-37.3 2.9,-5.8 .4,-2.1 .8,-.9 -.9,-2 -2.9,-1.2 .2,-4.2 4,-5.8 2.5,-.8 1.6,-2.3 -.1,-1.6 1.8,-1.6 3.2,-5.5 4.2,-4.8 -.5,-3.2 -3.5,-3.1 -1.6,-3.6 -30.3,-7.3 -2.8,1 -5.4,-.9 -1.8,-.9 -1.5,1.2 -3.3,-.4 -4.5,.5 -.9,.7 -4.2,-.4 -.8,-1.6 -1.2,-.2 -4.4,1.3 -1.6,-1.1 -2.2,.8 -.2,-1.8 -2.3,-1.2 -1.5,-.2 -1,-1.1 -3,.3 -1.2,-.8 h -1.2 l -1.2,.9 -5.5,.7 -6.6,-4.2 1.1,-5.6 -.4,-4.1 -3.2,-3.7 -3.7,.1 -.4,-1.1 .4,-1.2 -.7,-.8 -1,.1 -1.1,1.3 -1.5,-.2 -.5,-1.1 -1,-.1 -.7,.6 -2,-1.9 v 4.3 l -1.3,1.3 -1.1,3.5 -.1,2.3 -4.5,12.3 -13.2,31.3 -3.2,4.6 -1.6,-.1 .1,2.1 -5.2,7.1 -.3,3.3 1,1.3 .1,2.4 -1.2,1.1 -1.2,3 .1,5.7 1.2,2.9 z"/><path class="gm-usmap-state" d="m 826.3,189.4 -1.9,.3 -3,-2.2 -3,-5.8 h -2 l -.4,-1.5 -1.7,-1.1 -70.5,13.9 -.8,-6 -4.2,3.4 -.9,.1 -2.7,3 -3.3,1.7 4.9,29.9 3.2,19.7 17.4,-2.9 60.5,-11.8 1.2,-2.1 1.5,-1.1 1.6,-.3 1.6,.6 1.4,-1.7 1.6,-.6 1.8,-3 1.6,-2.3 3.3,-2.6 -4.2,-3.2 -2.1,-1.1 -1,-2.8 -2.7,-.9 -.5,-3.6 1,-1 .7,-2 -1.5,-1.8 3,-5.4 -.1,-2.2 1.8,-2.5 z"/><path class="gm-usmap-state" d="m 883.2,170.7 -1.3,-1.1 -2.6,-1.3 -.6,-2.2 h -.8 l -.7,-2.6 -6.5,2 3.2,12.3 -.4,1.1 .4,1.8 5.6,-3.6 .1,-3 -.8,-.8 .4,-.6 -.1,-1.3 -.9,-.7 1.2,-.4 -.9,-1.6 1.8,.7 .3,1.4 .7,1.2 -1.4,-.8 1.1,1.7 -.3,1.2 -.6,-1.1 v 2.5 l .6,-.9 .4,.9 1.3,-1.5 -.2,-2.5 1.4,3.1 1,-.9 z m -4.7,12.2 h .9 l .5,-.6 -.8,-1.3 -.7,.7 z"/><path class="gm-usmap-state" d="m 772.3,350.2 -19.7,2.8 -.1,-2.6 -3.3,-3 -1.2,1.5 -.7,-.3 .2,-1.4 -.4,-.5 -23.2,2.2 -7.3,4.3 -1.3,.1 -4.4,1.9 -.1,1.9 -1.9,1 -1.4,3.2 .2,1.3 6.1,3.8 2.6,-.3 3.1,4 .4,1.7 4.2,5.1 2.6,1.7 1.4,.2 2.2,1.6 1.1,2.2 2,1.6 1.8,.5 2.7,2.7 .1,1.4 2.6,2.8 5,2.3 3.6,6.7 .3,2.7 3.9,2.1 2.5,4.8 .8,3.1 4.2,.4 .8,-1.5 h .6 l 1.8,-1.5 .5,-2 3.2,-2.1 .3,-2.4 -1.2,-.9 .8,-.7 .8,.4 1.3,-.4 1.8,-2.1 3.8,-1.8 1.6,-2.4 .1,-.7 4.8,-4.4 -.1,-.5 -.9,-.8 1.1,-1.5 h .8 l .4,.5 .7,-.8 h 1.3 l .6,-1.5 2.3,-2.1 -.3,-5.4 .8,-2.3 3.6,-6.2 2.4,-2.2 2.2,-1.1 z"/><path class="gm-usmap-state" d="m 396.5,125.9 46,2.1 29.5,.4 -.1,2.2 -.9,2 -3.1,1.9 -.3,1.2 1.7,2.5 .4,1.8 2.6,.6 1.5,1.9 -.2,39.5 -2.2,-.1 -.1,1.6 1.3,1.5 -.1,1.1 -1,.5 .4,1.6 1.3,.4 .7,2 -1.7,5.1 -1,4.3 1.3,1.2 .3,1.3 .7,1.7 -1.5,.2 -1.8,-.7 -.9,-2.6 -1.2,-1.3 -6.1,-2.2 -.6,-1.1 -2,-.6 -1.4,.6 -1,-.5 -.9,.4 -.7,-.4 -.9,.4 -.7,-.5 -1,.7 -1.5,-.6 -1.8,2 -1.8,.1 -2.1,-2 -1.7,-.2 -3.4,-3.2 -38,-1.6 -51.1,-3.5 3.9,-43.9 2,-20.7 z"/><path class="gm-usmap-state" d="m 620.9,365.1 45.7,-4 22.9,-2.9 .1,-4.9 1.4,-1.3 1.5,.1 1.3,-.9 .8,-4.1 4.6,-3 3.6,-.5 3.2,-2.6 .5,-1.2 4.7,-2.4 .6,-3.4 4,-3.3 .8,.2 .1,1.5 .8,.8 1.5,-1.2 .7,-2.1 3.5,-2.5 2.6,1.1 2.4,-5.2 1.4,-1.2 1.5,.1 0,-5.2 .3,-.7 -4.6,.5 -.2,1 -28.9,3.3 -5.6,1.4 -20.5,1.4 -5.2,.8 -17.4,1 -2.6,.8 -22.6,2 -.7,-.6 h -3.7 l 1.2,3.2 -.6,.9 -23.3,1.5 -.8,1 -.8,-.7 h -1 v 1.3 l .6,1 -.1,1 -1.4,.5 1.4,1.5 -.8,.7 -1.7,-.2 .6,1 1.2,1.1 v .7 l -1.2,.5 -1,2 .1,.6 1.4,1 -.4,.7 h -1.5 v .5 l .9,.9 .1,.8 -1.4,.2 -.5,.8 -1.6,.2 -.9,.9 .6,.9 1.1,-.1 .5,.9 -1.6,1.3 .4,1.5 -2,-.6 -.1,.7 .4,1.1 -.3,1.4 -1.3,-.8 -.8,.8 1.1,.1 .1,1.5 -.6,1 1.1,.9 -.3,1.5 .8,.7 -.7,1 -1.2,-.5 -.9,2.2 -1.6,.7 z"/><path class="gm-usmap-state" d="m 282.3,429 .3,-3 34.4,3.6 31.8,2.6 7.9,-99.3 .8,0 52.6,3.2 -1.4,42.7 2.7,1.3 2.5,3 1.5,.3 1.1,-1 1.2,.4 1.4,1 1.1,-1.5 2.3,1.7 .5,2.9 1.2,.7 2.3,-.1 3.5,1.9 2,-.1 1.4,-.4 2.3,2.2 2,-2.3 3.5,1.1 1.9,3 2.3,-.1 -.7,2.1 2.3,1.1 3,-2.6 2.6,1.7 1.3,-.5 .1,1.5 1.7,1.2 2.3,-2.5 1.2,.7 -.3,2 1,1.8 1.2,-.8 2.5,-4.2 1.8,2 2,.5 2.1,-.7 2,1.8 1.2,-.1 1.3,1.2 3.6,-.9 .6,-1.7 3.7,-.3 1.6,.7 5,-2.5 .6,1.5 5.1,-.3 .5,-1.6 2.2,.9 4.6,3.8 6.4,1.9 2.6,2.3 2.8,-1.3 3.2,.8 .2,11.9 .5,19.9 .7,3.4 2.6,2.8 .7,5.4 3.8,4.6 .8,4.3 h 1 l -.1,7.3 -3.3,6.4 1.3,2.3 -1.3,1.5 .7,3 -.1,4.3 -2.2,3.5 -.1,.8 -1.7,1.2 1,1.8 1.2,1.1 -3.5,.3 -8.4,3.9 -3.5,1.4 -1.8,1.8 -.7,-.5 2.1,-2.3 1.8,-.7 .5,-.9 -2.9,-.1 -.7,-.8 .8,-2 -.9,-1.8 h -.6 l -2.4,1.3 -1.9,2.6 .3,1.7 3.3,3.4 1.3,.3 v .8 l -2.3,1.6 -4.9,4 -4,3.9 -3.2,1.4 -5,3 -3.7,2 -4.5,1.9 -4.1,2.5 3.2,-3 v -1.1 l .6,-.8 -.2,-1.8 -1.5,-.1 -1.1,1.5 -2.6,1.3 -1.8,-1.2 -.3,-1.7 h -1.5 l .8,2.2 1.4,.7 1.2,.9 1.8,1.6 -.7,.8 -3.9,1.7 -1.7,.1 -1.2,-1.2 -.5,2.1 .5,1.1 -2.7,2 -1.5,.2 -.8,.7 -.4,1.7 -1.8,3.3 -1.6,.7 -1.6,-.6 -1.8,1.1 .3,1.4 1.3,.8 1,.8 -1.8,3.5 -.3,2.8 -1,1.7 -1.4,1 -2.9,.4 1.8,.6 1.9,-.6 -.4,3.2 -1.1,-.1 .2,1.2 .3,1.4 -1.3,.9 v 3.1 l 1.6,1.4 .6,3.1 -.4,2.2 -1,.4 .4,1.5 1.1,.4 .8,1.7 v 2.6 l 1.1,2.1 2.2,2.6 -.1,.7 -2.2,-.2 -1.6,1.4 .2,1.4 -.9,-.3 -1.4,-.2 -3.4,-3.7 -2.3,-.6 h -7.1 l -2.8,-.8 -3.6,-3 -1.7,-1 -2.1,.1 -3.2,-2.6 -5.4,-1.6 v -1.3 l -1.4,-1.8 -.9,-4.7 -1.1,-1.7 -1.7,-1.4 v -1.6 l -1.4,-.6 .6,-2.6 -.3,-2.2 -1.3,-1.4 .7,-3 -.8,-3.2 -1.7,-1.4 h -1.1 l -4,-3.5 .1,-1.9 -.8,-1.7 -.8,-.2 -.9,-2.4 -2,-1.6 -2.9,-2.5 -.2,-2.1 -1,-.7 .2,-1.6 .5,-.7 -1.4,-1.5 .1,-.7 -2,-2.2 .1,-2.1 -2.7,-4.9 -.1,-1.7 -1.8,-3.1 -5.1,-4.8 v -1.1 l -3.3,-1.7 -.1,-1.8 -1.2,-.4 v -.7 l -.8,-.2 -2.1,-2.8 h -.8 l -.7,-.6 -1.3,1.1 h -2.2 l -2.6,-1.1 h -4.6 l -4.2,-2.1 -1.3,1.9 -2.2,-.6 -3.3,1.2 -1.7,2.8 -2,3.2 -1.1,4.4 -1.4,1.2 -1.1,.1 -.9,1.6 -1.3,.6 -.1,1.8 -2.9,.1 -1.8,-1.5 h -1 l -2,-2.9 -3.6,-.5 -1.7,-2.3 -1.3,-.2 -2.1,-.8 -3.4,-3.4 .2,-.8 -1.6,-1.2 -1,-.1 -3.4,-3.1 -.1,-2 -2.3,-4 .2,-1.6 -.7,-1.3 .8,-1.5 -.1,-2.4 -2.6,-4.1 -.6,-4.2 -1.6,-1.6 v -1 l -1.2,-.2 -.7,-1.1 -2.4,-1.7 -.9,-.1 -1.9,-1.6 v -1.1 l -2.9,-1.8 -.6,-2.1 -2.6,-2.3 -3.2,-4.4 -3,-1.3 -2.1,-1.8 .2,-1.2 -1.3,-1.4 -1.7,-3.7 -2.4,-1 z m 174.9,138.3 .8,.1 -.6,-4.8 -3.5,-12.3 -.2,-8.1 4.9,-10.5 6.1,-8.2 7.2,-5.1 v -.7 h -.8 l -2.6,1 -3.6,2.3 -.7,1.5 -8.2,11.6 -2.8,7.9 v 8.8 l 3.6,12 z"/><path class="gm-usmap-state" d="m 233.2,217.9 3.3,-21.9 -47.9,-8.2 -21,109 46.2,8.2 40,6 11.5,-88.3 z"/><path class="gm-usmap-state" d="m 859.1,102.4 -1.1,3.5 2.1,2.8 -.4,1.7 .1,1.3 -1.1,2.1 -1.4,.4 -.6,1.3 -2.1,1 -.7,1.5 1.4,3.4 -.5,2.5 .5,1.5 -1,1.9 .4,1.9 -1.3,1.9 .2,2.2 -.7,1.1 .7,4.5 .7,1.5 -.5,2.6 .9,1.8 -.2,2.5 -.5,1.3 -.1,1.4 2.1,2.6 -12.4,2.7 -1.1,-1 .5,-2 -3,-14.2 -1.9,-1.5 -.9,1.6 -.9,-2.2 .8,-1.8 -3.1,-6.7 .3,-3.8 .4,-1 -.6,-2 .4,-2.2 -2.2,-2.3 -.5,-3.2 .4,-1.5 -1.4,-.9 .6,-1.9 -.8,-1.7 27.3,-6.9 z"/><path class="gm-usmap-state" d="m 834.7,265.4 -1.1,2.8 .5,1.1 .4,-1.1 .8,-3.1 z m -34.6,-7 -.7,-1 1,-.1 1,-.9 .4,-1.8 -.2,-.5 .1,-.5 -.3,-.7 -.6,-.5 -.4,-.1 -.5,-.4 -.6,-.6 h -1 l -.6,-.1 -.4,-.4 .1,-.5 -1.7,-.6 -.8,.3 -1.2,-.1 -.7,-.7 -.5,-.2 -.2,-.7 .6,-.8 v -.9 l -1.2,-.2 -1,-.9 -.9,.1 -1.6,-.3 -.4,.7 -.4,1.6 -.5,2.3 -10,-5.2 -.2,.9 .9,1.6 -.8,2.3 .1,2.9 -1.2,.8 -.5,2.1 -.9,.8 -1.4,1.8 -.9,.8 -1,2.5 -2.4,-1.1 -2.3,8.5 -1.3,1.6 -2.8,-.5 -1.3,-1.9 -2.3,-.7 -.1,4.7 -1.4,1.7 .4,1.5 -2.1,2.2 .4,1.9 -3.7,6.3 -1,3.3 1.5,1.2 -1.5,1.9 .1,1.4 -2.3,2 -.7,-1.1 -4.3,3.1 -1.5,-1 -.6,1.4 .8,.5 -.5,.9 -5.5,2.4 -3,-1.8 -.8,1.7 -1.9,1.8 -2.3,.1 -4.4,-2.3 -.1,-1.5 -1.5,-.7 .8,-1.2 -.7,-.6 -4.9,6.6 -2.9,1 -3,3 -.4,2.2 -2.1,1.3 -.1,1.7 -1.4,1.4 -1.8,.5 -.5,1.9 -1,.4 -6.9,4.2 28.9,-3.3 .2,-1 4.6,-.5 -.3,.7 29.4,-3.5 39.4,-7.3 29.1,-6.1 -.6,-1.2 .4,-.1 .9,.9 -.1,-1.4 -.3,-1.9 1.6,1.2 .9,2.1 v -1.3 l -3.4,-5.5 v -1.2 l -.7,-.8 -1.3,.7 .5,1.4 h -.8 l -.4,-1 -.6,.9 -.9,-1.1 -2.1,-.1 -.2,.7 1.5,2.1 -1.4,-.7 -.5,-1 -.4,.8 -.8,.1 -1.5,1.7 .3,-1.6 v -1.4 l -1.5,-.7 -1.8,-.5 -.2,-1.7 -.6,-1.3 -.6,1.1 -1.7,-1 -2,.3 .2,-.9 1.5,-.2 .9,.5 1.7,-.8 .9,.4 .5,1 v .7 l 1.9,.4 .3,.9 .9,.4 .9,1.2 1.4,-1.6 h .6 l -.1,-2.1 -1.3,1 -.6,-.9 1.5,-.2 -1.2,-.9 -1.2,.6 -.1,-1.7 -1.7,.2 -2.2,-1.1 -1.8,-2.2 3.6,2.2 .9,.3 1.7,-.8 -1.7,-.9 .6,-.6 -1,-.5 .8,-.2 -.3,-.9 1.1,.9 .4,-.8 .4,1.3 1.2,.8 .6,-.5 -.5,-.6 -.1,-2.5 -1.1,-.1 -1.6,-.8 .9,-1.1 -2,-.1 -.4,-.5 -1.4,.6 -1.4,-.8 -.5,-1.2 -2.1,-1.2 -2.1,-1.8 -2.2,-1.9 3,1.3 .9,1.2 2.1,.7 2.3,2.5 .2,-1.7 .6,1.3 2.3,.5 v -4 l -.8,-1.1 1.1,.4 .1,-1.6 -3.1,-1.4 -1.6,-.2 -1.3,-.2 .3,-1.2 -1.5,-.3 -.1,-.6 h -1.8 l -.2,.8 -.7,-1 h -2.7 l -1,-.4 -.2,-1 -1.2,-.6 -.4,-1.5 -.6,-.4 -.7,1.1 -.9,.2 -.9,.7 h -1.5 l -.9,-1.3 .4,-3.1 .5,-2.4 .6,.5 z m 21.9,11.6 .9,-.1 0,-.6 -.8,.1 z m 7.5,14.2 -1,2.7 1.2,-1.3 z m -1.8,-15.3 .7,.3 -.2,1.9 -.5,-.5 -1.3,1 1,.4 -1.8,4.4 .1,8.1 1.9,3.1 .5,-1.5 .4,-2.7 -.3,-2.3 .7,-.9 -.2,-1.4 1.2,-.6 -.6,-.5 .5,-.7 .8,1.1 -.2,1.1 -.4,3.9 1.1,-2.2 .4,-3.1 .1,-3 -.3,-2 .6,-2.3 1.1,-1.8 .1,-2.2 .3,-.9 -4.6,1.6 -.7,.8 z"/><path class="gm-usmap-state" d="m 161.9,83.6 .7,4 -1.1,4.3 -30.3,-7.3 -2.8,1 -5.4,-.9 -1.8,-.9 -1.5,1.2 -3.3,-.4 -4.5,.5 -.9,.7 -4.2,-.4 -.8,-1.6 -1.2,-.2 -4.4,1.3 -1.6,-1.1 -2.2,.8 -.2,-1.8 -2.3,-1.2 -1.5,-.2 -1,-1.1 -3,.3 -1.2,-.8 h -1.2 l -1.2,.9 -5.5,.7 -6.6,-4.2 1.1,-5.6 -.4,-4.1 -3.2,-3.7 -3.7,.1 -.4,-1.1 .4,-1.2 -.7,-.8 -1,.1 -2.1,-1.5 -1.2,.4 -2,-.1 -.7,-1.5 -1.6,-.3 2.5,-7.5 -.7,6 .5,.5 v -2 l .8,-.2 1.1,2.3 -.5,-2.2 1.2,-4.2 1.8,.4 -1.1,-2 -1,.3 -1.5,-.4 .2,-4.2 .2,1.5 .9,.5 .6,-1.6 h 3.2 l -2.2,-1.2 -1.7,-1.9 -1.4,1.6 1.2,-3.1 -.3,-4.6 -.2,-3.6 .9,-6.1 -.5,-2 -1.4,-2.1 .1,-4 .4,-2.7 2,-2.3 -.7,-1.4 .2,-.6 .9,.1 7.8,7.6 4.7,1.9 5.1,2.5 3.2,-.1 .2,3 1,-1.6 h .7 l .6,2.7 .5,-2.6 1.4,-.2 .5,.7 -1.1,.6 .1,1.6 .7,-1.5 h 1.1 l -.4,2.6 -1.1,-.8 .4,1.4 -.1,1.5 -.8,.7 -2.5,2.9 1.2,-3.4 -1.6,.4 -.4,2.1 -3.8,2.8 -.4,1 -2.1,2.2 -.1,1 h 2.2 l 2.4,-.2 .5,-.9 -3.9,.5 v -.6 l 2.6,-2.8 1.8,-.8 1.9,-.2 1,-1.6 3,-2.3 v -1.4 h 1.1 l .1,4 h -1.5 l -.6,.8 -1.1,-.9 .3,1.1 v 1.7 l -.7,.7 -.3,-1.6 -.8,.8 .7,.6 -.9,1.1 h 1.3 l .7,-.5 .1,2 -1,1.9 -.9,1 -.1,1.8 -1,-.2 -.2,-1.4 .9,-1.1 -.8,-.5 -.8,.7 -.7,2.2 -.8,.9 -.1,-2 .8,-1.1 -.2,-1.1 -1.2,1.2 .1,2.2 -.6,.4 -2.1,-.4 -1.3,1.2 2.2,-.6 -.2,2.2 1,-1.8 .4,1.4 .5,-1 .7,1.8 h .7 l .7,-.8 .6,-.1 2,-1.9 .2,-1.2 .8,.6 .3,.9 .7,-.3 .1,-1.2 h 1.3 l .2,-2.9 -.1,-2.7 .9,.3 -.7,-2.1 1.4,-.8 .2,-2.4 2.3,-2.2 1,.1 .3,-1.4 -1.2,-1.4 -.1,-3.5 -.8,.9 .7,2.9 -.6,.1 -.6,-1.9 -.6,-.5 .3,-2.3 1.8,-.1 .3,.7 .3,-1.6 -1.6,-1.7 -.6,-1.6 -.2,2 .9,1.1 -.7,.4 -1,-.8 -1.8,1.3 1.5,.5 .2,2.4 -.3,1.8 .9,-1.3 1.4,2.3 -.4,1.9 h -1.5 v -1.2 l -1.5,-1.2 .5,-3 -1.9,-2.6 2.7,-3 .6,-4.1 h .9 l 1.4,3.2 v -2.6 l 1.2,.3 v -3.3 l -.9,-.8 -1.2,2.5 -1,-3 1.3,-.1 -1.5,-4.9 1.9,-.6 25.4,7.5 31.7,8 23.6,5.5 z m -78.7,-39.4 h .5 l .1,.8 -.5,.3 .1,.6 -.7,.4 -.2,-.9 .5,-.4 z m 5,-4.3 -1.2,1.9 -.1,.8 .4,.2 .5,-.6 1.1,.1 z m -.4,-21.6 .5,.6 1.3,-.3 .2,-1 1.2,-1.8 -1,-.4 -.7,1.6 -.1,-1.6 -1.1,.2 -.7,1.4 z m 3.2,-5.5 .7,1.5 -.9,.2 -.8,.4 -.2,-2.4 z m -2.7,-1.6 -1.1,-.2 .5,1.4 z m -1,2.5 .8,.4 -.4,1.1 1.7,-.5 -.2,-2.2 -.9,-.2 z m -2.7,-.4 .3,2.7 1.6,1.3 .6,-1.9 -1.1,-2.2 z m 1.9,-1.1 -1.1,-1 -.9,.1 1.8,1.5 z m 3.2,-7 h -1.2 v .8 l 1.2,.6 z m -.9,32.5 .4,-2.7 h -1.1 l -.2,1.9 z"/><path class="gm-usmap-state" d="m 723.4,297.5 -.8,1.2 1.5,.7 .1,1.5 4.4,2.3 2.3,-.1 1.9,-1.8 .8,-1.7 3,1.8 5.5,-2.4 .5,-.9 -.8,-.5 .6,-1.4 1.5,1 4.3,-3.1 .7,1.1 2.3,-2 -.1,-1.4 1.5,-1.9 -1.5,-1.2 1,-3.3 3.7,-6.3 -.4,-1.9 2.1,-2.2 -.4,-1.5 1.4,-1.7 .1,-4.7 2.3,.7 1.3,1.9 2.8,.5 1.3,-1.6 2.3,-8.5 2.4,1.1 1,-2.5 .9,-.8 1.4,-1.8 .9,-.8 .5,-2.1 1.2,-.8 -.1,-2.9 .8,-2.3 -.9,-1.6 .2,-.9 10,5.2 .5,-2.3 .4,-1.6 .4,-.7 -.9,-.4 .2,-1.6 -1,-.5 -.2,-.7 h -.7 l -.8,-1.2 .2,-1 -2.6,.4 -2.2,-1.6 -1.4,.3 -.9,1.4 h -1.3 l -1.7,2.9 -3.3,.4 -1.9,-1 -2.6,3.8 -2.2,-.3 -3.1,3.9 -.9,1.6 -1.8,1.6 -1.7,-11.4 -17.4,2.9 -3.2,-19.7 -2.2,1.2 1.4,2.1 -.1,2.2 .6,2 -1.1,3.4 -.1,5.4 -1,3.6 .5,1.1 -.4,2.2 -1.1,.5 -2,3.3 -1.8,2 h -.6 l -1.8,1.7 -1.3,-1.2 -1.5,1.8 -.3,1.2 h -1.3 l -1.3,2.2 .1,2.1 -1,.5 1.4,1.1 v 1.9 l -1,.2 -.7,.8 -1,.5 -.6,-2.1 -1.6,-.5 -1,2.3 -.3,2.2 -1.1,1.3 1.3,3.6 -1.5,.8 -.4,3.5 h -1.5 l -3.2,1.4 -.1,1.1 .6,1 -.6,3.6 1.9,1.6 .8,1.1 1,.6 -.1,.9 4.4,5.6 h 1.4 l 1.5,1.8 1.2,.3 1.4,-.1 z"/><path class="gm-usmap-state" d="m 611,144 -2.9,.8 .2,2.3 -2.4,3.4 -.2,3.1 .6,.7 .8,-.7 .5,-1.6 2,-1.1 1.6,-4.2 3.5,-1.1 .8,-3.3 .7,-.9 .4,-2.1 1.8,-1.1 v -1.5 l 1,-.9 1.4,.1 v 2 l -1,.1 .5,1.2 -.7,2.2 -.6,.1 -1.2,4.5 -.7,.5 -2.8,7.2 -.3,4.2 .6,2 .1,1.3 -2.4,1.9 .3,1.9 -.9,3.1 .3,1.6 .4,3.7 -1.1,4.1 -1.5,5 1,1.5 -.3,.3 .8,1.7 -.5,1.1 1.1,.9 v 2.7 l 1.3,1.5 -.4,3 .3,4 -45.9,2.8 -1.3,-2.8 -3.3,-.7 -2.7,-1.5 -2,-5.5 .1,-2.5 1.6,-3.3 -.6,-1.1 -2.1,-1.6 -.2,-2.6 -1.1,-4.5 -.2,-3 -2.2,-3 -2.8,-.7 -5.2,-3.6 -.6,-3.3 -6.3,-3.1 -.2,-1.3 h -3.3 l -2.2,-2.6 -2,-1.3 .7,-5.1 -.9,-1.6 .5,-5.4 1,-1.8 -.3,-2.7 -1.2,-1.3 -1.8,-.3 v -1.7 l 2.8,-5.8 5.9,-3.9 -.4,-13 .9,.4 .6,-.5 .1,-1.1 .9,-.6 1.4,1.2 .7,-.1 h 2.6 l 6.8,-2.6 .3,-1 h 1.2 l .7,-1.2 .4,.8 1.8,-.9 1.8,-1.7 .3,.5 1,-1 2.2,1.6 -.8,1.6 -1.2,1.4 .5,1.5 -1.4,1.6 .4,.9 2.3,-1.1 v -1.4 l 3.3,1.9 1.9,.7 1.9,.7 3,3.8 17,3.8 1.4,1 4,.8 .7,.5 2.8,-.2 4.9,.8 1.4,1.5 -1,1 .8,.8 3.8,.7 1.2,1.2 .1,4.4 -1.3,2.8 2,.1 1,-.8 .9,.8 -1.1,3.1 1,1.6 1.2,.3 z m -49.5,-37.3 -.5,.1 -1.5,1.6 .2,.5 1.5,-.6 v -.6 l .9,-.3 z m 1.6,-1.1 -1,.3 -.2,.7 .9,-.1 z m -1.3,-1.6 -.2,.9 h 1.7 l .6,-.4 .1,-1 z m 2.8,-3 -.3,1.9 1.2,-.5 .1,-1.4 z m 58.3,31.9 -2,.3 -.4,1.3 1.3,1.7 z"/><path class="gm-usmap-state" d="m 355.3,143.7 -51,-5.3 -57.3,-7.9 -2,10.7 -8.5,54.8 -3.3,21.9 32.1,4.8 44.9,5.7 37.5,3.4 3.7,-44.2 z"/><a href="?pick=NYY" target="_top"><g class="gm-map-marker" transform="translate(823,188)"><g class="pop-wrap" style="--i:0"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#0C2340" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#0C2340" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">NY</text><g class="pin-name" transform="translate(0,-40)"><rect x="-49.6" y="-11" width="99.2" height="20" rx="6"/><text x="0" y="3">New York Yankees</text></g></g></g><title>New York Yankees</title></g></a><a href="?pick=NYM" target="_top"><g class="gm-map-marker" transform="translate(838,202)"><g class="pop-wrap" style="--i:1"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#002D72" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#002D72" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">NY</text><g class="pin-name" transform="translate(0,-40)"><rect x="-40.3" y="-11" width="80.6" height="20" rx="6"/><text x="0" y="3">New York Mets</text></g></g></g><title>New York Mets</title></g></a><a href="?pick=BOS" target="_top"><g class="gm-map-marker" transform="translate(868,155)"><g class="pop-wrap" style="--i:2"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#BD3039" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#BD3039" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">BO</text><g class="pin-name" transform="translate(0,-40)"><rect x="-43.4" y="-11" width="86.8" height="20" rx="6"/><text x="0" y="3">Boston Red Sox</text></g></g></g><title>Boston Red Sox</title></g></a><a href="?pick=TOR" target="_top"><g class="gm-map-marker" transform="translate(778,92)"><g class="pop-wrap" style="--i:3"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#134A8E" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#134A8E" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">TO</text><g class="pin-name" transform="translate(0,-40)"><rect x="-52.7" y="-11" width="105.4" height="20" rx="6"/><text x="0" y="3">Toronto Blue Jays</text></g></g></g><title>Toronto Blue Jays</title></g></a><a href="?pick=TBR" target="_top"><g class="gm-map-marker" transform="translate(690,470)"><g class="pop-wrap" style="--i:4"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#092C5C" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#092C5C" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">TB</text><g class="pin-name" transform="translate(0,-40)"><rect x="-43.4" y="-11" width="86.8" height="20" rx="6"/><text x="0" y="3">Tampa Bay Rays</text></g></g></g><title>Tampa Bay Rays</title></g></a><a href="?pick=BAL" target="_top"><g class="gm-map-marker" transform="translate(800,248)"><g class="pop-wrap" style="--i:5"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#DF4601" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#DF4601" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">BA</text><g class="pin-name" transform="translate(0,-40)"><rect x="-52.7" y="-11" width="105.4" height="20" rx="6"/><text x="0" y="3">Baltimore Orioles</text></g></g></g><title>Baltimore Orioles</title></g></a><a href="?pick=CLE" target="_top"><g class="gm-map-marker" transform="translate(700,215)"><g class="pop-wrap" style="--i:6"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#00385D" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#00385D" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">CL</text><g class="pin-name" transform="translate(0,-40)"><rect x="-58.9" y="-11" width="117.8" height="20" rx="6"/><text x="0" y="3">Cleveland Guardians</text></g></g></g><title>Cleveland Guardians</title></g></a><a href="?pick=MIN" target="_top"><g class="gm-map-marker" transform="translate(515,120)"><g class="pop-wrap" style="--i:7"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#002B5C" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#002B5C" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">MI</text><g class="pin-name" transform="translate(0,-40)"><rect x="-46.5" y="-11" width="93.0" height="20" rx="6"/><text x="0" y="3">Minnesota Twins</text></g></g></g><title>Minnesota Twins</title></g></a><a href="?pick=CHW" target="_top"><g class="gm-map-marker" transform="translate(608,224)"><g class="pop-wrap" style="--i:8"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#27251F" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#27251F" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">CH</text><g class="pin-name" transform="translate(0,-40)"><rect x="-52.7" y="-11" width="105.4" height="20" rx="6"/><text x="0" y="3">Chicago White Sox</text></g></g></g><title>Chicago White Sox</title></g></a><a href="?pick=DET" target="_top"><g class="gm-map-marker" transform="translate(655,172)"><g class="pop-wrap" style="--i:9"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#0C2340" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#0C2340" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">DE</text><g class="pin-name" transform="translate(0,-40)"><rect x="-43.4" y="-11" width="86.8" height="20" rx="6"/><text x="0" y="3">Detroit Tigers</text></g></g></g><title>Detroit Tigers</title></g></a><a href="?pick=KCR" target="_top"><g class="gm-map-marker" transform="translate(498,282)"><g class="pop-wrap" style="--i:10"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#004687" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#004687" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">KC</text><g class="pin-name" transform="translate(0,-40)"><rect x="-55.8" y="-11" width="111.6" height="20" rx="6"/><text x="0" y="3">Kansas City Royals</text></g></g></g><title>Kansas City Royals</title></g></a><a href="?pick=HOU" target="_top"><g class="gm-map-marker" transform="translate(455,500)"><g class="pop-wrap" style="--i:11"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#002D62" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#002D62" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">HO</text><g class="pin-name" transform="translate(0,-40)"><rect x="-43.4" y="-11" width="86.8" height="20" rx="6"/><text x="0" y="3">Houston Astros</text></g></g></g><title>Houston Astros</title></g></a><a href="?pick=SEA" target="_top"><g class="gm-map-marker" transform="translate(112,65)"><g class="pop-wrap" style="--i:12"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#0C2C56" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#0C2C56" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">SE</text><g class="pin-name" transform="translate(0,-40)"><rect x="-49.6" y="-11" width="99.2" height="20" rx="6"/><text x="0" y="3">Seattle Mariners</text></g></g></g><title>Seattle Mariners</title></g></a><a href="?pick=TEX" target="_top"><g class="gm-map-marker" transform="translate(410,400)"><g class="pop-wrap" style="--i:13"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#003278" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#003278" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">TE</text><g class="pin-name" transform="translate(0,-40)"><rect x="-40.3" y="-11" width="80.6" height="20" rx="6"/><text x="0" y="3">Texas Rangers</text></g></g></g><title>Texas Rangers</title></g></a><a href="?pick=LAA" target="_top"><g class="gm-map-marker" transform="translate(108,332)"><g class="pop-wrap" style="--i:14"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#BA0021" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#BA0021" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">LA</text><g class="pin-name" transform="translate(0,-40)"><rect x="-55.8" y="-11" width="111.6" height="20" rx="6"/><text x="0" y="3">Los Angeles Angels</text></g></g></g><title>Los Angeles Angels</title></g></a><a href="?pick=ATH" target="_top"><g class="gm-map-marker" transform="translate(88,218)"><g class="pop-wrap" style="--i:15"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#003831" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#003831" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">AT</text><g class="pin-name" transform="translate(0,-40)"><rect x="-27.9" y="-11" width="55.8" height="20" rx="6"/><text x="0" y="3">Athletics</text></g></g></g><title>Athletics</title></g></a><a href="?pick=ATL" target="_top"><g class="gm-map-marker" transform="translate(710,396)"><g class="pop-wrap" style="--i:16"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#13274F" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#13274F" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">AT</text><g class="pin-name" transform="translate(0,-40)"><rect x="-43.4" y="-11" width="86.8" height="20" rx="6"/><text x="0" y="3">Atlanta Braves</text></g></g></g><title>Atlanta Braves</title></g></a><a href="?pick=PHI" target="_top"><g class="gm-map-marker" transform="translate(812,228)"><g class="pop-wrap" style="--i:17"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#E81828" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#E81828" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">PH</text><g class="pin-name" transform="translate(0,-40)"><rect x="-65.1" y="-11" width="130.2" height="20" rx="6"/><text x="0" y="3">Philadelphia Phillies</text></g></g></g><title>Philadelphia Phillies</title></g></a><a href="?pick=MIA" target="_top"><g class="gm-map-marker" transform="translate(756,536)"><g class="pop-wrap" style="--i:18"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#00A3E0" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#00A3E0" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">MI</text><g class="pin-name" transform="translate(0,-40)"><rect x="-40.3" y="-11" width="80.6" height="20" rx="6"/><text x="0" y="3">Miami Marlins</text></g></g></g><title>Miami Marlins</title></g></a><a href="?pick=WSN" target="_top"><g class="gm-map-marker" transform="translate(802,252)"><g class="pop-wrap" style="--i:19"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#AB0003" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#AB0003" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">WS</text><g class="pin-name" transform="translate(0,-40)"><rect x="-62.0" y="-11" width="124.0" height="20" rx="6"/><text x="0" y="3">Washington Nationals</text></g></g></g><title>Washington Nationals</title></g></a><a href="?pick=MIL" target="_top"><g class="gm-map-marker" transform="translate(598,170)"><g class="pop-wrap" style="--i:20"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#12284B" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#12284B" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">MI</text><g class="pin-name" transform="translate(0,-40)"><rect x="-52.7" y="-11" width="105.4" height="20" rx="6"/><text x="0" y="3">Milwaukee Brewers</text></g></g></g><title>Milwaukee Brewers</title></g></a><a href="?pick=CHC" target="_top"><g class="gm-map-marker" transform="translate(590,212)"><g class="pop-wrap" style="--i:21"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#0E3386" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#0E3386" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">CH</text><g class="pin-name" transform="translate(0,-40)"><rect x="-37.2" y="-11" width="74.4" height="20" rx="6"/><text x="0" y="3">Chicago Cubs</text></g></g></g><title>Chicago Cubs</title></g></a><a href="?pick=STL" target="_top"><g class="gm-map-marker" transform="translate(598,300)"><g class="pop-wrap" style="--i:22"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#C41E3A" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#C41E3A" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">ST</text><g class="pin-name" transform="translate(0,-40)"><rect x="-58.9" y="-11" width="117.8" height="20" rx="6"/><text x="0" y="3">St. Louis Cardinals</text></g></g></g><title>St. Louis Cardinals</title></g></a><a href="?pick=CIN" target="_top"><g class="gm-map-marker" transform="translate(672,275)"><g class="pop-wrap" style="--i:23"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#C6011F" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#C6011F" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">CI</text><g class="pin-name" transform="translate(0,-40)"><rect x="-46.5" y="-11" width="93.0" height="20" rx="6"/><text x="0" y="3">Cincinnati Reds</text></g></g></g><title>Cincinnati Reds</title></g></a><a href="?pick=PIT" target="_top"><g class="gm-map-marker" transform="translate(748,222)"><g class="pop-wrap" style="--i:24"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#27251F" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#27251F" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">PI</text><g class="pin-name" transform="translate(0,-40)"><rect x="-55.8" y="-11" width="111.6" height="20" rx="6"/><text x="0" y="3">Pittsburgh Pirates</text></g></g></g><title>Pittsburgh Pirates</title></g></a><a href="?pick=LAD" target="_top"><g class="gm-map-marker" transform="translate(100,340)"><g class="pop-wrap" style="--i:25"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#005A9C" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#005A9C" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">LA</text><g class="pin-name" transform="translate(0,-40)"><rect x="-58.9" y="-11" width="117.8" height="20" rx="6"/><text x="0" y="3">Los Angeles Dodgers</text></g></g></g><title>Los Angeles Dodgers</title></g></a><a href="?pick=SDP" target="_top"><g class="gm-map-marker" transform="translate(68,338)"><g class="pop-wrap" style="--i:26"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#2F241D" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#2F241D" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">SD</text><g class="pin-name" transform="translate(0,-40)"><rect x="-49.6" y="-11" width="99.2" height="20" rx="6"/><text x="0" y="3">San Diego Padres</text></g></g></g><title>San Diego Padres</title></g></a><a href="?pick=SFG" target="_top"><g class="gm-map-marker" transform="translate(58,258)"><g class="pop-wrap" style="--i:27"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#FD5A1E" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#FD5A1E" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">SF</text><g class="pin-name" transform="translate(0,-40)"><rect x="-62.0" y="-11" width="124.0" height="20" rx="6"/><text x="0" y="3">San Francisco Giants</text></g></g></g><title>San Francisco Giants</title></g></a><a href="?pick=ARI" target="_top"><g class="gm-map-marker" transform="translate(190,350)"><g class="pop-wrap" style="--i:28"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#A71930" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#A71930" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">AR</text><g class="pin-name" transform="translate(0,-40)"><rect x="-62.0" y="-11" width="124.0" height="20" rx="6"/><text x="0" y="3">Arizona Diamondbacks</text></g></g></g><title>Arizona Diamondbacks</title></g></a><a href="?pick=COL" target="_top"><g class="gm-map-marker" transform="translate(300,258)"><g class="pop-wrap" style="--i:29"><ellipse class="pin-shadow" cx="0" cy="2" rx="7" ry="2.3" fill="rgba(0,0,0,.4)"/><g class="pin-float"><circle class="pin-ring" cx="0" cy="-18" r="10" fill="#33006F" opacity=".55"/><path class="pin-body" d="M0,0 C-7,-9 -10,-13 -10,-18 C-10,-24.5 -5.5,-29.5 0,-29.5 C5.5,-29.5 10,-24.5 10,-18 C10,-13 7,-9 0,0 Z" fill="#33006F" stroke="#fff" stroke-width="1.4"/><circle cx="0" cy="-18" r="6.2" fill="#fff"/><text class="pin-code" x="0" y="-15.3">CO</text><g class="pin-name" transform="translate(0,-40)"><rect x="-49.6" y="-11" width="99.2" height="20" rx="6"/><text x="0" y="3">Colorado Rockies</text></g></g></g><title>Colorado Rockies</title></g></a></svg></div>"""
+# 주(州) 외곽선 path 모음 — 지도의 고정 지형. 마커는 아래에서 코드로 생성한다
+_US_STATE_PATHS = """<path class="gm-usmap-state" d="m 643,467.4 .4,-7.3 -.9,-1.2 -1.7,-.7 -2.5,-2.8 .5,-2.9 48.8,-5.1 -.7,-2.2 -1.5,-1.5 -.5,-1.4 .6,-6.3 -2.4,-5.7 .5,-2.6 .3,-3.7 2.2,-3.8 -.2,-1.1 -1.7,-1 v -3.2 l -1.8,-1.9 -2.9,-6.1 -12.9,-45.8 -45.7,4 1.3,2 -1.3,67 4.4,33.2 .9,-.5 1.3,.1 .6,.4 .8,-.1 2,-3.8 v -2.3 l 1.1,-1.1 1.4,.5 3.4,6.4 v .9 l -3.3,2.2 3.5,-.4 4.9,-1.6 z"/><path class="gm-usmap-state" d="m 139.6,387.6 3,-2.2 .8,-2.4 -1,-1.6 -1.8,-.2 -1.1,-1.6 1.1,-6.9 1.6,-.3 2.4,-3.2 1.6,-7 2.4,-3.6 4.8,-1.7 1.3,-1.3 -.4,-1.9 -2.3,-2.5 -1.2,-5.8 -1.4,-1.8 -1.3,-3.4 .9,-2.1 1.4,-3 .5,-2.9 -.5,-4.9 1,-13.6 3.5,-.6 3.7,1.4 1.2,2.7 h 2 l 2.4,-2.9 3.4,-17.5 46.2,8.2 40,6 -17.4,124.1 -37.3,-5.4 -64.2,-37.5 .5,-2.9 2,-1.8 z"/><path class="gm-usmap-state" d="m 584.2,367 .9,-2.2 1.2,.5 .7,-1 -.8,-.7 .3,-1.5 -1.1,-.9 .6,-1 -.1,-1.5 -1.1,-.1 .8,-.8 1.3,.8 .3,-1.4 -.4,-1.1 .1,-.7 2,.6 -.4,-1.5 1.6,-1.3 -.5,-.9 -1.1,.1 -.6,-.9 .9,-.9 1.6,-.2 .5,-.8 1.4,-.2 -.1,-.8 -.9,-.9 v -.5 h 1.5 l .4,-.7 -1.4,-1 -.1,-.6 -11.2,.8 2.8,-5.1 1.7,-1.5 v -2.2 l -1.6,-2.5 -39.8,2 -39.1,.7 4.1,24.4 -.7,39 2.6,2.3 2.8,-1.3 3.2,.8 .2,11.9 52.3,-1.3 1.2,-1.5 .5,-3 -1.5,-2.3 -.5,-2.2 .9,-.7 v -.8 l -1.7,-1.1 -.1,-.7 1.6,-.9 -1.2,-1.1 1.7,-7.1 3.4,-1.6 v -.8 l -1.1,-1.4 2.9,-5.4 h 1.9 l 1.5,-1.2 -.3,-5.2 3.1,-4.5 1.8,-.6 -.5,-3.1 z"/><path class="gm-usmap-state" d="m 69.4,365.6 3.4,5.2 -1.4,.1 -1.8,-1.9 z m 1.9,-9.8 1.8,4.1 2.6,1 .7,-.6 -1.3,-2.5 -2.6,-2.4 z m -19.9,-19 v 2.4 l 2,1.2 4.4,-.2 1,-1 -3.1,-.2 z m -5.9,.1 3.3,.5 1.4,2.2 h -3.8 z m 47.9,45.5 -1,-3 .2,-3 -.4,-7.9 -1.8,-4.8 -1.2,-1.4 -.6,-1.5 -7,-8.6 -3.6,.1 -2,-1.9 1.1,-1.8 -.7,-3.7 -2.2,-1.2 -3.9,-.6 -2.8,-1.3 -1.5,-1.9 -4.5,-6.6 -2.7,-2.2 -3.7,-.5 -3.1,-2.3 -4.7,-1.5 -2.8,-.3 -2.5,-2.5 .2,-2.8 .8,-4.8 1.8,-5.1 -1.4,-1.6 -4,-9.4 -2.7,-3.7 -.4,-3 -1.6,-2.3 .2,-2.5 -2,-5 -2.9,-2.7 .6,-7.1 2.4,-.8 1.8,-3.1 -.4,-3.2 -1,-.9 h -2.5 l -2.5,-3.3 -1.5,-3.5 v -7.5 l 1.2,-4.2 .2,-2.1 2.5,.2 -.1,1.6 -.8,.7 v 2.5 l 3.7,3.2 v -4.7 l -1.4,-3.4 .5,-1.1 -1,-1.7 2.8,-1.5 -1.9,-3 -1.4,.5 -1.5,3.8 .5,1.3 -.8,1 -.9,-.1 -5.4,-6.1 .7,-5.6 -1.1,-3.9 -6.5,-12.8 .8,-10.7 2.3,-3.6 .2,-6.4 -5.5,-11.1 .3,-5.2 6.9,-7.5 1.7,-2.4 -.1,-1.4 4,-9.2 .1,-8.4 .9,-2.5 66.1,18.6 -16.4,63.1 1.1,3.5 70.4,105 -.9,2.1 1.3,3.4 1.4,1.8 1.2,5.8 2.3,2.5 .4,1.9 -1.3,1.3 -4.8,1.7 -2.4,3.6 -1.6,7 -2.4,3.2 -1.6,.3 -1.1,6.9 1.1,1.6 1.8,.2 1,1.6 -.8,2.4 -3,2.2 -2.2,-.1 z"/><path class="gm-usmap-state" d="m 374.6,323.3 -16.5,-1 -51.7,-4.8 -52.6,-6.5 11.5,-88.3 44.9,5.7 37.5,3.4 33.1,2.4 -1.4,22.1 z"/><path class="gm-usmap-state" d="m 873.5,178.9 .4,-1.1 -3.2,-12.3 -.1,-.3 -14.9,3.4 v .7 l -.9,.3 -.5,-.7 -10.5,2.4 2.8,16.3 1.8,1.5 -3.5,3.4 1.7,2.2 5.4,-4.5 1.7,-1.3 h .8 l 2.4,-3.1 1.4,.1 2.9,-1.1 h 2.1 l 5.3,-2.7 2.8,-.9 1,-1 1.5,.5 z"/><path class="gm-usmap-state" d="m 822.2,226.6 -1.6,.3 -1.5,1.1 -1.2,2.1 7.6,27.1 10.9,-2.3 -2.2,-7.6 -1.1,.5 -3.3,-2.6 -.5,-1.7 -1.8,-1 -.2,-3.7 -2.1,-2.2 -1.1,-.8 -1.2,-1.1 -.4,-3.2 .3,-2.1 1,-2.2 z"/><path class="gm-usmap-state" d="m 751.7,445.1 -4,-.7 -1.7,-.9 -2.2,1.4 v 2.5 l 1.4,2.1 -.5,4.3 -2.1,.6 -1,-1.1 -.6,-3.2 -50.1,3.3 -3.3,-6 -48.8,5.1 -.5,2.9 2.5,2.8 1.7,.7 .9,1.2 -.4,7.3 -1.1,.6 .5,.4 1,-.3 .7,-.8 10.5,-2.7 9.2,-.5 8.1,1.9 8.5,5 2.4,.8 2.2,2 -.1,2.7 h 2.4 l 1.9,-1 2.5,.1 2,-.8 2.9,-2 3.1,-2.9 1.1,-.4 .6,.5 h 1.4 l .5,-.8 -.5,-1.2 -.6,-.6 .2,-.8 2,-1.1 5,-.4 .8,1 1,.1 2.3,1 3,1.8 1.2,1.7 1.1,1.2 2.8,1.4 v 2.4 l 2.8,1.9 1,.1 1.6,1.4 .7,1.6 1,.2 .8,2.1 .7,.6 1,-1.1 2.9,.1 .5,1.4 1.1,.9 v 1.3 l 2.9,2.2 .2,9.6 -1.8,5.8 1,1.2 -.2,3.4 -.8,1.4 .7,1.2 2.3,2.3 .3,1.5 .8,1 -.4,-1.9 1.3,-.6 .8,-3.6 -3,-1.2 .1,-.6 2.6,-.4 .9,2.6 1.1,.6 .1,-2 1.1,.3 .6,.8 -.1,.7 -2.9,4.2 -.2,1.1 -1.7,1.9 v 1.1 l 3.7,3.8 5.3,7.9 1.8,2.1 v 1.8 l 2.8,4.6 2.3,.6 .7,-1.2 -2.1,.3 -3,-4.5 .2,-1.4 1.5,-.8 v -1.5 l -.6,-1.3 .9,-.9 .4,.9 .7,.5 v 4 l -1.2,-.6 -.8,.9 1.4,1.6 1,2.6 1.2,-.6 2.3,1.2 2.1,2.2 1.6,5.1 3.1,4.8 .8,-1.3 2.8,-.5 3.2,1.3 .3,1.7 3.3,3.8 .1,1.1 2.2,2.7 -.7,.5 v 2.7 l 2.7,1.4 h 1.5 l 2.7,-1.8 1.5,.3 1.1,.4 2.3,-1.7 .2,-.7 1.2,.3 2.4,-1.7 1.3,-2.3 -.7,-3.2 -.2,-1.3 1.1,-4 .6,-.2 .6,1.6 .8,-1.8 -.8,-7.2 -.4,-10.5 -1,-6.8 -.7,-1.7 -6.6,-11.1 -5.2,-9.1 -2.2,-3.3 -1.3,-3.6 -.2,-3.4 .9,-.3 v -.9 l -1.1,-2.2 -4,-4 -7.6,-9.7 -5.7,-10.4 -4.3,-10.7 -.6,-3.7 -1.2,-1 -.5,-3.8 z m 9.2,134.5 1.7,-.1 -.7,-1 z m 7.3,-1.1 v -.7 l 1.6,-.2 3.7,-3.3 1.5,-.6 2.4,-.9 .3,1.3 1.7,.8 -2.6,1.2 h -2.4 l -3.9,2.5 z m 17.2,-7.6 -3,1.4 -1,1.3 1.1,.1 z m 3.8,-2.9 -1.1,.3 -1.4,2 1.1,-.2 1.5,-1.6 z m 8.3,-15.7 -1.7,5.6 -.8,1 -1,2.6 -1.2,1.6 -.7,1.7 -1.9,2.2 v .9 l 2.7,-2.8 2.4,-3.5 .6,-2 2.1,-4.9 z"/><path class="gm-usmap-state" d="m 761.8,414.1 v 1.4 l -4.2,6.2 -1.2,.2 1.5,.5 v 2 l -.9,1.1 -.6,6 -2.3,6.2 .5,2 .7,5.1 -3.6,.3 -4,-.7 -1.7,-.9 -2.2,1.4 v 2.5 l 1.4,2.1 -.5,4.3 -2.1,.6 -1,-1.1 -.6,-3.2 -50.1,3.3 -3.3,-6 -.7,-2.2 -1.5,-1.5 -.5,-1.4 .6,-6.3 -2.4,-5.7 .5,-2.6 .3,-3.7 2.2,-3.8 -.2,-1.1 -1.7,-1 v -3.2 l -1.8,-1.9 -2.9,-6.1 -12.9,-45.8 22.9,-2.9 21.4,-3 -.1,1.9 -1.9,1 -1.4,3.2 .2,1.3 6.1,3.8 2.6,-.3 3.1,4 .4,1.7 4.2,5.1 2.6,1.7 1.4,.2 2.2,1.6 1.1,2.2 2,1.6 1.8,.5 2.7,2.7 .1,1.4 2.6,2.8 5,2.3 3.6,6.7 .3,2.7 3.9,2.1 2.5,4.8 .8,3.1 4.2,.4 z"/><path class="gm-usmap-state" d="m 165.3,183.1 -24.4,-5.4 8.5,-37.3 2.9,-5.8 .4,-2.1 .8,-.9 -.9,-2 -2.9,-1.2 .2,-4.2 4,-5.8 2.5,-.8 1.6,-2.3 -.1,-1.6 1.8,-1.6 3.2,-5.5 4.2,-4.8 -.5,-3.2 -3.5,-3.1 -1.6,-3.6 1.1,-4.3 -.7,-4 12.7,-56.1 14.2,3 -4.8,22 3.7,7.4 -1.6,4.8 3.6,4.8 1.9,.7 3.9,8.3 v 2.1 l 2.3,3 h .9 l 1.4,2.1 h 3.2 v 1.6 l -7.1,17 -.5,4.1 1.4,.5 1.6,2.6 2.8,-1.4 3.6,-2.4 1.9,1.9 .5,2.5 -.5,3.2 2.5,9.7 2.6,3.5 2.3,1.4 .4,3 v 4.1 l 2.3,2.3 1.6,-2.3 6.9,1.6 2.1,-1.2 9,1.7 2.8,-3.3 1.8,-.6 1.2,1.8 1.6,4.1 .9,.1 -8.5,54.8 -47.9,-8.2 z"/><path class="gm-usmap-state" d="m 623.5,265.9 -1,5.2 v 2 l 2.4,3.5 v .7 l -.3,.9 .9,1.9 -.3,2.4 -1.6,1.8 -1.3,4.2 -3.8,5.3 -.1,7 h -1 l .9,1.9 v .9 l -2.2,2.7 .1,1.1 1.5,2.2 -.1,.9 -3.7,.6 -.6,1.2 -1.2,-.6 -1,.5 -.4,3.3 1.7,1.8 -.4,2.4 -1.5,.3 -6.9,-3 -4,3.7 .3,1.8 h -2.8 l -1.4,-1.5 -1.8,-3.8 v -1.9 l .8,-.6 .1,-1.3 -1.7,-1.9 -.9,-2.5 -2.7,-4.1 -4.8,-1.3 -7.4,-7.1 -.4,-2.4 2.8,-7.6 -.4,-1.9 1.2,-1.1 v -1.3 l -2.8,-1.5 -3,-.7 -3.4,1.2 -1.3,-2.3 .6,-1.9 -.7,-2.4 -8.6,-8.4 -2.2,-1.5 -2.5,-5.9 -1.2,-5.4 1.4,-3.7 .7,-.7 .1,-2.3 -.7,-.9 1,-1.5 1.8,-.6 .9,-.3 1,-1.2 v -2.4 l 1.7,-2.4 .5,-.5 .1,-3.5 -.9,-1.4 -1,-.3 -1.1,-1.6 1,-4 3,-.8 h 2.4 l 4.2,-1.8 1.7,-2.2 .1,-2.4 1.1,-1.3 1.3,-3.2 -.1,-2.6 -2.8,-3.5 h -1.2 l -.9,-1.1 .2,-1.6 -1.7,-1.7 -2.5,-1.3 .5,-.6 45.9,-2.8 .1,4.6 3.4,4.6 1.2,4.1 1.6,3.2 z"/><path class="gm-usmap-state" d="m 629.2,214.8 -5.1,2.3 -4.7,-1.4 4.1,50.2 -1,5.2 v 2 l 2.4,3.5 v .7 l -.3,.9 .9,1.9 -.3,2.4 -1.6,1.8 -1.3,4.2 -3.8,5.3 -.1,7 h -1 l .9,1.9 1.1,.8 .6,-1 -.7,-1.7 4.6,-.5 .2,1.2 1.1,.2 .4,-.9 -.6,-1.3 .3,-.8 1.3,.8 1.7,-.4 1.7,.6 3.4,2.1 1.8,-2.8 3.5,-2.2 3,3.3 1.6,-2.1 .3,-2.7 3.8,-2.3 .2,1.3 1.9,1.2 3,-.2 1.2,-.7 .1,-3.4 2.5,-3.7 4.6,-4.4 -.1,-1.7 1.2,-3.8 2.2,1 6.7,-4.5 -.4,-1.7 -1.5,-2.1 1,-1.9 -6.6,-57.2 -.1,-1.4 -32.4,3.4 z"/><path class="gm-usmap-state" d="m 556.9,183 2.1,1.6 .6,1.1 -1.6,3.3 -.1,2.5 2,5.5 2.7,1.5 3.3,.7 1.3,2.8 -.5,.6 2.5,1.3 1.7,1.7 -.2,1.6 .9,1.1 h 1.2 l 2.8,3.5 .1,2.6 -1.3,3.2 -1.1,1.3 -.1,2.4 -1.7,2.2 -4.2,1.8 h -2.4 l -3,.8 -1,4 1.1,1.6 1,.3 .9,1.4 -.1,3.5 -.5,.5 -1.7,2.4 v 2.4 l -1,1.2 -.9,.3 -1.8,.6 -1,1.5 .7,.9 -.1,2.3 -.7,.7 -1.5,-.8 -1.1,-1.1 -.6,-1.6 -1.7,-1.3 -14.3,.8 -27.2,1.2 -25.9,-.1 -1.8,-4.4 .7,-2.2 -.8,-3.3 .2,-2.9 -1.3,-.7 -.4,-6.1 -2.8,-5 -.2,-3.7 -2.2,-4.3 -1.3,-3.7 v -1.4 l -.6,-1.7 v -2.3 l -.5,-.9 -.7,-1.7 -.3,-1.3 -1.3,-1.2 1,-4.3 1.7,-5.1 -.7,-2 -1.3,-.4 -.4,-1.6 1,-.5 .1,-1.1 -1.3,-1.5 .1,-1.6 2.2,.1 h 28.2 l 36.3,-.9 18.6,-.7 z"/><path class="gm-usmap-state" d="m 459.1,259.5 -43.7,-1.2 -36,-2 -4.8,67 67.7,2.9 62,.1 -.5,-48.1 -3.2,-.7 -2.6,-4.7 -2.5,-2.5 .5,-2.3 2.7,-2.6 .1,-1.2 -1.5,-2.1 -.9,1 -2,-.6 -2.9,-3 z"/><path class="gm-usmap-state" d="m 692.1,322.5 -20.5,1.4 -5.2,.8 -17.4,1 -2.6,.8 -22.6,2 -.7,-.6 h -3.7 l 1.2,3.2 -.6,.9 -23.3,1.5 1,-2.7 1.4,.9 .7,-.4 1.2,-4.1 -1,-1 1,-2 .2,-.9 -1.3,-.8 -.3,-1.8 4,-3.7 6.9,3 1.5,-.3 .4,-2.4 -1.7,-1.8 .4,-3.3 1,-.5 1.2,.6 .6,-1.2 3.7,-.6 .1,-.9 -1.5,-2.2 -.1,-1.1 2.2,-2.7 0,-.9 1.1,.8 .6,-1 -.7,-1.7 4.6,-.5 .2,1.2 1.1,.2 .4,-.9 -.6,-1.3 .3,-.8 1.3,.8 1.7,-.4 1.7,.6 3.4,2.1 1.8,-2.8 3.5,-2.2 3,3.3 1.6,-2.1 .3,-2.7 3.8,-2.3 .2,1.3 1.9,1.2 3,-.2 1.2,-.7 .1,-3.4 2.5,-3.7 4.6,-4.4 -.1,-1.7 1.2,-3.8 2.2,1 6.7,-4.5 -.4,-1.7 -1.5,-2.1 1,-1.9 1.3,.5 2.2,.1 1.9,-.8 2.9,1.2 2.2,3.4 v 1 l 4.1,.7 2.3,-.2 1.9,2.1 2.2,.2 v -1 l 1.9,-.8 3,.8 1.2,.8 1.3,-.7 h .9 l .6,-1.7 3.4,-1.8 .5,.8 .8,2.9 3.5,1.4 1.2,2.1 -.1,1.1 .6,1 -.6,3.6 1.9,1.6 .8,1.1 1,.6 -.1,.9 4.4,5.6 h 1.4 l 1.5,1.8 1.2,.3 1.4,-.1 -4.9,6.6 -2.9,1 -3,3 -.4,2.2 -2.1,1.3 -.1,1.7 -1.4,1.4 -1.8,.5 -.5,1.9 -1,.4 -6.9,4.2 z m -98,11.3 -.7,-.7 .2,-1 h 1.1 l .7,.7 -.3,1 z"/><path class="gm-usmap-state" d="m 602.5,472.8 -1.2,-1.8 .3,-1.3 -4.8,-6.8 .9,-4.6 1,-1.4 .1,-1.4 -36,2 1.7,-11.9 2.4,-4.8 6,-8.4 -1.8,-2.5 h 2 v -3.3 l -2.4,-2.5 .5,-1.7 -1.2,-1 -1.6,-7.1 .6,-1.4 -52.3,1.3 .5,19.9 .7,3.4 2.6,2.8 .7,5.4 3.8,4.6 .8,4.3 h 1 l -.1,7.3 -3.3,6.4 1.3,2.3 -1.3,1.5 .7,3 -.1,4.3 -2.2,3.5 -.1,.8 -1.7,1.2 1,1.8 1.2,1.1 1.6,-1.3 5.3,-.9 6.1,-.1 9.6,3.8 8,1 1.5,-1.4 1.8,-.2 4.8,2.2 1.6,-.4 1.1,-1.5 -4.2,-1.8 -2.2,1 -1.1,-.2 -1.4,-2 3.3,-2.2 1.6,-.1 v 1.7 l 1.5,-.1 3.4,-.3 .4,2.3 1.1,.4 .6,1.9 4.8,1 1.7,1.6 v .7 h -1.2 l -1.5,1.7 1.7,1.2 5.4,1 2.7,2.8 4.4,-1 -3.7,.2 -.1,-.6 2.8,-.7 .2,-1.8 1.2,-.3 v -1.4 l 1.1,.1 v 1.6 l 2.5,.1 .8,-1.9 .9,.3 .2,2.5 1.2,.2 -1.8,2 2.6,-.9 2,-1.1 2.9,-3.3 h -.7 l -1.3,1.2 -.4,-.1 -.5,-.8 .9,-1.2 v -2.3 l 1.1,-.8 .7,.7 1,-.8 1,-.1 .6,1.3 -.6,1.9 h 2.4 l 5.1,1.7 .5,1.3 1.6,1.4 2.8,.1 1.3,.7 1.8,-1 .9,-1.7 v -1.7 h -1.4 l -1.2,-1.4 -1.1,-1.1 -3.2,-.9 -2.6,.2 -4.2,-2.4 v -2.3 l 1.3,-1 2.4,.6 -3.1,-1.6 .2,-.8 h 3.6 l 2.6,-3.5 -2.6,-1.8 .8,-1.5 -1.2,-.8 h -.8 l -2,2.1 v 2.1 l -.6,.7 -1.1,-.1 -1.6,-1.4 h -1.3 v -1.5 l .6,-.7 .8,.7 1.7,-1.6 .7,-1.6 .8,-.3 z m -10.3,-2.7 1.9,1 .8,1.1 2.5,.1 1.5,.8 .2,1.4 -.4,.6 -.9,-1.5 -1.4,1.2 -.9,1.4 -2.8,.8 -1.6,.1 -3.7,-1 .1,-1.7 2,-2 1.1,-2.4 z m -4.7,1.2 v 1.1 l -1.8,2 h -1.2 v -2.2 l 1.6,-1.5 z"/><path class="gm-usmap-state" d="m 875,128.7 .6,4 3.2,2 .8,2.2 2.3,1.4 1.4,-.3 1,-3 -.8,-2.9 1.6,-.9 .5,-2.8 -.6,-1.3 3.3,-1.9 -2.2,-2.3 .9,-2.4 1.4,-2.2 .5,3.2 1.6,-2 1.3,.9 1.2,-.8 v -1.7 l 3.2,-1.3 .3,-2.9 2.5,-.2 2.7,-3.7 v -.7 l -.9,-.5 -.1,-3.3 .6,-1.1 .2,1.6 1,-.5 -.2,-3.2 -.9,.3 -.1,1.2 -1.2,-1.4 .9,-1.4 .6,.1 1.1,-.4 .5,2.8 2,-.3 2.9,.7 v -1 l -1.1,-1.2 1.3,.1 .1,-2.3 .6,.8 .3,1.9 2.1,1.5 .2,-1 .9,-.2 -.3,-.8 .8,-.6 -.1,-1.6 -1.6,-.2 -2,.7 1.4,-1.6 .7,-.8 1.3,-.2 .4,1.3 1.7,1.6 .4,-2.1 2.3,-1.2 -.9,-1.3 .1,-1.7 1.1,.5 h .7 l 1.7,-1.4 .4,-2.3 2.2,.3 .1,-.7 .2,-1.6 .5,1.4 1.5,-1 2.3,-4.1 -.1,-2.2 -1.4,-2 -3,-3.2 h -1.9 l -.8,2.2 -2.9,-3 .3,-.8 v -1.5 l -1.6,-4.5 -.8,-.2 -.7,.4 h -4.8 l -.3,-3.6 -8.1,-26 -7.3,-3.7 -2.9,-.1 -6.7,6.6 -2.7,-1 -1,-3.9 h -2.7 l -6.9,19.5 .7,6.2 -1.7,2.4 -.4,4.6 1.3,3.7 .8,.2 v 1.6 l -1.6,4.5 -1.5,1.4 -1.3,2.2 -.4,7.8 -2.4,-1 -1.5,.4 z m 34.6,-24.7 -1,.8 v 1.3 l .7,-.8 .9,.8 .4,-.5 1.1,.2 -1,-.8 .4,-.8 z m -1.7,2.6 -1,1.1 .5,.4 -.1,1 h 1.1 v -1.8 z m -3,-1.6 .9,1.3 1,.5 .3,-1 v -1.8 l -1.3,-.7 -.4,1.2 z m -1,5 -1.7,-1.7 1.6,-2.4 .8,.3 .2,1.1 1,.8 v 1.1 l -1,1 z"/><path class="gm-usmap-state" d="m 822.9,269.3 0,-1.7 h -.8 l 0,1.8 z m 11.8,-3.9 1.2,-2.2 .1,-2.5 -.6,-.6 -.7,.9 -.2,2.1 -.8,1.4 -.3,1.1 -4.6,1.6 -.7,.8 -1.3,.2 -.4,.9 -1.3,.6 -.3,-2.5 .4,-.7 -.8,-.5 .2,-1.5 -1.6,1 v -2 l 1.2,-.3 -1.9,-.4 -.7,-.8 .4,-1.3 -.8,-.6 -.7,1.6 .5,.8 -.7,.6 -1.1,.5 -2,-1 -.2,-1.2 -1,-1.1 -1.4,-1.7 1.5,-.8 -1,-.6 v -.9 l .6,-1 1.7,-.3 -1.4,-.6 -.1,-.7 -1.3,-.1 -.4,1.1 -.6,.3 .1,-3.4 1,-1 .8,.7 .1,-1.6 -1,-.9 -.9,1.1 -1,1.4 -.6,-1 .2,-2.4 .9,-1 .9,.9 1.2,-.7 -.4,-1.7 -1,1 -.9,-2.1 -.2,-1.7 1.1,-2.4 1.1,-1.4 1.4,-.2 -.5,-.8 .5,-.6 -.3,-.7 .2,-2.1 -1.5,.4 -.8,1.1 1,1.3 -2.6,3.6 -.9,-.4 -.7,.9 -.6,2.2 -1.8,.5 1.3,.6 1.3,1.3 -.2,.7 .9,1.2 -1.1,1 .5,.3 -.5,1.3 v 2.1 l -.5,1.3 .9,1.1 .7,3.4 1.3,1.4 1.6,1.4 .4,2.8 1.6,2 .4,1.4 v 1 h -.7 l -1.5,-1.2 -.4,.2 -1.2,-.2 -1.7,-1.4 -1.4,-.3 -1,.5 -1.2,-.3 -.4,.2 -1.7,-.8 -1,-1 -1,-1.3 -.6,-.2 -.8,.7 -1.6,1.3 -1.1,-.8 -.4,-2.3 .8,-2.1 -.3,-.5 .3,-.4 -.7,-1 1,-.1 1,-.9 .4,-1.8 1.7,-2.6 -2.6,-1.8 -1,1.7 -.6,-.6 h -1 l -.6,-.1 -.4,-.4 .1,-.5 -1.7,-.6 -.8,.3 -1.2,-.1 -.7,-.7 -.5,-.2 -.2,-.7 .6,-.8 v -.9 l -1.2,-.2 -1,-.9 -.9,.1 -1.6,-.3 -.9,-.4 .2,-1.6 -1,-.5 -.2,-.7 h -.7 l -.8,-1.2 .2,-1 -2.6,.4 -2.2,-1.6 -1.4,.3 -.9,1.4 h -1.3 l -1.7,2.9 -3.3,.4 -1.9,-1 -2.6,3.8 -2.2,-.3 -3.1,3.9 -.9,1.6 -1.8,1.6 -1.7,-11.4 60.5,-11.8 7.6,27.1 10.9,-2.3 0,5.3 -.1,3.1 -1,1.8 z m -13.4,-1.8 -1.3,.9 .8,1.8 1.7,.8 -.4,-1.6 z"/><path class="gm-usmap-state" d="m 899.9,174.2 h 3.4 l .9,-.6 .1,-1.3 -1.9,-1.8 .4,1 -1.5,1.5 h -2.3 l .1,.8 z m -9,1.8 -1.2,-.6 1,-.8 .6,-2.1 1.2,-1 .8,-.2 .6,.9 1.1,.2 .6,-.6 .5,1.9 -1.3,.3 -2.8,.7 z m -34.9,-23.4 18.4,-3.8 1,-1.5 .3,-1.7 1.9,-.6 .5,-1.1 1.7,-1.1 1.3,.3 1.7,3.3 1,.4 1.1,-1.3 .8,1.3 v 1.1 l -3,2.4 .2,.8 -.9,1 .4,.8 -1.3,.3 .9,1.2 -.8,.7 .6,1 .9,-.2 .3,-.8 1.1,.6 h 1.8 l 2.5,2.6 .2,2.6 1.8,.1 .8,1.1 .6,2 1,.7 h 1.9 l 1.9,-.1 .8,-.9 1.6,-1.2 1.1,-.3 -1.2,-2.1 -.3,.9 -1.5,-3.6 h -.8 l -.4,.9 -1.2,-1 1.3,-1.1 1.8,.4 2.3,2.1 1.3,2.7 1.2,3.3 -1,2.8 v -1.8 l -.7,-1 -3.5,2.3 -.9,-.3 -1.6,1 -.1,1.2 -2.2,1.2 -2,2.1 -2,1.9 h -1.2 l 3.3,-3.3 .5,-1.9 -.5,-.6 -.3,-1.3 -.9,-.1 -.1,1.3 -1,1.2 h -1.2 l -.3,1.1 .4,1.2 -1.2,1.1 -1.1,-.2 -.4,1 -1.4,-3 -1.3,-1.1 -2.6,-1.3 -.6,-2.2 h -.8 l -.7,-2.6 -6.5,2 -.1,-.3 -14.9,3.4 v .7 l -.9,.3 -.5,-.7 -10.5,2.4 -.7,-1 .5,-15 z"/><path class="gm-usmap-state" d="m 663.3,209.8 .1,1.4 21.4,-3.5 .5,-1.2 3.9,-5.9 v -4.3 l .8,-2.1 2.2,-.8 2,-7.8 1,-.5 1,.6 -.2,.6 -1.1,.8 .3,.9 .8,.4 1.9,-1.4 .4,-9.8 -1.6,-2.3 -1.2,-3.7 v -2.5 l -2.3,-4.4 v -1.8 l -1.2,-3.3 -2.3,-3 -2.9,-1 -4.8,3 -2.5,4.6 -.2,.9 -3,3.5 -1.5,-.2 -2.9,-2.8 -.1,-3.4 1.5,-1.9 2,-.2 1.2,-1.7 .2,-4 .8,-.8 1.1,-.1 .9,-1.7 -.2,-9.6 -.3,-1.3 -1.2,-1.2 -1.7,-1 -.1,-1.8 .7,-.6 1.8,.8 -.3,-1.7 -1.9,-2.7 -.7,-1.6 -1.1,-1.1 h -2.2 l -8.1,-2.9 -1.4,-1.7 -3.1,-.3 -1.2,.3 -4.4,-2.3 h -1.4 l .5,1 -2.7,-.1 .1,.6 .6,.6 -2.5,2.1 .1,1.8 1.5,2.3 1.5,.2 v .6 l -1.5,.5 -2.1,-.1 -2.8,2.5 .1,2.5 .4,5.8 -2.2,3.4 .8,-4.5 -.8,-.6 -.9,5.3 -1,-2.3 .5,-2.3 -.5,-1 .6,-1.3 -.6,-1.1 1,-1 v -1.2 l -1.3,.6 -1.3,3.1 -.7,.7 -1.3,2.4 -1.7,-.2 -.1,1.2 h -1.6 l .2,1.5 .2,2 -3,1.2 .1,1.3 1,1.7 -.1,5.2 -1.3,4.4 -1.7,2.5 1.2,1.4 .8,3.5 -1,2.5 -.2,2.1 1.7,3.4 2.5,4.9 1.2,1.9 1.6,6.9 -.1,8.8 -.9,3.9 -2,3.2 -.9,3.7 -2,3 -1.2,1 z m -95.8,-96.8 3,3.8 17,3.8 1.4,1 4,.8 .7,.5 2.8,-.2 4.9,.8 1.4,1.5 -1,1 .8,.8 3.8,.7 1.2,1.2 .1,4.4 -1.3,2.8 2,.1 1,-.8 .9,.8 -1.1,3.1 1,1.6 1.2,.3 .8,-1.8 2.9,-4.6 1.6,-6 2.3,-2 -.5,-1.6 .5,-.9 1,1.6 -.3,2.2 2.9,-2.2 .2,-2.3 2.1,.6 .8,-1.6 .7,.6 -.7,1.5 -1,.5 -1,2 1.4,1.8 1.1,-.5 -.5,-.7 1,-1.5 1.9,-1.7 h .8 l .2,-2.6 2,-1.8 7.9,-.5 1.9,-3.1 3.8,-.3 3.8,1.2 4.2,2.7 .7,-.2 -.2,-3.5 .7,-.2 4.5,1.1 1.5,-.2 2.9,-.7 1.7,.4 1.8,.1 v -1.1 l -.7,-.9 -1.5,-.2 -1.1,-.8 .5,-1.4 -.8,-.3 -2.6,.1 -.1,-1 1.1,-.8 .6,.8 .5,-1.8 -.7,-.7 .7,-.2 -1.4,-1.3 .3,-1.3 .1,-1.9 h -1.3 l -1.5,1 -1.9,.1 -.5,1.8 -1.9,.2 -.3,-1.2 -2.2,.1 -1,1.2 -.7,-.1 -.2,-.8 -2.6,.4 -.1,-4.8 1,-2 -.7,-.1 -1.8,1.1 h -2.2 l -3.8,2.7 -6.2,.3 -4.1,.8 -1.9,1.5 -1.4,1.3 -2.5,1.7 -.3,.8 -.6,-1.7 -1.3,-.6 v .6 l .7,.7 v 1.3 l -1.5,-.6 h -.6 l -.3,1.2 -2,-1.9 -1.3,-.2 -1.3,1.5 -3.2,-.1 -.5,-1.4 -2,-1.9 -1.3,-1.6 v -.7 l -1.1,-1.4 -2.6,-1.2 -3.3,-.1 -1.1,-.9 h -1.4 l -.7,.4 -2.2,2.2 -.7,1.1 -1,-.7 .2,-1 .8,-2.1 3.2,-5 .8,-.2 1.7,-1.9 .7,-1.6 3,-.6 .8,-.6 -.1,-1 -.5,-.5 -4.5,.2 -2,.5 -2.6,1.2 -1.2,1.2 -1.7,2.2 -1.8,1 -3.3,3.4 -.4,1.6 -7.4,4.6 -4,.5 -1.8,.4 -2.3,3 -1.8,.7 -4.4,2.3 z m 100.7,3.8 3.8,.1 .6,-.5 -.2,-2 -1.7,-1.8 -1.9,.1 -.1,.5 1.1,.4 -1.6,.8 -.3,1 -.6,-.6 -.4,.8 z m -75.1,-41.9 -2.3,.2 -2.7,1.9 -7.1,5.3 .8,1 1.8,.3 2.8,-2 -1.1,-.5 2.3,-1.6 h 1 l 3,-1.9 -.1,-.9 z m 41.1,62.8 v 1 l 2.1,1.6 -.2,-2.4 z m -.7,2.8 1.1,.1 v .9 h -1 z m 21.4,-21.3 v .9 l .8,-.2 v -.5 z m 4.7,3.1 -.1,-1.1 -1.6,-.2 -.6,-.4 h -.9 l -.4,.3 .9,.4 1.1,1.1 z m -18,1.2 -.1,1.1 -.3,.7 .2,2.2 .4,.3 .7,.1 .5,-.9 .1,-1.6 -.3,-.6 -.1,-1.1 z"/><path class="gm-usmap-state" d="m 464.7,68.6 -1.1,2.8 .8,1.4 -.3,5.1 -.5,1.1 2.7,9.1 1.3,2.5 .7,14 1,2.7 -.4,5.8 2.9,7.4 .3,5.8 -.1,2.1 -.1,2.2 -.9,2 -3.1,1.9 -.3,1.2 1.7,2.5 .4,1.8 2.6,.6 1.5,1.9 -.2,39.5 h 28.2 l 36.3,-.9 18.6,-.7 -1.1,-4.5 -.2,-3 -2.2,-3 -2.8,-.7 -5.2,-3.6 -.6,-3.3 -6.3,-3.1 -.2,-1.3 h -3.3 l -2.2,-2.6 -2,-1.3 .7,-5.1 -.9,-1.6 .5,-5.4 1,-1.8 -.3,-2.7 -1.2,-1.3 -1.8,-.3 v -1.7 l 2.8,-5.8 5.9,-3.9 -.4,-13 .9,.4 .6,-.5 .1,-1.1 .9,-.6 1.4,1.2 .7,-.1 v 0 l -1.2,-2.2 4.3,-3.1 3.1,-3.7 1.6,-.8 4.7,-5.9 6.3,-5.8 3.9,-2.1 6.3,-2.7 7.6,-4.5 -.6,-.4 -3.7,.7 -2.8,.1 -1,-1.6 -1.4,-.9 -9.8,1.2 -1,-2.8 -1.6,-.1 -1.7,.8 -3.7,3.1 h -4.1 l -2.1,-1 -.3,-1.7 -3.9,-.8 -.6,-1.6 -.7,-1.3 -1,.9 -2.6,.1 -9.9,-5.5 h -2.9 l -.8,-.7 -3.1,1.3 -.8,1.3 -3.3,.8 -1.3,-.2 v -1.7 l -.7,-.9 h -5.9 l -.4,-1.4 h -2.6 l -1.1,.4 -2.4,-1.7 .3,-1.4 -.6,-2.4 -.7,-1.1 -.2,-3 -1,-3.1 -2.1,-1.6 h -2.9 l .1,8 -30.9,-.4 z"/><path class="gm-usmap-state" d="m 623.8,468.6 -5,.1 -2.4,-1.5 -7.9,2.5 -.9,-.7 -.5,.2 -.1,1.6 -.6,.1 -2.6,2.7 -.7,-.1 -.6,-.7 -1.2,-1.8 .3,-1.3 -4.8,-6.8 .9,-4.6 1,-1.4 .1,-1.4 -36,2 1.7,-11.9 2.4,-4.8 6,-8.4 -1.8,-2.5 h 2 v -3.3 l -2.4,-2.5 .5,-1.7 -1.2,-1 -1.6,-7.1 .6,-1.4 1.2,-1.5 .5,-3 -1.5,-2.3 -.5,-2.2 .9,-.7 v -.8 l -1.7,-1.1 -.1,-.7 1.6,-.9 -1.2,-1.1 1.7,-7.1 3.4,-1.6 v -.8 l -1.1,-1.4 2.9,-5.4 h 1.9 l 1.5,-1.2 -.3,-5.2 3.1,-4.5 1.8,-.6 -.5,-3.1 38.3,-2.6 1.3,2 -1.3,67 4.4,33.2 z"/><path class="gm-usmap-state" d="m 555.3,248.9 -1.1,-1.1 -.6,-1.6 -1.7,-1.3 -14.3,.8 -27.2,1.2 -25.9,-.1 1.3,1.3 -.3,1.4 2.1,3.7 3.9,6.3 2.9,3 2,.6 .9,-1 1.5,2.1 -.1,1.2 -2.7,2.6 -.5,2.3 2.5,2.5 2.6,4.7 3.2,.7 .5,48.1 .2,10.8 39.1,-.7 39.8,-2 1.6,2.5 v 2.2 l -1.7,1.5 -2.8,5.1 11.2,-.8 1,-2 1.2,-.5 v -.7 l -1.2,-1.1 -.6,-1 1.7,.2 .8,-.7 -1.4,-1.5 1.4,-.5 .1,-1 -.6,-1 v -1.3 l -.7,-.7 .2,-1 h 1.1 l .7,.7 -.3,1 .8,.7 .8,-1 1,-2.7 1.4,.9 .7,-.4 1.2,-4.1 -1,-1 1,-2 .2,-.9 -1.3,-.8 h -2.8 l -1.4,-1.5 -1.8,-3.8 v -1.9 l .8,-.6 .1,-1.3 -1.7,-1.9 -.9,-2.5 -2.7,-4.1 -4.8,-1.3 -7.4,-7.1 -.4,-2.4 2.8,-7.6 -.4,-1.9 1.2,-1.1 v -1.3 l -2.8,-1.5 -3,-.7 -3.4,1.2 -1.3,-2.3 .6,-1.9 -.7,-2.4 -8.6,-8.4 -2.2,-1.5 -2.5,-5.9 -1.2,-5.4 1.4,-3.7 z"/><path class="gm-usmap-state" d="m 247,130.5 57.3,7.9 51,5.3 2,-20.7 5.2,-66.7 -53.5,-5.6 -54.3,-7.7 -65.9,-12.5 -4.8,22 3.7,7.4 -1.6,4.8 3.6,4.8 1.9,.7 3.9,8.3 v 2.1 l 2.3,3 h .9 l 1.4,2.1 h 3.2 v 1.6 l -7.1,17 -.5,4.1 1.4,.5 1.6,2.6 2.8,-1.4 3.6,-2.4 1.9,1.9 .5,2.5 -.5,3.2 2.5,9.7 2.6,3.5 2.3,1.4 .4,3 v 4.1 l 2.3,2.3 1.6,-2.3 6.9,1.6 2.1,-1.2 9,1.7 2.8,-3.3 1.8,-.6 1.2,1.8 1.6,4.1 .9,.1 z"/><path class="gm-usmap-state" d="m 402.5,191.1 38,1.6 3.4,3.2 1.7,.2 2.1,2 1.8,-.1 1.8,-2 1.5,.6 1,-.7 .7,.5 .9,-.4 .7,.4 .9,-.4 1,.5 1.4,-.6 2,.6 .6,1.1 6.1,2.2 1.2,1.3 .9,2.6 1.8,.7 1.5,-.2 .5,.9 v 2.3 l .6,1.7 v 1.4 l 1.3,3.7 2.2,4.3 .2,3.7 2.8,5 .4,6.1 1.3,.7 -.2,2.9 .8,3.3 -.7,2.2 1.8,4.4 1.3,1.3 -.3,1.4 2.1,3.7 3.9,6.3 h -32.4 l -43.7,-1.2 -36,-2 1.4,-22.1 -33.1,-2.4 3.7,-44.2 z"/><path class="gm-usmap-state" d="m 167.6,296.8 -3.4,17.5 -2.4,2.9 h -2 l -1.2,-2.7 -3.7,-1.4 -3.5,.6 -1,13.6 .5,4.9 -.5,2.9 -1.4,3 -70.4,-105 -1.1,-3.5 16.4,-63.1 47,11.2 24.4,5.4 23.3,4.7 z"/><path class="gm-usmap-state" d="m 862.6,93.6 -1.3,.1 -1,-1.1 -1.9,1.4 -.5,6.1 1.2,2.3 -1.1,3.5 2.1,2.8 -.4,1.7 .1,1.3 -1.1,2.1 -1.4,.4 -.6,1.3 -2.1,1 -.7,1.5 1.4,3.4 -.5,2.5 .5,1.5 -1,1.9 .4,1.9 -1.3,1.9 .2,2.2 -.7,1.1 .7,4.5 .7,1.5 -.5,2.6 .9,1.8 -.2,2.5 -.5,1.3 -.1,1.4 2.1,2.6 18.4,-3.8 1,-1.5 .3,-1.7 1.9,-.6 .5,-1.1 1.7,-1.1 1.3,.3 .8,-4.8 -2.3,-1.4 -.8,-2.2 -3.2,-2 -.6,-4 -11.9,-36.8 z"/><path class="gm-usmap-state" d="m 842.5,195.4 -14.6,-4.9 -1.8,2.5 .1,2.2 -3,5.4 1.5,1.8 -.7,2 -1,1 .5,3.6 2.7,.9 1,2.8 2.1,1.1 4.2,3.2 -3.3,2.6 -1.6,2.3 -1.8,3 -1.6,.6 -1.4,1.7 -1,2.2 -.3,2.1 .8,.9 .4,2.3 1.2,.6 2.4,1.5 1.8,.8 1.6,.8 .1,1.1 .8,.1 1.1,-1.2 .8,.4 2.1,.2 -.2,2.9 .2,2.5 1.8,-.7 1.5,-3.9 1.6,-4.8 2.9,-2.8 .6,-3.5 -.6,-1.2 1.7,-2.9 v -1.2 l -.7,-1.1 1.2,-2.7 -.3,-3.6 -.6,-8.2 -1.2,-1.4 v 1.4 l .5,.6 h -1.1 l -.6,-.4 -1.3,-.2 -.9,.6 -1.2,-1.6 .7,-1.7 v -1 l 1.7,-.7 .8,-2.1 z"/><path class="gm-usmap-state" d="m 357.5,332.9 h -.8 l -7.9,99.3 -31.8,-2.6 -34.4,-3.6 -.3,3 2,2.2 -30.8,-4.1 -1.4,10.2 -15.7,-2.2 17.4,-124.1 52.6,6.5 51.7,4.8 z"/><path class="gm-usmap-state" d="m 872.9,181.6 -1.3,.1 -.5,1 z m -30.6,22.7 .7,.6 1.3,-.3 1.1,.3 .9,-1.3 h 1.9 l 2.4,-.9 5.1,-2.1 -.5,-.5 -1.9,.8 -2,.9 .2,-.8 2.6,-1.1 .8,-1 1.2,.1 4.1,-2.3 v .7 l -4.2,3 4.5,-2.8 1.7,-2.2 1.5,-.1 4.5,-3.1 3.2,-3.1 3,-2.3 1,-1.2 -1.7,-.1 -1,1.2 -.2,.7 -.9,.7 -.8,-1.1 -1.7,1 -.1,.9 -.9,-.2 .5,-.9 -1.2,-.7 -.6,.9 .9,.3 .2,.5 -.3,.5 -1.4,2.6 h -1.9 l .9,-1.8 .9,-.6 .3,-1.7 1.4,-1.6 .9,-.8 1.5,-.7 -1.2,-.2 -.7,.9 h -.7 l -1.1,.8 -.2,1 -2.2,2.1 -.4,.9 -1.4,.9 -7.7,1.9 .2,.9 -.9,.7 -2,.3 -1,-.6 -.2,1.1 -1.1,-.4 .1,1 -1.2,-.1 -1.2,.5 -.2,1.1 h -1 l .2,1 h -.7 l .2,1 -1.8,.4 -1.5,2.3 z m -.8,-.4 -1.6,.4 v 1 l -.7,1.6 .6,.7 2.4,-2.3 -.1,-.9 z m -10.1,-95.2 -.6,1.9 1.4,.9 -.4,1.5 .5,3.2 2.2,2.3 -.4,2.2 .6,2 -.4,1 -.3,3.8 3.1,6.7 -.8,1.8 .9,2.2 .9,-1.6 1.9,1.5 3,14.2 -.5,2 1.1,1 -.5,15 .7,1 2.8,16.3 1.8,1.5 -3.5,3.4 1.7,2.2 -1.3,3.3 -1.5,1.7 -1.5,2.3 -.2,-.7 .4,-5.9 -14.6,-4.9 -1.6,-1.1 -1.9,.3 -3,-2.2 -3,-5.8 h -2 l -.4,-1.5 -1.7,-1.1 -70.5,13.9 -.8,-6 4.3,-3.9 .6,-1.7 3.9,-2.5 .6,-2.4 2.3,-2 .8,-1.1 -1.7,-3.3 -1.7,-.5 -1.8,-3 -.2,-3.2 7.6,-3.9 8.2,-1.6 h 4.4 l 3.2,1.6 .9,-.1 1.8,-1.6 3.4,-.7 h 3 l 2.6,-1.3 2.5,-2.6 2.4,-3.1 1.9,-.4 1.1,-.5 .4,-3.2 -1.4,-2.7 -1.2,-.7 2,-1.3 -.1,-1.8 h -1.5 l -2.3,-1.4 -.1,-3.1 6.2,-6.1 .7,-2.4 3.7,-6.3 5.9,-6.4 2.1,-1.7 2.5,.1 20.6,-5.2 z"/><path class="gm-usmap-state" d="m 829,300.1 -29.1,6.1 -39.4,7.3 -29.4,3.5 v 5.2 l -1.5,-.1 -1.4,1.2 -2.4,5.2 -2.6,-1.1 -3.5,2.5 -.7,2.1 -1.5,1.2 -.8,-.8 -.1,-1.5 -.8,-.2 -4,3.3 -.6,3.4 -4.7,2.4 -.5,1.2 -3.2,2.6 -3.6,.5 -4.6,3 -.8,4.1 -1.3,.9 -1.5,-.1 -1.4,1.3 -.1,4.9 21.4,-3 4.4,-1.9 1.3,-.1 7.3,-4.3 23.2,-2.2 .4,.5 -.2,1.4 .7,.3 1.2,-1.5 3.3,3 .1,2.6 19.7,-2.8 24.5,17.1 4,-2.2 3,-.7 h 1.7 l 1.1,1.1 .8,-2 .6,-5 1.7,-3.9 5.4,-6.1 4.1,-3.5 5.4,-2.3 2.5,-.4 1.3,.4 .7,1.1 3.3,-6.6 3.3,-5.3 -.7,-.3 -4.4,6.8 -.5,-.8 2,-2.2 -.4,-1.5 -2,-.5 1,1.3 -1.2,.1 -1.2,-1.8 -1.2,2 -1.6,.2 1,-2.7 .7,-1.7 -.2,-2.9 -2.2,-.1 .9,-.9 1.1,.3 2.7,.1 .8,-.5 h 2.3 l 2,-1.9 .2,-3.2 1.3,-1.4 1.2,-.2 1.3,-1 -.5,-3.7 -2.2,-3.8 -2.7,-.2 -.9,1.6 -.5,-1 -2.7,.2 -1.2,.4 -1.9,1.2 -.3,-.4 h -.9 l -1.8,1.2 -2.6,.5 v -1.3 l .8,-1 1,.7 h 1 l 1.7,-2.1 3.7,-1.7 2,-2.2 h 2.4 l .8,1.3 1.7,.8 -.5,-1.5 -.3,-1.6 -2.8,-3.1 -.3,-1.4 -.4,1 -.9,-1.3 z m 7,31 2.7,-2.5 4.6,-3.3 v -3.7 l -.4,-3.1 -1.7,-4.2 1.5,1.4 1,3.2 .4,7.6 -1.7,.4 -3.1,2.4 -3.2,3.2 z m 1.9,-19.3 -.9,-.2 v 1 l 2.5,2.2 -.2,-1.4 z m 2.9,2.1 -1.4,-2.8 -2.2,-3.4 -2.4,-3 -2.2,-4.3 -.8,-.7 2.2,4.3 .3,1.3 3.4,5.5 1.8,2.1 z"/><path class="gm-usmap-state" d="m 464.7,68.6 -1.1,2.8 .8,1.4 -.3,5.1 -.5,1.1 2.7,9.1 1.3,2.5 .7,14 1,2.7 -.4,5.8 2.9,7.4 .3,5.8 -.1,2.1 -29.5,-.4 -46,-2.1 -39.2,-2.9 5.2,-66.7 44.5,3.4 55.3,1.6 z"/><path class="gm-usmap-state" d="m 685.7,208.8 1.9,-.4 3,1.3 2.1,.6 .7,.9 h 1 l 1,-1.5 1.3,.8 h 1.5 l -.1,1 -3.1,.5 -2,1.1 1.9,.8 1.6,-1.5 2.4,-.4 2.2,1.5 1.5,-.1 2.5,-1.7 3.6,-2.1 5.2,-.3 4.9,-5.9 3.8,-3.1 9.3,-5.1 4.9,29.9 -2.2,1.2 1.4,2.1 -.1,2.2 .6,2 -1.1,3.4 -.1,5.4 -1,3.6 .5,1.1 -.4,2.2 -1.1,.5 -2,3.3 -1.8,2 h -.6 l -1.8,1.7 -1.3,-1.2 -1.5,1.8 -.3,1.2 h -1.3 l -1.3,2.2 .1,2.1 -1,.5 1.4,1.1 v 1.9 l -1,.2 -.7,.8 -1,.5 -.6,-2.1 -1.6,-.5 -1,2.3 -.3,2.2 -1.1,1.3 1.3,3.6 -1.5,.8 -.4,3.5 h -1.5 l -3.2,1.4 -1.2,-2.1 -3.5,-1.4 -.8,-2.9 -.5,-.8 -3.4,1.8 -.6,1.7 h -.9 l -1.3,.7 -1.2,-.8 -3,-.8 -1.9,.8 v 1 l -2.2,-.2 -1.9,-2.1 -2.3,.2 -4.1,-.7 v -1 l -2.2,-3.4 -2.9,-1.2 -1.9,.8 -2.2,-.1 -1.3,-.5 -6.6,-57.2 21.4,-3.5 z"/><path class="gm-usmap-state" d="m 501.5,398.6 -4.6,-3.8 -2.2,-.9 -.5,1.6 -5.1,.3 -.6,-1.5 -5,2.5 -1.6,-.7 -3.7,.3 -.6,1.7 -3.6,.9 -1.3,-1.2 -1.2,.1 -2,-1.8 -2.1,.7 -2,-.5 -1.8,-2 -2.5,4.2 -1.2,.8 -1,-1.8 .3,-2 -1.2,-.7 -2.3,2.5 -1.7,-1.2 -.1,-1.5 -1.3,.5 -2.6,-1.7 -3,2.6 -2.3,-1.1 .7,-2.1 -2.3,.1 -1.9,-3 -3.5,-1.1 -2,2.3 -2.3,-2.2 -1.4,.4 -2,.1 -3.5,-1.9 -2.3,.1 -1.2,-.7 -.5,-2.9 -2.3,-1.7 -1.1,1.5 -1.4,-1 -1.2,-.4 -1.1,1 -1.5,-.3 -2.5,-3 -2.7,-1.3 1.4,-42.7 -52.6,-3.2 .6,-10.6 16.5,1 67.7,2.9 62,.1 .2,10.8 4.1,24.4 -.7,39 z"/><path class="gm-usmap-state" d="m 93.9,166.5 47,11.2 8.5,-37.3 2.9,-5.8 .4,-2.1 .8,-.9 -.9,-2 -2.9,-1.2 .2,-4.2 4,-5.8 2.5,-.8 1.6,-2.3 -.1,-1.6 1.8,-1.6 3.2,-5.5 4.2,-4.8 -.5,-3.2 -3.5,-3.1 -1.6,-3.6 -30.3,-7.3 -2.8,1 -5.4,-.9 -1.8,-.9 -1.5,1.2 -3.3,-.4 -4.5,.5 -.9,.7 -4.2,-.4 -.8,-1.6 -1.2,-.2 -4.4,1.3 -1.6,-1.1 -2.2,.8 -.2,-1.8 -2.3,-1.2 -1.5,-.2 -1,-1.1 -3,.3 -1.2,-.8 h -1.2 l -1.2,.9 -5.5,.7 -6.6,-4.2 1.1,-5.6 -.4,-4.1 -3.2,-3.7 -3.7,.1 -.4,-1.1 .4,-1.2 -.7,-.8 -1,.1 -1.1,1.3 -1.5,-.2 -.5,-1.1 -1,-.1 -.7,.6 -2,-1.9 v 4.3 l -1.3,1.3 -1.1,3.5 -.1,2.3 -4.5,12.3 -13.2,31.3 -3.2,4.6 -1.6,-.1 .1,2.1 -5.2,7.1 -.3,3.3 1,1.3 .1,2.4 -1.2,1.1 -1.2,3 .1,5.7 1.2,2.9 z"/><path class="gm-usmap-state" d="m 826.3,189.4 -1.9,.3 -3,-2.2 -3,-5.8 h -2 l -.4,-1.5 -1.7,-1.1 -70.5,13.9 -.8,-6 -4.2,3.4 -.9,.1 -2.7,3 -3.3,1.7 4.9,29.9 3.2,19.7 17.4,-2.9 60.5,-11.8 1.2,-2.1 1.5,-1.1 1.6,-.3 1.6,.6 1.4,-1.7 1.6,-.6 1.8,-3 1.6,-2.3 3.3,-2.6 -4.2,-3.2 -2.1,-1.1 -1,-2.8 -2.7,-.9 -.5,-3.6 1,-1 .7,-2 -1.5,-1.8 3,-5.4 -.1,-2.2 1.8,-2.5 z"/><path class="gm-usmap-state" d="m 883.2,170.7 -1.3,-1.1 -2.6,-1.3 -.6,-2.2 h -.8 l -.7,-2.6 -6.5,2 3.2,12.3 -.4,1.1 .4,1.8 5.6,-3.6 .1,-3 -.8,-.8 .4,-.6 -.1,-1.3 -.9,-.7 1.2,-.4 -.9,-1.6 1.8,.7 .3,1.4 .7,1.2 -1.4,-.8 1.1,1.7 -.3,1.2 -.6,-1.1 v 2.5 l .6,-.9 .4,.9 1.3,-1.5 -.2,-2.5 1.4,3.1 1,-.9 z m -4.7,12.2 h .9 l .5,-.6 -.8,-1.3 -.7,.7 z"/><path class="gm-usmap-state" d="m 772.3,350.2 -19.7,2.8 -.1,-2.6 -3.3,-3 -1.2,1.5 -.7,-.3 .2,-1.4 -.4,-.5 -23.2,2.2 -7.3,4.3 -1.3,.1 -4.4,1.9 -.1,1.9 -1.9,1 -1.4,3.2 .2,1.3 6.1,3.8 2.6,-.3 3.1,4 .4,1.7 4.2,5.1 2.6,1.7 1.4,.2 2.2,1.6 1.1,2.2 2,1.6 1.8,.5 2.7,2.7 .1,1.4 2.6,2.8 5,2.3 3.6,6.7 .3,2.7 3.9,2.1 2.5,4.8 .8,3.1 4.2,.4 .8,-1.5 h .6 l 1.8,-1.5 .5,-2 3.2,-2.1 .3,-2.4 -1.2,-.9 .8,-.7 .8,.4 1.3,-.4 1.8,-2.1 3.8,-1.8 1.6,-2.4 .1,-.7 4.8,-4.4 -.1,-.5 -.9,-.8 1.1,-1.5 h .8 l .4,.5 .7,-.8 h 1.3 l .6,-1.5 2.3,-2.1 -.3,-5.4 .8,-2.3 3.6,-6.2 2.4,-2.2 2.2,-1.1 z"/><path class="gm-usmap-state" d="m 396.5,125.9 46,2.1 29.5,.4 -.1,2.2 -.9,2 -3.1,1.9 -.3,1.2 1.7,2.5 .4,1.8 2.6,.6 1.5,1.9 -.2,39.5 -2.2,-.1 -.1,1.6 1.3,1.5 -.1,1.1 -1,.5 .4,1.6 1.3,.4 .7,2 -1.7,5.1 -1,4.3 1.3,1.2 .3,1.3 .7,1.7 -1.5,.2 -1.8,-.7 -.9,-2.6 -1.2,-1.3 -6.1,-2.2 -.6,-1.1 -2,-.6 -1.4,.6 -1,-.5 -.9,.4 -.7,-.4 -.9,.4 -.7,-.5 -1,.7 -1.5,-.6 -1.8,2 -1.8,.1 -2.1,-2 -1.7,-.2 -3.4,-3.2 -38,-1.6 -51.1,-3.5 3.9,-43.9 2,-20.7 z"/><path class="gm-usmap-state" d="m 620.9,365.1 45.7,-4 22.9,-2.9 .1,-4.9 1.4,-1.3 1.5,.1 1.3,-.9 .8,-4.1 4.6,-3 3.6,-.5 3.2,-2.6 .5,-1.2 4.7,-2.4 .6,-3.4 4,-3.3 .8,.2 .1,1.5 .8,.8 1.5,-1.2 .7,-2.1 3.5,-2.5 2.6,1.1 2.4,-5.2 1.4,-1.2 1.5,.1 0,-5.2 .3,-.7 -4.6,.5 -.2,1 -28.9,3.3 -5.6,1.4 -20.5,1.4 -5.2,.8 -17.4,1 -2.6,.8 -22.6,2 -.7,-.6 h -3.7 l 1.2,3.2 -.6,.9 -23.3,1.5 -.8,1 -.8,-.7 h -1 v 1.3 l .6,1 -.1,1 -1.4,.5 1.4,1.5 -.8,.7 -1.7,-.2 .6,1 1.2,1.1 v .7 l -1.2,.5 -1,2 .1,.6 1.4,1 -.4,.7 h -1.5 v .5 l .9,.9 .1,.8 -1.4,.2 -.5,.8 -1.6,.2 -.9,.9 .6,.9 1.1,-.1 .5,.9 -1.6,1.3 .4,1.5 -2,-.6 -.1,.7 .4,1.1 -.3,1.4 -1.3,-.8 -.8,.8 1.1,.1 .1,1.5 -.6,1 1.1,.9 -.3,1.5 .8,.7 -.7,1 -1.2,-.5 -.9,2.2 -1.6,.7 z"/><path class="gm-usmap-state" d="m 282.3,429 .3,-3 34.4,3.6 31.8,2.6 7.9,-99.3 .8,0 52.6,3.2 -1.4,42.7 2.7,1.3 2.5,3 1.5,.3 1.1,-1 1.2,.4 1.4,1 1.1,-1.5 2.3,1.7 .5,2.9 1.2,.7 2.3,-.1 3.5,1.9 2,-.1 1.4,-.4 2.3,2.2 2,-2.3 3.5,1.1 1.9,3 2.3,-.1 -.7,2.1 2.3,1.1 3,-2.6 2.6,1.7 1.3,-.5 .1,1.5 1.7,1.2 2.3,-2.5 1.2,.7 -.3,2 1,1.8 1.2,-.8 2.5,-4.2 1.8,2 2,.5 2.1,-.7 2,1.8 1.2,-.1 1.3,1.2 3.6,-.9 .6,-1.7 3.7,-.3 1.6,.7 5,-2.5 .6,1.5 5.1,-.3 .5,-1.6 2.2,.9 4.6,3.8 6.4,1.9 2.6,2.3 2.8,-1.3 3.2,.8 .2,11.9 .5,19.9 .7,3.4 2.6,2.8 .7,5.4 3.8,4.6 .8,4.3 h 1 l -.1,7.3 -3.3,6.4 1.3,2.3 -1.3,1.5 .7,3 -.1,4.3 -2.2,3.5 -.1,.8 -1.7,1.2 1,1.8 1.2,1.1 -3.5,.3 -8.4,3.9 -3.5,1.4 -1.8,1.8 -.7,-.5 2.1,-2.3 1.8,-.7 .5,-.9 -2.9,-.1 -.7,-.8 .8,-2 -.9,-1.8 h -.6 l -2.4,1.3 -1.9,2.6 .3,1.7 3.3,3.4 1.3,.3 v .8 l -2.3,1.6 -4.9,4 -4,3.9 -3.2,1.4 -5,3 -3.7,2 -4.5,1.9 -4.1,2.5 3.2,-3 v -1.1 l .6,-.8 -.2,-1.8 -1.5,-.1 -1.1,1.5 -2.6,1.3 -1.8,-1.2 -.3,-1.7 h -1.5 l .8,2.2 1.4,.7 1.2,.9 1.8,1.6 -.7,.8 -3.9,1.7 -1.7,.1 -1.2,-1.2 -.5,2.1 .5,1.1 -2.7,2 -1.5,.2 -.8,.7 -.4,1.7 -1.8,3.3 -1.6,.7 -1.6,-.6 -1.8,1.1 .3,1.4 1.3,.8 1,.8 -1.8,3.5 -.3,2.8 -1,1.7 -1.4,1 -2.9,.4 1.8,.6 1.9,-.6 -.4,3.2 -1.1,-.1 .2,1.2 .3,1.4 -1.3,.9 v 3.1 l 1.6,1.4 .6,3.1 -.4,2.2 -1,.4 .4,1.5 1.1,.4 .8,1.7 v 2.6 l 1.1,2.1 2.2,2.6 -.1,.7 -2.2,-.2 -1.6,1.4 .2,1.4 -.9,-.3 -1.4,-.2 -3.4,-3.7 -2.3,-.6 h -7.1 l -2.8,-.8 -3.6,-3 -1.7,-1 -2.1,.1 -3.2,-2.6 -5.4,-1.6 v -1.3 l -1.4,-1.8 -.9,-4.7 -1.1,-1.7 -1.7,-1.4 v -1.6 l -1.4,-.6 .6,-2.6 -.3,-2.2 -1.3,-1.4 .7,-3 -.8,-3.2 -1.7,-1.4 h -1.1 l -4,-3.5 .1,-1.9 -.8,-1.7 -.8,-.2 -.9,-2.4 -2,-1.6 -2.9,-2.5 -.2,-2.1 -1,-.7 .2,-1.6 .5,-.7 -1.4,-1.5 .1,-.7 -2,-2.2 .1,-2.1 -2.7,-4.9 -.1,-1.7 -1.8,-3.1 -5.1,-4.8 v -1.1 l -3.3,-1.7 -.1,-1.8 -1.2,-.4 v -.7 l -.8,-.2 -2.1,-2.8 h -.8 l -.7,-.6 -1.3,1.1 h -2.2 l -2.6,-1.1 h -4.6 l -4.2,-2.1 -1.3,1.9 -2.2,-.6 -3.3,1.2 -1.7,2.8 -2,3.2 -1.1,4.4 -1.4,1.2 -1.1,.1 -.9,1.6 -1.3,.6 -.1,1.8 -2.9,.1 -1.8,-1.5 h -1 l -2,-2.9 -3.6,-.5 -1.7,-2.3 -1.3,-.2 -2.1,-.8 -3.4,-3.4 .2,-.8 -1.6,-1.2 -1,-.1 -3.4,-3.1 -.1,-2 -2.3,-4 .2,-1.6 -.7,-1.3 .8,-1.5 -.1,-2.4 -2.6,-4.1 -.6,-4.2 -1.6,-1.6 v -1 l -1.2,-.2 -.7,-1.1 -2.4,-1.7 -.9,-.1 -1.9,-1.6 v -1.1 l -2.9,-1.8 -.6,-2.1 -2.6,-2.3 -3.2,-4.4 -3,-1.3 -2.1,-1.8 .2,-1.2 -1.3,-1.4 -1.7,-3.7 -2.4,-1 z m 174.9,138.3 .8,.1 -.6,-4.8 -3.5,-12.3 -.2,-8.1 4.9,-10.5 6.1,-8.2 7.2,-5.1 v -.7 h -.8 l -2.6,1 -3.6,2.3 -.7,1.5 -8.2,11.6 -2.8,7.9 v 8.8 l 3.6,12 z"/><path class="gm-usmap-state" d="m 233.2,217.9 3.3,-21.9 -47.9,-8.2 -21,109 46.2,8.2 40,6 11.5,-88.3 z"/><path class="gm-usmap-state" d="m 859.1,102.4 -1.1,3.5 2.1,2.8 -.4,1.7 .1,1.3 -1.1,2.1 -1.4,.4 -.6,1.3 -2.1,1 -.7,1.5 1.4,3.4 -.5,2.5 .5,1.5 -1,1.9 .4,1.9 -1.3,1.9 .2,2.2 -.7,1.1 .7,4.5 .7,1.5 -.5,2.6 .9,1.8 -.2,2.5 -.5,1.3 -.1,1.4 2.1,2.6 -12.4,2.7 -1.1,-1 .5,-2 -3,-14.2 -1.9,-1.5 -.9,1.6 -.9,-2.2 .8,-1.8 -3.1,-6.7 .3,-3.8 .4,-1 -.6,-2 .4,-2.2 -2.2,-2.3 -.5,-3.2 .4,-1.5 -1.4,-.9 .6,-1.9 -.8,-1.7 27.3,-6.9 z"/><path class="gm-usmap-state" d="m 834.7,265.4 -1.1,2.8 .5,1.1 .4,-1.1 .8,-3.1 z m -34.6,-7 -.7,-1 1,-.1 1,-.9 .4,-1.8 -.2,-.5 .1,-.5 -.3,-.7 -.6,-.5 -.4,-.1 -.5,-.4 -.6,-.6 h -1 l -.6,-.1 -.4,-.4 .1,-.5 -1.7,-.6 -.8,.3 -1.2,-.1 -.7,-.7 -.5,-.2 -.2,-.7 .6,-.8 v -.9 l -1.2,-.2 -1,-.9 -.9,.1 -1.6,-.3 -.4,.7 -.4,1.6 -.5,2.3 -10,-5.2 -.2,.9 .9,1.6 -.8,2.3 .1,2.9 -1.2,.8 -.5,2.1 -.9,.8 -1.4,1.8 -.9,.8 -1,2.5 -2.4,-1.1 -2.3,8.5 -1.3,1.6 -2.8,-.5 -1.3,-1.9 -2.3,-.7 -.1,4.7 -1.4,1.7 .4,1.5 -2.1,2.2 .4,1.9 -3.7,6.3 -1,3.3 1.5,1.2 -1.5,1.9 .1,1.4 -2.3,2 -.7,-1.1 -4.3,3.1 -1.5,-1 -.6,1.4 .8,.5 -.5,.9 -5.5,2.4 -3,-1.8 -.8,1.7 -1.9,1.8 -2.3,.1 -4.4,-2.3 -.1,-1.5 -1.5,-.7 .8,-1.2 -.7,-.6 -4.9,6.6 -2.9,1 -3,3 -.4,2.2 -2.1,1.3 -.1,1.7 -1.4,1.4 -1.8,.5 -.5,1.9 -1,.4 -6.9,4.2 28.9,-3.3 .2,-1 4.6,-.5 -.3,.7 29.4,-3.5 39.4,-7.3 29.1,-6.1 -.6,-1.2 .4,-.1 .9,.9 -.1,-1.4 -.3,-1.9 1.6,1.2 .9,2.1 v -1.3 l -3.4,-5.5 v -1.2 l -.7,-.8 -1.3,.7 .5,1.4 h -.8 l -.4,-1 -.6,.9 -.9,-1.1 -2.1,-.1 -.2,.7 1.5,2.1 -1.4,-.7 -.5,-1 -.4,.8 -.8,.1 -1.5,1.7 .3,-1.6 v -1.4 l -1.5,-.7 -1.8,-.5 -.2,-1.7 -.6,-1.3 -.6,1.1 -1.7,-1 -2,.3 .2,-.9 1.5,-.2 .9,.5 1.7,-.8 .9,.4 .5,1 v .7 l 1.9,.4 .3,.9 .9,.4 .9,1.2 1.4,-1.6 h .6 l -.1,-2.1 -1.3,1 -.6,-.9 1.5,-.2 -1.2,-.9 -1.2,.6 -.1,-1.7 -1.7,.2 -2.2,-1.1 -1.8,-2.2 3.6,2.2 .9,.3 1.7,-.8 -1.7,-.9 .6,-.6 -1,-.5 .8,-.2 -.3,-.9 1.1,.9 .4,-.8 .4,1.3 1.2,.8 .6,-.5 -.5,-.6 -.1,-2.5 -1.1,-.1 -1.6,-.8 .9,-1.1 -2,-.1 -.4,-.5 -1.4,.6 -1.4,-.8 -.5,-1.2 -2.1,-1.2 -2.1,-1.8 -2.2,-1.9 3,1.3 .9,1.2 2.1,.7 2.3,2.5 .2,-1.7 .6,1.3 2.3,.5 v -4 l -.8,-1.1 1.1,.4 .1,-1.6 -3.1,-1.4 -1.6,-.2 -1.3,-.2 .3,-1.2 -1.5,-.3 -.1,-.6 h -1.8 l -.2,.8 -.7,-1 h -2.7 l -1,-.4 -.2,-1 -1.2,-.6 -.4,-1.5 -.6,-.4 -.7,1.1 -.9,.2 -.9,.7 h -1.5 l -.9,-1.3 .4,-3.1 .5,-2.4 .6,.5 z m 21.9,11.6 .9,-.1 0,-.6 -.8,.1 z m 7.5,14.2 -1,2.7 1.2,-1.3 z m -1.8,-15.3 .7,.3 -.2,1.9 -.5,-.5 -1.3,1 1,.4 -1.8,4.4 .1,8.1 1.9,3.1 .5,-1.5 .4,-2.7 -.3,-2.3 .7,-.9 -.2,-1.4 1.2,-.6 -.6,-.5 .5,-.7 .8,1.1 -.2,1.1 -.4,3.9 1.1,-2.2 .4,-3.1 .1,-3 -.3,-2 .6,-2.3 1.1,-1.8 .1,-2.2 .3,-.9 -4.6,1.6 -.7,.8 z"/><path class="gm-usmap-state" d="m 161.9,83.6 .7,4 -1.1,4.3 -30.3,-7.3 -2.8,1 -5.4,-.9 -1.8,-.9 -1.5,1.2 -3.3,-.4 -4.5,.5 -.9,.7 -4.2,-.4 -.8,-1.6 -1.2,-.2 -4.4,1.3 -1.6,-1.1 -2.2,.8 -.2,-1.8 -2.3,-1.2 -1.5,-.2 -1,-1.1 -3,.3 -1.2,-.8 h -1.2 l -1.2,.9 -5.5,.7 -6.6,-4.2 1.1,-5.6 -.4,-4.1 -3.2,-3.7 -3.7,.1 -.4,-1.1 .4,-1.2 -.7,-.8 -1,.1 -2.1,-1.5 -1.2,.4 -2,-.1 -.7,-1.5 -1.6,-.3 2.5,-7.5 -.7,6 .5,.5 v -2 l .8,-.2 1.1,2.3 -.5,-2.2 1.2,-4.2 1.8,.4 -1.1,-2 -1,.3 -1.5,-.4 .2,-4.2 .2,1.5 .9,.5 .6,-1.6 h 3.2 l -2.2,-1.2 -1.7,-1.9 -1.4,1.6 1.2,-3.1 -.3,-4.6 -.2,-3.6 .9,-6.1 -.5,-2 -1.4,-2.1 .1,-4 .4,-2.7 2,-2.3 -.7,-1.4 .2,-.6 .9,.1 7.8,7.6 4.7,1.9 5.1,2.5 3.2,-.1 .2,3 1,-1.6 h .7 l .6,2.7 .5,-2.6 1.4,-.2 .5,.7 -1.1,.6 .1,1.6 .7,-1.5 h 1.1 l -.4,2.6 -1.1,-.8 .4,1.4 -.1,1.5 -.8,.7 -2.5,2.9 1.2,-3.4 -1.6,.4 -.4,2.1 -3.8,2.8 -.4,1 -2.1,2.2 -.1,1 h 2.2 l 2.4,-.2 .5,-.9 -3.9,.5 v -.6 l 2.6,-2.8 1.8,-.8 1.9,-.2 1,-1.6 3,-2.3 v -1.4 h 1.1 l .1,4 h -1.5 l -.6,.8 -1.1,-.9 .3,1.1 v 1.7 l -.7,.7 -.3,-1.6 -.8,.8 .7,.6 -.9,1.1 h 1.3 l .7,-.5 .1,2 -1,1.9 -.9,1 -.1,1.8 -1,-.2 -.2,-1.4 .9,-1.1 -.8,-.5 -.8,.7 -.7,2.2 -.8,.9 -.1,-2 .8,-1.1 -.2,-1.1 -1.2,1.2 .1,2.2 -.6,.4 -2.1,-.4 -1.3,1.2 2.2,-.6 -.2,2.2 1,-1.8 .4,1.4 .5,-1 .7,1.8 h .7 l .7,-.8 .6,-.1 2,-1.9 .2,-1.2 .8,.6 .3,.9 .7,-.3 .1,-1.2 h 1.3 l .2,-2.9 -.1,-2.7 .9,.3 -.7,-2.1 1.4,-.8 .2,-2.4 2.3,-2.2 1,.1 .3,-1.4 -1.2,-1.4 -.1,-3.5 -.8,.9 .7,2.9 -.6,.1 -.6,-1.9 -.6,-.5 .3,-2.3 1.8,-.1 .3,.7 .3,-1.6 -1.6,-1.7 -.6,-1.6 -.2,2 .9,1.1 -.7,.4 -1,-.8 -1.8,1.3 1.5,.5 .2,2.4 -.3,1.8 .9,-1.3 1.4,2.3 -.4,1.9 h -1.5 v -1.2 l -1.5,-1.2 .5,-3 -1.9,-2.6 2.7,-3 .6,-4.1 h .9 l 1.4,3.2 v -2.6 l 1.2,.3 v -3.3 l -.9,-.8 -1.2,2.5 -1,-3 1.3,-.1 -1.5,-4.9 1.9,-.6 25.4,7.5 31.7,8 23.6,5.5 z m -78.7,-39.4 h .5 l .1,.8 -.5,.3 .1,.6 -.7,.4 -.2,-.9 .5,-.4 z m 5,-4.3 -1.2,1.9 -.1,.8 .4,.2 .5,-.6 1.1,.1 z m -.4,-21.6 .5,.6 1.3,-.3 .2,-1 1.2,-1.8 -1,-.4 -.7,1.6 -.1,-1.6 -1.1,.2 -.7,1.4 z m 3.2,-5.5 .7,1.5 -.9,.2 -.8,.4 -.2,-2.4 z m -2.7,-1.6 -1.1,-.2 .5,1.4 z m -1,2.5 .8,.4 -.4,1.1 1.7,-.5 -.2,-2.2 -.9,-.2 z m -2.7,-.4 .3,2.7 1.6,1.3 .6,-1.9 -1.1,-2.2 z m 1.9,-1.1 -1.1,-1 -.9,.1 1.8,1.5 z m 3.2,-7 h -1.2 v .8 l 1.2,.6 z m -.9,32.5 .4,-2.7 h -1.1 l -.2,1.9 z"/><path class="gm-usmap-state" d="m 723.4,297.5 -.8,1.2 1.5,.7 .1,1.5 4.4,2.3 2.3,-.1 1.9,-1.8 .8,-1.7 3,1.8 5.5,-2.4 .5,-.9 -.8,-.5 .6,-1.4 1.5,1 4.3,-3.1 .7,1.1 2.3,-2 -.1,-1.4 1.5,-1.9 -1.5,-1.2 1,-3.3 3.7,-6.3 -.4,-1.9 2.1,-2.2 -.4,-1.5 1.4,-1.7 .1,-4.7 2.3,.7 1.3,1.9 2.8,.5 1.3,-1.6 2.3,-8.5 2.4,1.1 1,-2.5 .9,-.8 1.4,-1.8 .9,-.8 .5,-2.1 1.2,-.8 -.1,-2.9 .8,-2.3 -.9,-1.6 .2,-.9 10,5.2 .5,-2.3 .4,-1.6 .4,-.7 -.9,-.4 .2,-1.6 -1,-.5 -.2,-.7 h -.7 l -.8,-1.2 .2,-1 -2.6,.4 -2.2,-1.6 -1.4,.3 -.9,1.4 h -1.3 l -1.7,2.9 -3.3,.4 -1.9,-1 -2.6,3.8 -2.2,-.3 -3.1,3.9 -.9,1.6 -1.8,1.6 -1.7,-11.4 -17.4,2.9 -3.2,-19.7 -2.2,1.2 1.4,2.1 -.1,2.2 .6,2 -1.1,3.4 -.1,5.4 -1,3.6 .5,1.1 -.4,2.2 -1.1,.5 -2,3.3 -1.8,2 h -.6 l -1.8,1.7 -1.3,-1.2 -1.5,1.8 -.3,1.2 h -1.3 l -1.3,2.2 .1,2.1 -1,.5 1.4,1.1 v 1.9 l -1,.2 -.7,.8 -1,.5 -.6,-2.1 -1.6,-.5 -1,2.3 -.3,2.2 -1.1,1.3 1.3,3.6 -1.5,.8 -.4,3.5 h -1.5 l -3.2,1.4 -.1,1.1 .6,1 -.6,3.6 1.9,1.6 .8,1.1 1,.6 -.1,.9 4.4,5.6 h 1.4 l 1.5,1.8 1.2,.3 1.4,-.1 z"/><path class="gm-usmap-state" d="m 611,144 -2.9,.8 .2,2.3 -2.4,3.4 -.2,3.1 .6,.7 .8,-.7 .5,-1.6 2,-1.1 1.6,-4.2 3.5,-1.1 .8,-3.3 .7,-.9 .4,-2.1 1.8,-1.1 v -1.5 l 1,-.9 1.4,.1 v 2 l -1,.1 .5,1.2 -.7,2.2 -.6,.1 -1.2,4.5 -.7,.5 -2.8,7.2 -.3,4.2 .6,2 .1,1.3 -2.4,1.9 .3,1.9 -.9,3.1 .3,1.6 .4,3.7 -1.1,4.1 -1.5,5 1,1.5 -.3,.3 .8,1.7 -.5,1.1 1.1,.9 v 2.7 l 1.3,1.5 -.4,3 .3,4 -45.9,2.8 -1.3,-2.8 -3.3,-.7 -2.7,-1.5 -2,-5.5 .1,-2.5 1.6,-3.3 -.6,-1.1 -2.1,-1.6 -.2,-2.6 -1.1,-4.5 -.2,-3 -2.2,-3 -2.8,-.7 -5.2,-3.6 -.6,-3.3 -6.3,-3.1 -.2,-1.3 h -3.3 l -2.2,-2.6 -2,-1.3 .7,-5.1 -.9,-1.6 .5,-5.4 1,-1.8 -.3,-2.7 -1.2,-1.3 -1.8,-.3 v -1.7 l 2.8,-5.8 5.9,-3.9 -.4,-13 .9,.4 .6,-.5 .1,-1.1 .9,-.6 1.4,1.2 .7,-.1 h 2.6 l 6.8,-2.6 .3,-1 h 1.2 l .7,-1.2 .4,.8 1.8,-.9 1.8,-1.7 .3,.5 1,-1 2.2,1.6 -.8,1.6 -1.2,1.4 .5,1.5 -1.4,1.6 .4,.9 2.3,-1.1 v -1.4 l 3.3,1.9 1.9,.7 1.9,.7 3,3.8 17,3.8 1.4,1 4,.8 .7,.5 2.8,-.2 4.9,.8 1.4,1.5 -1,1 .8,.8 3.8,.7 1.2,1.2 .1,4.4 -1.3,2.8 2,.1 1,-.8 .9,.8 -1.1,3.1 1,1.6 1.2,.3 z m -49.5,-37.3 -.5,.1 -1.5,1.6 .2,.5 1.5,-.6 v -.6 l .9,-.3 z m 1.6,-1.1 -1,.3 -.2,.7 .9,-.1 z m -1.3,-1.6 -.2,.9 h 1.7 l .6,-.4 .1,-1 z m 2.8,-3 -.3,1.9 1.2,-.5 .1,-1.4 z m 58.3,31.9 -2,.3 -.4,1.3 1.3,1.7 z"/><path class="gm-usmap-state" d="m 355.3,143.7 -51,-5.3 -57.3,-7.9 -2,10.7 -8.5,54.8 -3.3,21.9 32.1,4.8 44.9,5.7 37.5,3.4 3.7,-44.2 z"/>"""
+
+# 구단 핀 좌표(viewBox 기준) — 기존 지도에서 그대로 가져왔다
+_TEAM_PINS = [
+    {
+        "code": "NYY",
+        "x": 823.0,
+        "y": 188.0,
+        "color": "#0C2340",
+        "short": "NY",
+        "name": "New York Yankees"
+    },
+    {
+        "code": "NYM",
+        "x": 838.0,
+        "y": 202.0,
+        "color": "#002D72",
+        "short": "NY",
+        "name": "New York Mets"
+    },
+    {
+        "code": "BOS",
+        "x": 868.0,
+        "y": 155.0,
+        "color": "#BD3039",
+        "short": "BO",
+        "name": "Boston Red Sox"
+    },
+    {
+        "code": "TOR",
+        "x": 778.0,
+        "y": 92.0,
+        "color": "#134A8E",
+        "short": "TO",
+        "name": "Toronto Blue Jays"
+    },
+    {
+        "code": "TBR",
+        "x": 690.0,
+        "y": 470.0,
+        "color": "#092C5C",
+        "short": "TB",
+        "name": "Tampa Bay Rays"
+    },
+    {
+        "code": "BAL",
+        "x": 800.0,
+        "y": 248.0,
+        "color": "#DF4601",
+        "short": "BA",
+        "name": "Baltimore Orioles"
+    },
+    {
+        "code": "CLE",
+        "x": 700.0,
+        "y": 215.0,
+        "color": "#00385D",
+        "short": "CL",
+        "name": "Cleveland Guardians"
+    },
+    {
+        "code": "MIN",
+        "x": 515.0,
+        "y": 120.0,
+        "color": "#002B5C",
+        "short": "MI",
+        "name": "Minnesota Twins"
+    },
+    {
+        "code": "CHW",
+        "x": 608.0,
+        "y": 224.0,
+        "color": "#27251F",
+        "short": "CH",
+        "name": "Chicago White Sox"
+    },
+    {
+        "code": "DET",
+        "x": 655.0,
+        "y": 172.0,
+        "color": "#0C2340",
+        "short": "DE",
+        "name": "Detroit Tigers"
+    },
+    {
+        "code": "KCR",
+        "x": 498.0,
+        "y": 282.0,
+        "color": "#004687",
+        "short": "KC",
+        "name": "Kansas City Royals"
+    },
+    {
+        "code": "HOU",
+        "x": 455.0,
+        "y": 500.0,
+        "color": "#002D62",
+        "short": "HO",
+        "name": "Houston Astros"
+    },
+    {
+        "code": "SEA",
+        "x": 112.0,
+        "y": 65.0,
+        "color": "#0C2C56",
+        "short": "SE",
+        "name": "Seattle Mariners"
+    },
+    {
+        "code": "TEX",
+        "x": 410.0,
+        "y": 400.0,
+        "color": "#003278",
+        "short": "TE",
+        "name": "Texas Rangers"
+    },
+    {
+        "code": "LAA",
+        "x": 108.0,
+        "y": 332.0,
+        "color": "#BA0021",
+        "short": "LA",
+        "name": "Los Angeles Angels"
+    },
+    {
+        "code": "ATH",
+        "x": 88.0,
+        "y": 218.0,
+        "color": "#003831",
+        "short": "AT",
+        "name": "Athletics"
+    },
+    {
+        "code": "ATL",
+        "x": 710.0,
+        "y": 396.0,
+        "color": "#13274F",
+        "short": "AT",
+        "name": "Atlanta Braves"
+    },
+    {
+        "code": "PHI",
+        "x": 812.0,
+        "y": 228.0,
+        "color": "#E81828",
+        "short": "PH",
+        "name": "Philadelphia Phillies"
+    },
+    {
+        "code": "MIA",
+        "x": 756.0,
+        "y": 536.0,
+        "color": "#00A3E0",
+        "short": "MI",
+        "name": "Miami Marlins"
+    },
+    {
+        "code": "WSN",
+        "x": 802.0,
+        "y": 252.0,
+        "color": "#AB0003",
+        "short": "WS",
+        "name": "Washington Nationals"
+    },
+    {
+        "code": "MIL",
+        "x": 598.0,
+        "y": 170.0,
+        "color": "#12284B",
+        "short": "MI",
+        "name": "Milwaukee Brewers"
+    },
+    {
+        "code": "CHC",
+        "x": 590.0,
+        "y": 212.0,
+        "color": "#0E3386",
+        "short": "CH",
+        "name": "Chicago Cubs"
+    },
+    {
+        "code": "STL",
+        "x": 598.0,
+        "y": 300.0,
+        "color": "#C41E3A",
+        "short": "ST",
+        "name": "St. Louis Cardinals"
+    },
+    {
+        "code": "CIN",
+        "x": 672.0,
+        "y": 275.0,
+        "color": "#C6011F",
+        "short": "CI",
+        "name": "Cincinnati Reds"
+    },
+    {
+        "code": "PIT",
+        "x": 748.0,
+        "y": 222.0,
+        "color": "#27251F",
+        "short": "PI",
+        "name": "Pittsburgh Pirates"
+    },
+    {
+        "code": "LAD",
+        "x": 100.0,
+        "y": 340.0,
+        "color": "#005A9C",
+        "short": "LA",
+        "name": "Los Angeles Dodgers"
+    },
+    {
+        "code": "SDP",
+        "x": 68.0,
+        "y": 338.0,
+        "color": "#2F241D",
+        "short": "SD",
+        "name": "San Diego Padres"
+    },
+    {
+        "code": "SFG",
+        "x": 58.0,
+        "y": 258.0,
+        "color": "#FD5A1E",
+        "short": "SF",
+        "name": "San Francisco Giants"
+    },
+    {
+        "code": "ARI",
+        "x": 190.0,
+        "y": 350.0,
+        "color": "#A71930",
+        "short": "AR",
+        "name": "Arizona Diamondbacks"
+    },
+    {
+        "code": "COL",
+        "x": 300.0,
+        "y": 258.0,
+        "color": "#33006F",
+        "short": "CO",
+        "name": "Colorado Rockies"
+    }
+]
+
 
 
 def us_map_html() -> str:
-    """마커를 클릭하면 ?pick=CODE 로 이동한다 — Home.py가 st.query_params로 읽어서 팀을 선택한다."""
-    return _US_MAP_SVG
+    """구단 선택 지도. 마커 클릭 시 ?pick=CODE 로 이동한다
+    (Home.py 가 st.query_params 로 읽어서 팀을 선택).
+
+    마커는 "밤 경기장의 조명탑"을 형상화했다 — 지면에 팀 컬러 글로우가 깔리고,
+    거기서 빛기둥이 솟아오르며, 꼭대기에 팀 컬러 오브가 떠 있다. 전체 테마
+    (야간 스타디움)와 같은 언어를 쓰는 것이 목적이다.
+    핀 하나당 노드가 많아 마크업을 문자열로 하드코딩하지 않고 여기서 생성한다.
+    """
+    markers = []
+    for i, p in enumerate(_TEAM_PINS):
+        x, y, code, color = p["x"], p["y"], p["code"], p["color"]
+        # 팀 색조는 유지하면서 밝기만 끌어올린다 (진한 빨강 구단이 남색으로
+        # 바뀌어버리는 걸 막기 위해 team_glow_color 대신 boost 를 쓴다)
+        glow = boost_for_dark(color)
+        logo = team_logo_url(code)
+        name = p["name"]
+        plate_w = max(66.0, _approx_text_width(name, 6.4) + 20)
+
+        markers.append(
+            f'<a href="?pick={code}" target="_top">'
+            f'<g class="gm-pin" transform="translate({x},{y})" style="--i:{i};--pin:{glow}">'
+            # 지면 글로우 — 조명이 땅을 비추는 원
+            f'<ellipse class="gm-pin-ground" cx="0" cy="0" rx="13" ry="4.6" fill="{glow}"/>'
+            # 퍼져나가는 레이더 링
+            f'<ellipse class="gm-pin-radar" cx="0" cy="0" rx="9" ry="3.2" fill="none" '
+            f'stroke="{glow}" stroke-width="1.4"/>'
+            # 빛기둥 (아래는 넓고 위로 갈수록 좁아지는 사다리꼴)
+            f'<path class="gm-pin-beam" d="M-6,0 L-2.4,-29 L2.4,-29 L6,0 Z" fill="{glow}"/>'
+            # 조명 꼭대기에 구단 로고 — "무슨 팀인지" 지도에서 바로 읽히게.
+            # MLB 공식 로고 SVG 를 핫링크하고, 로드 실패 시 onerror 로 숨겨
+            # 아래 팀컬러 오브만 남는다(가짜 로고를 그리지 않는다).
+            '<g class="gm-pin-orb">'
+            # 바깥 글로우(팀 컬러) → 밝은 원판 → 로고 순.
+            # MLB 공식 로고는 밝은 배경 전제로 만들어져서 어두운 원판 위에 얹으면
+            # 검은 윤곽이 뭉개진다(실측) — 원판을 밝게 깔고 팀 컬러는 테두리로만 쓴다.
+            f'<circle cx="0" cy="-33" r="16" fill="{glow}" opacity=".28"/>'
+            f'<circle cx="0" cy="-33" r="12.6" fill="rgba(248,251,255,.97)" '
+            f'stroke="{glow}" stroke-width="2.2"/>'
+            + (
+                f'<image href="{logo}" x="-9.6" y="-42.6" width="19.2" height="19.2" '
+                'preserveAspectRatio="xMidYMid meet" '
+                "onerror=\"this.style.display='none'\"/>"
+                if logo else
+                f'<circle cx="0" cy="-33" r="4" fill="{glow}"/>'
+            )
+            + "</g>"
+            # 호버 시 뜨는 이름표
+            f'<g class="gm-pin-plate" transform="translate(0,-51)">'
+            f'<rect x="{-plate_w / 2:.1f}" y="-10" width="{plate_w:.1f}" height="19" rx="7" '
+            f'fill="rgba(6,11,23,.95)" stroke="{glow}" stroke-width="1"/>'
+            f'<text x="0" y="3.5" text-anchor="middle" font-size="10" font-weight="700" '
+            f'fill="#fff">{name}</text></g>'
+            f"<title>{name}</title>"
+            "</g></a>"
+        )
+
+    return (
+        '<div class="gm-usmap-wrap"><svg viewBox="-10 -35 979 638" '
+        'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MLB 구단 위치 지도">'
+        "<defs>"
+        # 지도 판 자체의 은은한 그라디언트
+        '<linearGradient id="gm-map-plate" x1="0" y1="0" x2="0" y2="1">'
+        '<stop offset="0%" stop-color="rgba(255,255,255,.10)"/>'
+        '<stop offset="100%" stop-color="rgba(255,255,255,.03)"/></linearGradient>'
+        "</defs>"
+        + _US_STATE_PATHS
+        # 지도를 훑고 지나가는 레이더 스캔 라인
+        + '<g class="gm-map-scan"><rect x="-10" y="-35" width="150" height="638" '
+        'fill="url(#gm-scan-grad)"/></g>'
+        '<defs><linearGradient id="gm-scan-grad" x1="0" y1="0" x2="1" y2="0">'
+        '<stop offset="0%" stop-color="rgba(120,180,255,0)"/>'
+        '<stop offset="55%" stop-color="rgba(120,180,255,.16)"/>'
+        '<stop offset="100%" stop-color="rgba(120,180,255,0)"/></linearGradient></defs>'
+        + "".join(markers)
+        + "</svg></div>"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 다이아몬드 라인업 — 로스터를 실제 야구장 수비 위치에 배치해서 보여준다
+#
+# 첨부 레퍼런스(모바일 야구 게임 LINE-UP 화면)의 아이디어를 이 서비스의
+# 실제 데이터로 재구성한 것. 표로만 보던 로스터를 "우리 팀 수비 그림"으로
+# 바꾸면 GM이 "어느 포지션이 비었는지 / 어디가 위험한지"를 한눈에 본다
+# — 이탈위험이 높은 선수일수록 붉게 타오르는 링이 돈다.
+#
+# 좌표는 viewBox(0 0 640 520) 기준 수비 위치 실제 배치를 따른다.
+# ══════════════════════════════════════════════════════════════════════
+
+# (x, y, 한글 라벨) — 홈플레이트가 아래 중앙, 외야가 위쪽
+_DIAMOND_SLOTS: dict[str, tuple[float, float, str]] = {
+    "OF": (320, 96, "외야수"),
+    "SS": (238, 236, "유격수"),
+    "2B": (402, 236, "2루수"),
+    "3B": (150, 300, "3루수"),
+    "1B": (490, 300, "1루수"),
+    "P":  (320, 300, "투수"),
+    "C":  (320, 430, "포수"),
+    "DH": (556, 436, "지명타자"),
+}
+
+
+def _approx_text_width(text: str, font_size: float) -> float:
+    """SVG 텍스트의 대략적인 픽셀 폭. 라벨 뒤에 깔 배경 pill 크기를 잡는 용도.
+
+    한글은 폭이 거의 글자 크기와 같고(정사각에 가까움) 라틴 문자는 그 절반쯤이라
+    두 가지로만 나눠 근사한다 — 정확한 측정은 브라우저에서만 가능하므로,
+    조금 넉넉하게 잡아 글자가 pill 밖으로 삐져나오지 않게 한다.
+    """
+    units = sum(1.0 if ord(ch) > 0x2E80 else 0.55 for ch in text)
+    return units * font_size
+
+
+def _risk_tone(risk: float) -> str:
+    """이탈위험 → 색. 임계값은 UI 전반(선수 리포트 카드)과 같은 기준."""
+    if risk >= 0.70:
+        return "var(--risk)"
+    if risk >= 0.45:
+        return "var(--warn)"
+    return "var(--gain)"
+
+
+def diamond_lineup_svg(players: list[dict], *, max_per_slot: int = 1) -> str:
+    """포지션별 대표 선수를 그라운드 위에 배치한 SVG.
+
+    players: [{"position","name","ovr","risk"}] — 이미 정렬된 리스트를 받는다
+             (호출부가 "포지션별로 누구를 대표로 세울지"를 정한다).
+    max_per_slot: 한 포지션에 최대 몇 명 (외야 3명 등 확장 대비).
+
+    데이터가 없는 포지션은 점선 빈 슬롯으로 남겨 "공백"을 그대로 보여준다
+    — 가짜로 채우지 않는다.
+    """
+    by_slot: dict[str, list[dict]] = {}
+    for p in players:
+        pos = p.get("position")
+        if pos in _DIAMOND_SLOTS:
+            by_slot.setdefault(pos, []).append(p)
+
+    nodes: list[str] = []
+    for idx, (pos, (cx, cy, label)) in enumerate(_DIAMOND_SLOTS.items()):
+        picked = by_slot.get(pos, [])[:max_per_slot]
+        delay = 0.35 + idx * 0.07
+
+        if not picked:
+            nodes.append(
+                f'<g class="gm-dia-node gm-dia-empty" style="--d:{delay}s">'
+                f'<circle cx="{cx}" cy="{cy}" r="26" fill="rgba(255,255,255,.04)" '
+                'stroke="rgba(255,255,255,.22)" stroke-width="1.5" stroke-dasharray="4 4"/>'
+                f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" font-size="11" '
+                f'font-weight="700" fill="rgba(255,255,255,.45)">{pos}</text>'
+                f'<text x="{cx}" y="{cy + 44}" text-anchor="middle" font-size="10.5" '
+                f'fill="rgba(255,255,255,.35)">{label} 공백</text>'
+                "</g>"
+            )
+            continue
+
+        p = picked[0]
+        risk = float(p.get("risk") or 0.0)
+        ovr = float(p.get("ovr") or 0.0)
+        name = str(p.get("name") or "")
+        tone = _risk_tone(risk)
+        short = name if len(name) <= 13 else name[:12] + "…"
+        # 위험도가 높을수록 링이 굵고 빠르게 맥동한다
+        pulse = "gm-dia-pulse-hot" if risk >= 0.70 else ("gm-dia-pulse-warm" if risk >= 0.45 else "")
+
+        # 라벨은 잔디·베이스라인 위에 겹쳐 놓이므로, 뒤에 어두운 pill 을 깔아
+        # 배경이 무엇이든 대비가 유지되게 한다(실측: 유격수/2루수 라벨이
+        # 내야 다이아몬드 흰 선과 겹쳐 읽기 어려웠음).
+        risk_text = f"이탈 {risk * 100:.0f}%"
+        pill_w = max(_approx_text_width(short, 11.0), _approx_text_width(risk_text, 9.5)) + 16
+        pill_h = 30.0
+        pill_x = cx - pill_w / 2
+        pill_y = cy + 31
+
+        nodes.append(
+            f'<g class="gm-dia-node {pulse}" style="--d:{delay}s;--tone:{tone}">'
+            f'<circle class="gm-dia-halo" cx="{cx}" cy="{cy}" r="30" fill="none" '
+            f'stroke="{tone}" stroke-width="2" opacity=".55"/>'
+            f'<circle cx="{cx}" cy="{cy}" r="25" fill="rgba(8,14,28,.86)" '
+            f'stroke="{tone}" stroke-width="2.5"/>'
+            f'<text x="{cx}" y="{cy - 2}" text-anchor="middle" font-size="15" '
+            f'font-weight="800" fill="#fff">{ovr:.0f}</text>'
+            f'<text x="{cx}" y="{cy + 11}" text-anchor="middle" font-size="8" '
+            f'font-weight="700" fill="rgba(255,255,255,.6)" letter-spacing=".5">{pos}</text>'
+            f'<rect x="{pill_x:.1f}" y="{pill_y:.1f}" width="{pill_w:.1f}" height="{pill_h:.1f}" '
+            'rx="9" fill="rgba(6,11,23,.82)" stroke="rgba(255,255,255,.14)" stroke-width="1"/>'
+            f'<text x="{cx}" y="{cy + 45}" text-anchor="middle" font-size="11" '
+            f'font-weight="700" fill="#fff">{short}</text>'
+            f'<text x="{cx}" y="{cy + 57}" text-anchor="middle" font-size="9.5" '
+            f'font-weight="800" fill="{tone}">{risk_text}</text>'
+            "</g>"
+        )
+
+    return (
+        '<div class="gm-diamond-wrap">'
+        '<svg class="gm-diamond" viewBox="0 0 640 520" xmlns="http://www.w3.org/2000/svg" '
+        'role="img" aria-label="포지션별 로스터 배치도">'
+        "<defs>"
+        '<radialGradient id="gm-turf" cx="50%" cy="76%" r="78%">'
+        '<stop offset="0%" stop-color="#1F8A55"/><stop offset="58%" stop-color="#14603A"/>'
+        '<stop offset="100%" stop-color="#0B3B24"/></radialGradient>'
+        '<linearGradient id="gm-dirt" x1="0" y1="0" x2="0" y2="1">'
+        '<stop offset="0%" stop-color="#C08A55"/><stop offset="100%" stop-color="#9A6B3E"/></linearGradient>'
+        '<filter id="gm-dia-glow" x="-60%" y="-60%" width="220%" height="220%">'
+        '<feGaussianBlur stdDeviation="7" result="b"/>'
+        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+        "</defs>"
+        # 외야 잔디 (부채꼴)
+        '<path d="M320 470 L36 246 A360 360 0 0 1 604 246 Z" fill="url(#gm-turf)"/>'
+        # 잔디 스트라이프 — 실제 구장 모잉 패턴
+        '<path d="M320 470 L150 336 A250 250 0 0 1 236 268 Z" fill="rgba(255,255,255,.045)"/>'
+        '<path d="M320 470 L320 232 A250 250 0 0 1 404 268 Z" fill="rgba(255,255,255,.045)"/>'
+        '<path d="M320 470 L490 336 A250 250 0 0 0 404 268 Z" fill="rgba(0,0,0,.05)"/>'
+        # 내야 흙
+        '<path d="M320 470 L168 318 A215 215 0 0 1 472 318 Z" fill="url(#gm-dirt)" opacity=".92"/>'
+        # 내야 잔디 다이아몬드
+        '<path d="M320 424 L214 318 L320 212 L426 318 Z" fill="url(#gm-turf)"/>'
+        # 베이스라인
+        '<path d="M320 424 L214 318 L320 212 L426 318 Z" fill="none" '
+        'stroke="rgba(255,255,255,.85)" stroke-width="2.5"/>'
+        # 베이스 4개
+        '<rect x="313" y="417" width="14" height="14" fill="#fff" transform="rotate(45 320 424)"/>'
+        '<rect x="207" y="311" width="14" height="14" fill="#fff" transform="rotate(45 214 318)"/>'
+        '<rect x="313" y="205" width="14" height="14" fill="#fff" transform="rotate(45 320 212)"/>'
+        '<rect x="419" y="311" width="14" height="14" fill="#fff" transform="rotate(45 426 318)"/>'
+        # 마운드
+        '<circle cx="320" cy="318" r="26" fill="url(#gm-dirt)"/>'
+        '<rect x="315" y="314" width="10" height="5" rx="1" fill="#fff" opacity=".9"/>'
+        # 파울라인
+        '<path d="M320 470 L60 210" stroke="rgba(255,255,255,.5)" stroke-width="2"/>'
+        '<path d="M320 470 L580 210" stroke="rgba(255,255,255,.5)" stroke-width="2"/>'
+        + "".join(nodes)
+        + "</svg></div>"
+    )
+
+
+def stat_ring_svg(value: float, label: str, *, max_value: float = 100.0,
+                  size: int = 96, tone: str = "var(--team-accent)") -> str:
+    """원형 게이지 — 값이 0에서부터 그려지며 차오른다(stroke-dashoffset)."""
+    r = size / 2 - 8
+    circ = 2 * math.pi * r
+    pct = max(0.0, min(1.0, value / max_value if max_value else 0.0))
+    offset = circ * (1 - pct)
+    return (
+        f'<div class="gm-ring" style="--tone:{tone}">'
+        f'<svg viewBox="0 0 {size} {size}" width="{size}" height="{size}">'
+        f'<circle cx="{size/2}" cy="{size/2}" r="{r}" fill="none" '
+        'stroke="rgba(255,255,255,.10)" stroke-width="7"/>'
+        f'<circle class="gm-ring-fill" cx="{size/2}" cy="{size/2}" r="{r}" fill="none" '
+        f'stroke="{tone}" stroke-width="7" stroke-linecap="round" '
+        f'stroke-dasharray="{circ:.1f}" style="--circ:{circ:.1f};--off:{offset:.1f}" '
+        f'transform="rotate(-90 {size/2} {size/2})"/>'
+        "</svg>"
+        f'<div class="gm-ring-mid"><span class="gm-ring-v">{value:.0f}</span>'
+        f'<span class="gm-ring-l">{label}</span></div>'
+        "</div>"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 승부예측 챌린지 — 사용자가 먼저 고르고 그 다음 AI 예측이 열린다
+#
+# 네이버 스포츠 승부예측의 재미 구조를 그대로 가져왔다: 확률을 미리 보여주면
+# 그걸 따라 찍게 되므로, "내 선택 → 공개 → 비교" 순서를 반드시 지킨다.
+# 정답(실제 경기 결과)이 아직 없는 미래 경기이므로 "맞았다/틀렸다"가 아니라
+# "AI와 같게 봤다/다르게 봤다"로 정직하게 표현한다.
+# ══════════════════════════════════════════════════════════════════════
+
+def confidence_label(prob: float) -> tuple[str, str]:
+    """승리확률 → (표현, 이모지). 50%에 가까울수록 박빙."""
+    edge = abs(prob - 0.5)
+    if edge >= 0.12:
+        return "압도적 우세", "flame"
+    if edge >= 0.06:
+        return "우세", "trend-up"
+    if edge >= 0.025:
+        return "근소 우세", "pinch"
+    return "초박빙", "scale"
+
+
+def prediction_reveal_html(
+    *,
+    away_name: str,
+    home_name: str,
+    away_pct: float,
+    home_pct: float,
+    ai_winner_name: str,
+    user_pick_name: str,
+    model_votes: list[tuple[str, bool]],
+    away_color: str = "#5B7FB9",
+    home_color: str = "#D66E6E",
+) -> str:
+    """선택 후 공개되는 결과 카드.
+
+    model_votes: [(모델명, AI최종예측과 같은 쪽에 투표했는가)] — 4개 모델이
+    얼마나 한목소리인지 보여준다. 3:1로 갈렸으면 그만큼 불확실하다는 뜻.
+    """
+    agreed = user_pick_name == ai_winner_name
+    top_pct = max(away_pct, home_pct)
+    conf_text, conf_icon = confidence_label(top_pct / 100)
+    agree_n = sum(1 for _, ok in model_votes if ok)
+
+    chips = "".join(
+        f'<span class="gm-pred-chip{" agree" if ok else ""}" style="--j:{j}">{name}</span>'
+        for j, (name, ok) in enumerate(model_votes)
+    )
+
+    if agreed:
+        verdict = (
+            '<div class="gm-pred-verdict hit">'
+            '<span class="gm-pred-verdict-icon">' + icon("target", 17) + "</span>"
+            f'<span>내 선택 <span class="gm-pred-mine">{user_pick_name}</span> — '
+            f'AI도 같게 봤습니다</span></div>'
+        )
+    else:
+        verdict = (
+            '<div class="gm-pred-verdict miss">'
+            '<span class="gm-pred-verdict-icon">' + icon("diverge", 17) + "</span>"
+            f'<span>내 선택 <span class="gm-pred-mine">{user_pick_name}</span> · '
+            f'AI 예측 <span class="gm-pred-mine">{ai_winner_name}</span> — 다르게 봤습니다</span></div>'
+        )
+
+    return (
+        '<div class="gm-pred-reveal">'
+        f'<div class="gm-pred-bar" style="--away-c:{away_color};--home-c:{home_color}">'
+        f'<div class="gm-pred-bar-away" style="width:{away_pct:.1f}%">{away_pct:.0f}%</div>'
+        f'<div class="gm-pred-bar-home" style="width:{home_pct:.1f}%">{home_pct:.0f}%</div>'
+        '<div class="gm-pred-bar-mid"></div>'
+        "</div>"
+        + verdict
+        + '<div class="gm-pred-models">'
+        f'<span class="gm-pred-conf">{icon(conf_icon, 11)} {conf_text}</span>'
+        f"<span>모델 {agree_n}/{len(model_votes)} 동의</span>"
+        + chips
+        + "</div></div>"
+    )
+
+
+def prediction_scoreboard_html(picked: int, total: int, agreed: int, streak: int) -> str:
+    """상단 스코어보드 — 참여 현황과 AI 일치율."""
+    rate = (agreed / picked * 100) if picked else 0.0
+    if picked == 0:
+        msg = "경기를 하나씩 골라보세요. 선택하는 순간 AI 예측이 열립니다."
+    elif rate >= 80:
+        msg = "AI와 거의 같은 눈으로 보고 계시네요. 단장 자질이 보입니다."
+    elif rate >= 50:
+        msg = "AI와 절반 이상 같은 판단입니다. 갈린 경기가 진짜 박빙인 경기예요."
+    else:
+        msg = "AI와 다르게 보신 경기가 많습니다 — 그만큼 이변 가능성을 읽고 계신 걸 수도."
+
+    streak_html = (
+        f'<span class="gm-pred-streak">{icon("flame", 11)} 연속 {streak}경기 일치</span>' if streak >= 2 else ""
+    )
+    return (
+        '<div class="gm-pred-board">'
+        f'<div class="gm-pred-board-stat"><span class="gm-pred-board-v">{picked}<span '
+        f'style="font-size:14px;color:var(--muted)">/{total}</span></span>'
+        '<span class="gm-pred-board-l">참여</span></div>'
+        f'<div class="gm-pred-board-stat"><span class="gm-pred-board-v">{agreed}</span>'
+        '<span class="gm-pred-board-l">AI와 일치</span></div>'
+        f'<div class="gm-pred-board-stat"><span class="gm-pred-board-v">{rate:.0f}%</span>'
+        '<span class="gm-pred-board-l">일치율</span></div>'
+        f'<div class="gm-pred-board-msg">{msg}</div>'
+        f"{streak_html}"
+        "</div>"
+    )
+
+
+def team_glow_color(team_code: str | None, fallback: str = "#4E8FD6") -> str:
+    """다크 배경에서 조명으로 쓸 팀 컬러.
+
+    TEAM_COLORS 는 (primary, secondary) 쌍인데 팀에 따라 한쪽이 검정/남색이라
+    (예: CIN 은 secondary 가 #000000) 그대로 쓰면 다크 테마에서 색이 아예
+    안 보인다. 두 색 중 더 밝은 쪽을 골라 쓰고, 둘 다 너무 어두우면 기본
+    액센트로 물러난다.
+    """
+    pair = TEAM_COLORS.get(team_code or "", ())
+    best, best_lum = fallback, -1.0
+    for hex_color in pair:
+        try:
+            r, g, b = _hex_to_rgb(hex_color)
+        except (ValueError, TypeError):
+            continue
+        # 상대휘도(간이) — 사람 눈 가중치
+        lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+        if lum > best_lum:
+            best, best_lum = hex_color, lum
+    # 너무 어두우면(거의 검정) 조명 역할을 못 하므로 기본 액센트를 쓴다
+    return fallback if best_lum < 0.14 else best
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 모델 카드 — 태스크마다 지표 종류가 달라서(회귀/이진분류/다중분류) 표 한 장에
+# 넣으면 빈 칸투성이가 된다. 각 모델의 "대표 지표" 하나를 골라 크게 보여주고,
+# 나머지는 보조 줄로 내린다.
+# ══════════════════════════════════════════════════════════════════════
+
+# task -> (대표지표 컬럼, 표시라벨, 0~1 정규화 함수)
+_PRIMARY_METRIC: dict[str, tuple[str, str, "callable"]] = {
+    "strength":  ("r2",       "R²",  lambda v: max(0.0, min(1.0, v))),
+    # AUC 는 0.5 가 무작위 — 0.5~1.0 구간을 0~1 로 펴야 막대가 실제 실력차를 보여준다
+    "win_rate":  ("roc_auc",  "AUC", lambda v: max(0.0, min(1.0, (v - 0.5) * 2))),
+    "departure": ("roc_auc",  "AUC", lambda v: max(0.0, min(1.0, (v - 0.5) * 2))),
+    "reason":    ("macro_f1", "Macro F1", lambda v: max(0.0, min(1.0, v))),
+    "recommend": ("precision_at_3", "P@3", lambda v: max(0.0, min(1.0, v * 5))),
+}
+
+_TASK_KO = {
+    "strength": "전력 예측 (회귀)",
+    "win_rate": "승부 예측 (이진분류)",
+    "departure": "이탈 예측 (이진분류)",
+    "reason": "이탈 원인 태그 (다중분류)",
+    "recommend": "대체 선수 추천",
+}
+
+
+def model_card_html(
+    *,
+    name: str,
+    kind: str,
+    owner: str,
+    task: str,
+    metrics: dict,
+    is_best: bool = False,
+    index: int = 0,
+) -> str:
+    """모델 하나를 카드로. 대표 지표는 크게, 보조 지표는 작게."""
+    spec = _PRIMARY_METRIC.get(task)
+    primary_v, primary_label, gauge = None, "", 0.0
+    if spec:
+        col, primary_label, norm = spec
+        raw = metrics.get(col)
+        if raw is not None and not (isinstance(raw, float) and math.isnan(raw)):
+            primary_v = float(raw)
+            gauge = norm(primary_v)
+
+    # 보조 지표 — 태스크와 무관하게 있는 것만 골라 붙인다
+    subs = []
+    for col, fmt in (
+        ("mae", "MAE {:.2f}"), ("rmse", "RMSE {:.2f}"),
+        ("f1", "F1 {:.3f}"), ("accuracy", "정확도 {:.3f}"),
+        ("n_test", "n={:.0f}"),
+    ):
+        v = metrics.get(col)
+        if v is not None and not (isinstance(v, float) and math.isnan(v)):
+            subs.append(fmt.format(float(v)))
+    sub_text = " · ".join(subs[:3]) if subs else "지표 없음"
+
+    value_html = (
+        f'<span class="gm-mcard-v">{primary_v:.3f}</span>'
+        f'<span class="gm-mcard-mlabel">{primary_label}</span>'
+        if primary_v is not None
+        else '<span class="gm-mcard-v" style="font-size:17px;color:var(--faint)">지표 없음</span>'
+    )
+
+    return (
+        f'<div class="gm-mcard{" best" if is_best else ""}" style="--i:{index}">'
+        + (f'<span class="gm-mcard-crown">{icon("crown", 15)}</span>' if is_best else "")
+        + '<div class="gm-mcard-head">'
+        f'{badge(owner, "navy")}'
+        f'<span class="gm-mcard-kind">{kind.upper()}</span>'
+        "</div>"
+        f'<div class="gm-mcard-name" style="margin-bottom:7px">{name}</div>'
+        f'<div class="gm-mcard-metric">{value_html}</div>'
+        f'<div class="gm-mcard-sub">{sub_text}</div>'
+        '<div class="gm-mcard-bar">'
+        f'<span class="gm-mcard-bar-fill" style="width:{gauge * 100:.1f}%"></span>'
+        "</div></div>"
+    )
+
+
+def model_task_section_html(task: str, cards_html: str) -> str:
+    """태스크 헤더 + 그 태스크의 카드 그리드."""
+    label = _TASK_KO.get(task, task)
+    return f'<div class="gm-task-head">{label}</div><div class="gm-mcard-grid">{cards_html}</div>'
+
+
+def roster_list_html(rows: list[dict]) -> str:
+    """전력 로스터 리스트.
+
+    rows: [{"name","role","ovr","g_ratio","risk","tag"}] — 이미 정렬된 순서대로.
+    전력·이탈위험을 막대로 그려서 표를 훑기만 해도 분포가 보이게 한다.
+    이탈위험 막대는 위험도에 따라 색이 바뀐다(초록→노랑→빨강).
+    """
+    head = (
+        '<div class="gm-roster-head">'
+        "<span>#</span><span>선수</span><span>역할</span>"
+        "<span>전력</span><span>이탈위험</span><span>연관 요인</span>"
+        "</div>"
+    )
+    items = []
+    for i, r in enumerate(rows):
+        ovr = float(r.get("ovr") or 0.0)
+        risk = r.get("risk")
+        has_risk = risk is not None and not (isinstance(risk, float) and math.isnan(risk))
+        risk_v = float(risk) if has_risk else 0.0
+        tone = _risk_tone(risk_v)
+        risk_cell = (
+            f'<span class="gm-roster-num" style="color:{tone}">{risk_v * 100:.0f}%</span>'
+            f'<span class="gm-roster-track"><span class="gm-roster-fill" '
+            f'style="width:{risk_v * 100:.1f}%;background:{tone}"></span></span>'
+            if has_risk
+            else '<span class="gm-roster-num" style="color:var(--faint)">—</span>'
+            '<span class="gm-roster-track"></span>'
+        )
+        items.append(
+            f'<div class="gm-roster-row" style="--i:{i}">'
+            f'<span class="gm-roster-rank">{i + 1}</span>'
+            + (
+                '<span class="gm-roster-name">'
+                + (
+                    f'<img class="gm-roster-face" src="{r["photo"]}" alt="" loading="lazy" '
+                    "onerror=\"this.style.visibility='hidden'\"/>"
+                    if r.get("photo") else '<span class="gm-roster-face"></span>'
+                )
+                + f'<span>{r.get("name", "")}</span></span>'
+            )
+            +
+            f'<span class="gm-roster-role">{r.get("role", "")}</span>'
+            '<span class="gm-roster-metric">'
+            f'<span class="gm-roster-num">{ovr:.1f}</span>'
+            '<span class="gm-roster-track"><span class="gm-roster-fill" '
+            f'style="width:{max(0.0, min(100.0, ovr)):.1f}%;'
+            'background:linear-gradient(90deg,var(--team-accent),#9FC4F0)"></span></span>'
+            "</span>"
+            f'<span class="gm-roster-metric">{risk_cell}</span>'
+            f'<span class="gm-roster-tag">{r.get("tag", "")}</span>'
+            "</div>"
+        )
+    return f'<div class="gm-roster">{head}{"".join(items)}</div>'
+
+
+def impact_panel_html(before: float, after: float, *, label_before: str,
+                      label_after: str, unit: str = "%", decimals: int = 2,
+                      higher_is_better: bool = True) -> str:
+    """이탈 전/후 값을 좌우로 놓고 가운데에 변화량을 띄우는 임팩트 패널."""
+    delta = after - before
+    if abs(delta) < 10 ** (-decimals) / 2:
+        cls, sign = "flat", "변화 없음"
+    else:
+        good = (delta > 0) if higher_is_better else (delta < 0)
+        cls = "up" if good else "down"
+        sign = f"{delta:+.{decimals}f}{unit}p"
+    return (
+        '<div class="gm-impact">'
+        f'<div class="gm-impact-side"><div class="gm-impact-l">{label_before}</div>'
+        f'<div class="gm-impact-v">{before:.{decimals}f}{unit}</div></div>'
+        '<div class="gm-impact-arrow">'
+        '<span class="gm-impact-arrow-icon">→</span>'
+        f'<span class="gm-impact-delta {cls}">{sign}</span></div>'
+        f'<div class="gm-impact-side"><div class="gm-impact-l">{label_after}</div>'
+        f'<div class="gm-impact-v">{after:.{decimals}f}{unit}</div></div>'
+        "</div>"
+    )
+
+
+def boost_for_dark(hex_color: str, *, min_l: float = 0.58, min_s: float = 0.55) -> str:
+    """어두운 배경에서 확실히 빛나도록 색의 밝기를 끌어올린다(색조는 유지).
+
+    team_glow_color() 처럼 "두 팀 컬러 중 밝은 쪽"을 고르는 방식은 진한 빨강
+    계열 구단(신시내티 #C6011F, 워싱턴 #AB0003)에서 실패한다 — 빨강은 상대휘도
+    가중치가 낮아(0.2126) 눈에는 선명해도 계산상 어둡게 나오고, 결국 팀 색을
+    버리고 남색을 고르는 일이 생긴다(LAA 에서 실측). 그래서 색을 갈아끼우지
+    않고 HLS 로 바꿔 명도/채도만 최소치까지 올린다 — 빨강은 빨강으로 남는다.
+    거의 무채색(검정·회색 유니폼)은 채도를 억지로 올리면 엉뚱한 색이 되므로
+    명도만 올린다.
+    """
+    import colorsys
+
+    try:
+        r, g, b = _hex_to_rgb(hex_color)
+    except (ValueError, TypeError):
+        return hex_color
+    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+    l = max(l, min_l)
+    if s > 0.12:  # 유채색일 때만 채도 보정
+        s = max(s, min_s)
+    r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+    return "#{:02X}{:02X}{:02X}".format(round(r2 * 255), round(g2 * 255), round(b2 * 255))
+
+
+# ══════════════════════════════════════════════════════════════════════
+# SVG 아이콘 세트 — 이모지 대체
+#
+# 이모지는 OS/브라우저마다 모양·색·크기가 제각각이라(같은 화면에서 애플/윈도우가
+# 전혀 다르게 보인다) 디자인 톤을 맞출 수 없고, currentColor 를 못 따라간다.
+# 여기 아이콘은 전부 stroke="currentColor" 라서 놓인 자리의 색을 그대로 입는다.
+# ══════════════════════════════════════════════════════════════════════
+
+_ICON_PATHS: dict[str, str] = {
+    # 과녁 — 예측 적중
+    "target": ('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.4"/>'
+               '<path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3"/>'),
+    # 갈림길 — 예측 불일치
+    "diverge": '<path d="M6 21V9m0 0L3 12M6 9l3 3M18 3v12m0 0l-3-3m3 3l3-3"/>',
+    # 불꽃 — 압도적 우세 / 연속 기록
+    "flame": ('<path d="M12 22c3.9 0 6.5-2.5 6.5-6 0-4.2-4-6-5-9.6C12.8 8.6 11 9.4 11 11.5'
+              ' 11 9 9 7.6 9 5.4 6.8 7.5 5.5 9.7 5.5 12.4c0 3.7 2.6 9.6 6.5 9.6Z"/>'),
+    # 상승 화살표 — 우세
+    "trend-up": '<path d="M3 17l6-6 4 4 7-7"/><path d="M15 8h5v5"/>',
+    # 저울 — 초박빙
+    "scale": ('<path d="M12 4v16M5 20h14M3 9l3.5-5L10 9M14 9l3.5-5L21 9"/>'
+              '<path d="M3 9a3.5 3.5 0 0 0 7 0M14 9a3.5 3.5 0 0 0 7 0"/>'),
+    # 좁은 간격 — 근소 우세
+    "pinch": '<path d="M9 5v14M15 5v14"/><path d="M11.4 12h1.2"/>',
+    # 주먹(원정) — 원정팀 선택
+    "away": ('<path d="M6 11V8.5a2 2 0 0 1 4 0V11m0-1.5V7a2 2 0 0 1 4 0v3m0-1a2 2 0 0 1 4 0v5.5'
+             'a6.5 6.5 0 0 1-13 0V12a2 2 0 0 1 4 0"/>'),
+    # 홈플레이트 — 홈팀 선택
+    "home": '<path d="M4 4h16v9l-8 7-8-7Z"/>',
+    # 왕관 — 1위
+    "crown": '<path d="M3 8l4 4 5-7 5 7 4-4v10H3Z"/><path d="M3 20h18"/>',
+    # 트로피
+    "trophy": ('<path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4v2a3 3 0 0 0 3 3"/>'
+               '<path d="M17 6h3v2a3 3 0 0 1-3 3"/><path d="M12 14v3M9 20h6"/>'),
+    # 경고 삼각형 — 복합 요인
+    "alert": '<path d="M12 3.5 2.5 20h19Z"/><path d="M12 10v4.5M12 17.4v.2"/>',
+    # 반창고 — 부상 연관
+    "bandage": ('<rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" '
+                'transform="rotate(-45 12 12)"/><path d="M10 10.5v.2M13.9 14.4v.2M13.9 10.5v.2M10 14.4v.2"/>'),
+    # 하락 화살표 — 성적 하락
+    "trend-down": '<path d="M3 7l6 6 4-4 7 7"/><path d="M20 11v5h-5"/>',
+    # 시계 — 베테랑 시기
+    "clock": '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5.3l3.2 2"/>',
+    # 물음표 — 판단 근거 부족
+    "question": ('<circle cx="12" cy="12" r="8.5"/>'
+                 '<path d="M9.6 9.4a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.5v.4"/>'
+                 '<path d="M12 17.2v.2"/>'),
+    # 사이렌 — 이탈위험
+    "siren": ('<path d="M6 19v-6a6 6 0 0 1 12 0v6"/><path d="M3.5 19h17"/>'
+              '<path d="M12 3.5V5M4.8 6.3 5.9 7.4M19.2 6.3 18.1 7.4"/>'),
+    # 근육 — 전력
+    "muscle": ('<path d="M5 8c2-1.5 4.5-1 5.6.8 1 1.6 1 3.2.4 4.6 2.5-1 5.3.4 6 2.6'
+               '.7 2.2-.6 4-3 4H8c-2.2 0-4-1.8-4-4Z"/>'),
+    # 새로고침
+    "refresh": '<path d="M20 11a8 8 0 1 0-2.3 6"/><path d="M20 4v7h-7"/>',
+    # 뒤로 — 구단 변경
+    "swap": '<path d="M4 8h13l-3-3m3 3-3 3"/><path d="M20 16H7l3-3m-3 3 3 3"/>',
+}
+
+
+def icon(name: str, size: float = 14, *, stroke_width: float = 1.9,
+         cls: str = "", style: str = "") -> str:
+    """인라인 SVG 아이콘. currentColor 를 따르므로 놓인 자리의 색을 그대로 입는다."""
+    path = _ICON_PATHS.get(name)
+    if not path:
+        return ""
+    return (
+        f'<svg class="gm-icon {cls}" width="{size}" height="{size}" viewBox="0 0 24 24" '
+        f'fill="none" stroke="currentColor" stroke-width="{stroke_width}" '
+        f'stroke-linecap="round" stroke-linejoin="round" '
+        f'style="{style}" aria-hidden="true">{path}</svg>'
+    )

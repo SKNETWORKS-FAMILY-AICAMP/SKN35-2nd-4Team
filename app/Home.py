@@ -30,6 +30,10 @@ from ui.theme import (  # noqa: E402
     init_state,
     page_header,
     placeholder,
+    prediction_reveal_html,
+    prediction_scoreboard_html,
+    boost_for_dark,
+    team_logo_url,
     section,
     us_map_html,
 )
@@ -56,6 +60,15 @@ TEAM_SEASON_PATH = ROOT / "data" / "final" / "team_season.csv"
 _EXTRA_TEAM_CODE_FIX = {"TBA": "TBR"}
 
 
+def _logo_img(team_code: str) -> str:
+    """구단 로고 img 태그. 매핑이 없거나 로드 실패면 조용히 사라진다."""
+    url = team_logo_url(team_code)
+    if not url:
+        return ""
+    return (f'<img class="gm-pred-logo" src="{url}" alt="" loading="lazy" '
+            "onerror=\"this.style.display='none'\"/>")
+
+
 def _to_ui_code(code: str) -> str:
     return LAHMAN_TEAM_TO_UI.get(code) or _EXTRA_TEAM_CODE_FIX.get(code, code)
 
@@ -65,7 +78,7 @@ with st.container(key="hero"):
 
     tab_today, tab_rank, tab_pick = st.tabs(["오늘 경기", "예상 순위", "구단 선택"])
 
-    # ── 오늘 경기: VS 매치업 카드 ──
+    # ── 오늘 경기: 승부예측 챌린지 (먼저 찍고 → AI 예측 공개) ──
     with tab_today:
         if not PREDICTIONS_PATH.exists():
             placeholder(
@@ -82,37 +95,109 @@ with st.container(key="hero"):
                 todays_games = games[games.game_date == next_date]
                 st.caption(f"오늘 예정된 경기가 없어 다음 경기일({next_date})을 표시합니다.")
 
-            rows_html = []
+            picks: dict[str, str] = st.session_state.setdefault("game_picks", {})
+
+            # 스코어보드는 카드보다 먼저 그려야 하지만 집계는 전체 경기를 훑어야
+            # 하므로, 카드 렌더에 필요한 정보를 한 번에 만들어두고 순서를 맞춘다.
+            rows = []
             for i, row in enumerate(todays_games.itertuples()):
+                key = f"{row.game_date}|{row.away_team}|{row.home_team}|{i}"
                 home_code = _to_ui_code(row.home_team)
                 away_code = _to_ui_code(row.away_team)
                 winner_code = _to_ui_code(row.predicted_winner)
-                home_name = TEAM_NAMES.get(home_code, row.home_team)
-                away_name = TEAM_NAMES.get(away_code, row.away_team)
-                winner_name = TEAM_NAMES.get(winner_code, row.predicted_winner)
-                home_pct = row.ensemble_home_win_proba * 100
-                away_pct = 100 - home_pct
-                accent = TEAM_COLORS.get(winner_code, ("#3E6FB0", "#3E6FB0"))[1]
-                rows_html.append(
-                    f'<div class="gm-vs-card" style="--i:{i};--team-accent:{accent}">'
-                    '<span class="gm-live-badge"><span class="gm-live-dot"></span>AI 예측</span>'
-                    '<div class="gm-vs-row">'
-                    f'<div class="gm-vs-team away"><span class="gm-vs-tag">원정</span>'
-                    f'<span class="gm-vs-name">{away_name}</span></div>'
-                    '<div class="gm-vs-mid">'
-                    f'<span class="gm-vs-bolt">VS</span>'
-                    '<div class="gm-vs-bar">'
-                    f'<div class="gm-vs-bar-away" style="width:{away_pct:.0f}%"></div>'
-                    f'<div class="gm-vs-bar-home" style="width:{home_pct:.0f}%"></div>'
-                    "</div>"
-                    f'<span class="gm-vs-winner">🏆 {winner_name} 우세 {max(home_pct, away_pct):.0f}%</span>'
-                    "</div>"
-                    f'<div class="gm-vs-team home"><span class="gm-vs-tag">홈</span>'
-                    f'<span class="gm-vs-name">{home_name}</span></div>'
-                    "</div></div>"
-                )
-            st.markdown(f'<div class="gm-vs-grid">{"".join(rows_html)}</div>', unsafe_allow_html=True)
-            st.caption("game.py(LogReg + RandomForest + PyTorch MLP 앙상블) 예측 — 실제 미래 결과가 아닌 모델 추정치입니다.")
+                rows.append({
+                    "key": key,
+                    "i": i,
+                    "date": row.game_date,
+                    "home_name": TEAM_NAMES.get(home_code, row.home_team),
+                    "away_name": TEAM_NAMES.get(away_code, row.away_team),
+                    "ai_winner": TEAM_NAMES.get(winner_code, row.predicted_winner),
+                    "home_code": home_code,
+                    "away_code": away_code,
+                    "home_pct": row.ensemble_home_win_proba * 100,
+                    "away_pct": 100 - row.ensemble_home_win_proba * 100,
+                    "away_color": TEAM_COLORS.get(away_code, ("#5B7FB9", "#5B7FB9"))[1],
+                    "home_color": TEAM_COLORS.get(home_code, ("#D66E6E", "#D66E6E"))[1],
+                    # 4개 모델이 각각 홈 승을 봤는지 → AI 최종예측과 같은 편인지
+                    "model_votes": [
+                        (label, (proba > 0.5) == (winner_code == home_code))
+                        for label, proba in (
+                            ("LogReg", row.logreg_home_win_proba),
+                            ("RandomForest", row.rf_home_win_proba),
+                            ("XGBoost", row.xgb_home_win_proba),
+                            ("PyTorch MLP", row.dl_home_win_proba),
+                        )
+                    ],
+                })
+
+            picked_rows = [r for r in rows if r["key"] in picks]
+            agreed = sum(1 for r in picked_rows if picks[r["key"]] == r["ai_winner"])
+            # 연속 일치: 카드 순서대로 훑으며 마지막까지 이어진 연속 구간
+            streak = 0
+            for r in rows:
+                if r["key"] not in picks:
+                    continue
+                streak = streak + 1 if picks[r["key"]] == r["ai_winner"] else 0
+
+            st.markdown(
+                prediction_scoreboard_html(len(picked_rows), len(rows), agreed, streak),
+                unsafe_allow_html=True,
+            )
+            if picked_rows:
+                if st.button("예측 다시하기", key="reset_picks"):
+                    st.session_state.game_picks = {}
+                    st.rerun()
+
+            for r in rows:
+                picked = picks.get(r["key"])
+                with st.container(key=f"predpick_{r['i']}"):
+                    st.markdown(
+                        f'<div class="gm-pred-card{" picked" if picked else ""}" style="--i:{r["i"]}">'
+                        f'<div class="gm-pred-date">{r["date"]}</div>'
+                        '<div class="gm-pred-vs">'
+                        f'<span class="gm-pred-side away">{r["away_name"]}'
+                        f'{_logo_img(r["away_code"])}</span>'
+                        '<span class="gm-pred-bolt">VS</span>'
+                        f'<span class="gm-pred-side home">{_logo_img(r["home_code"])}'
+                        f'{r["home_name"]}</span>'
+                        "</div>"
+                        + (
+                            ""
+                            if picked
+                            else '<div class="gm-pred-q">어느 팀이 이길까요? 골라야 AI 예측이 열립니다</div>'
+                        )
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                    if not picked:
+                        c1, c2 = st.columns(2)
+                        if c1.button(f"원정  {r['away_name']}", key=f"pk_a_{r['i']}", use_container_width=True):
+                            picks[r["key"]] = r["away_name"]
+                            st.rerun()
+                        if c2.button(f"홈  {r['home_name']}", key=f"pk_h_{r['i']}", use_container_width=True):
+                            picks[r["key"]] = r["home_name"]
+                            st.rerun()
+                    else:
+                        st.markdown(
+                            prediction_reveal_html(
+                                away_name=r["away_name"],
+                                home_name=r["home_name"],
+                                away_pct=r["away_pct"],
+                                home_pct=r["home_pct"],
+                                ai_winner_name=r["ai_winner"],
+                                user_pick_name=picked,
+                                model_votes=r["model_votes"],
+                                away_color=r["away_color"],
+                                home_color=r["home_color"],
+                            ),
+                            unsafe_allow_html=True,
+                        )
+
+            st.caption(
+                "game.py(LogReg + RandomForest + XGBoost + PyTorch MLP 앙상블) 예측 — "
+                "아직 열리지 않은 경기라 실제 결과가 아니라 모델 추정치이며, "
+                "'맞았다/틀렸다'가 아니라 'AI와 같게 봤는지'를 비교합니다."
+            )
 
     # ── 예상 순위: 리빌 인터랙션 ──
     with tab_rank:
@@ -133,7 +218,7 @@ with st.container(key="hero"):
                 )
                 c1, c2, c3 = st.columns([1, 1, 1])
                 with c2:
-                    if st.button("🏆 순위 공개하기", key="reveal_standings", use_container_width=True):
+                    if st.button("순위 공개하기", key="reveal_standings", use_container_width=True):
                         st.session_state.standings_revealed = True
                         st.rerun()
             else:
@@ -162,26 +247,32 @@ with st.container(key="hero"):
                     pct = row.win_rate * 100
                     accent = TEAM_COLORS.get(code, ("#16325C", "#3E6FB0"))[1]
                     rank_cls = f" gm-rank-{rank}" if rank <= 3 else ""
+                    logo = team_logo_url(code)
+                    logo_html = (
+                        f'<img class="gm-standing-logo" src="{logo}" alt="" loading="lazy" '
+                        "onerror=\"this.style.display='none'\"/>" if logo else ""
+                    )
                     rows_html.append(
                         f'<div class="gm-standing-row{rank_cls}" style="--i:{i}">'
                         f'<div class="gm-standing-rank">{rank}</div>'
+                        f'{logo_html}'
                         f'<div class="gm-standing-name">{name}</div>'
                         '<div class="gm-standing-bar-track">'
                         f'<div class="gm-standing-bar-fill" style="--i:{i};width:{pct:.1f}%;'
-                        f'background:linear-gradient(90deg,var(--navy),{accent})"></div></div>'
+                        f'background:linear-gradient(90deg,var(--team-accent),{boost_for_dark(accent)})"></div></div>'
                         f'<div class="gm-standing-pct">{pct:.1f}%</div>'
                         "</div>"
                     )
                 st.markdown("".join(rows_html), unsafe_allow_html=True)
-                if st.button("↻ 다시 감추기", key="hide_standings"):
+                if st.button("다시 감추기", key="hide_standings"):
                     st.session_state.standings_revealed = False
                     st.rerun()
 
     # ── 구단 선택: 미국 지도 + 목록 ──
     with tab_pick:
         st.markdown(
-            '<div style="text-align:center;color:rgba(255,255,255,.6);font-size:13px;margin-bottom:6px">'
-            "지도의 마커를 클릭하거나, 아래 목록에서 구단을 선택하세요</div>",
+            '<div style="text-align:center;color:rgba(255,255,255,.6);font-size:13px;margin-bottom:2px">'
+            "구단의 조명탑을 클릭하세요 — 마우스를 올리면 팀 이름이 뜹니다</div>",
             unsafe_allow_html=True,
         )
         st.markdown(us_map_html(), unsafe_allow_html=True)

@@ -45,11 +45,13 @@ from ui.risk import (  # noqa: E402
 )
 from ui.theme import (  # noqa: E402
     badge,
+    icon,
     inject_css,
     init_state,
     page_header,
     player_card_html,
     player_hero_card_html,
+    _risk_tone,
     require_team,
     section,
     topbar,
@@ -276,6 +278,15 @@ with wrap():
             photo_url=headshot_url(selected_id, photo_lookup),
             league_rank=league_rank,
             league_total=league_total,
+            # 레이더는 "모양"으로 균형을 보여주고, 링은 핵심 3개를 숫자로 못박는다
+            # (첨부한 선수 대시보드 레퍼런스의 스탯 타일 역할).
+            rings=[
+                ("전력", ovr_val, "var(--team-accent)"),
+                ("출전율", _num(selected_row, "g_ratio") * 100, "var(--violet)"),
+                # 이탈위험만 의미색(위험할수록 붉게) — 나머지와 같은 색이면
+                # "98%"가 좋은 수치인지 나쁜 수치인지 한눈에 안 읽힌다.
+                ("이탈위험", float(departure_risk) * 100, _risk_tone(float(departure_risk))),
+            ],
         ),
         unsafe_allow_html=True,
     )
@@ -287,7 +298,7 @@ with wrap():
             risk_label = "위험 높음" if departure_risk >= 0.5 else ("주의" if departure_risk >= 0.3 else "안정적")
             st.markdown(
                 f'<div class="gm-card" style="text-align:center">'
-                f'<div class="gm-kpi-l">🚨 모델 추정 이탈위험</div>'
+                f'<div class="gm-kpi-l">{icon("siren", 12)} 모델 추정 이탈위험</div>'
                 f'<div class="gm-kpi-v" style="color:var(--{risk_kind})">{departure_risk:.0%}</div>'
                 f'{badge(risk_label, risk_kind)}'
                 f'</div>',

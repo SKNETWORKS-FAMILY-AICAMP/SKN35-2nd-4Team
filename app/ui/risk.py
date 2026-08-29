@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+from ui.theme import icon
 from src.models.departure import DepartureLGBM
 from src.models.reason import ReasonRandomForest, ReasonThresholds, add_reason_features, fit_reason_thresholds
 
@@ -35,11 +36,11 @@ ROOT = Path(__file__).resolve().parents[2]
 # 연관 요인 태그 -> (표시 라벨, 아이콘, 배지 색상 키). "~때문" 같은 인과 단정
 # 문구를 피하고 전부 "연관"/"추정"으로 끝맺는다 (reason.py 표시 원칙).
 REASON_DISPLAY: dict[str, tuple[str, str, str]] = {
-    "injury_associated": ("부상 연관", "🩹", "risk"),
-    "performance_decline": ("성적 하락 연관", "📉", "warn"),
-    "career_stage": ("베테랑 시기 연관", "🕰️", "violet"),
-    "mixed": ("복합 요인 연관", "⚠️", "risk"),
-    "unknown": ("판단 근거 부족", "❔", "navy"),
+    "injury_associated": ("부상 연관", "bandage", "risk"),
+    "performance_decline": ("성적 하락 연관", "trend-down", "warn"),
+    "career_stage": ("베테랑 시기 연관", "clock", "violet"),
+    "mixed": ("복합 요인 연관", "alert", "risk"),
+    "unknown": ("판단 근거 부족", "question", "navy"),
 }
 
 
@@ -202,10 +203,12 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
 
 
 def reason_badge_html(tag: str) -> str:
-    label, icon, kind = REASON_DISPLAY.get(tag, ("", "", "navy"))
+    # REASON_DISPLAY 의 두 번째 값은 이모지가 아니라 theme.icon() 의 아이콘
+    # 이름이다 — 이모지는 OS/브라우저마다 모양이 달라 톤이 안 맞아서 SVG로 교체했다.
+    label, icon_name, kind = REASON_DISPLAY.get(tag, ("", "", "navy"))
     if not label:
         return ""
-    return f'<span class="gm-badge {kind}">{icon} {label}</span>'
+    return f'<span class="gm-badge {kind}">{icon(icon_name, 10)} {label}</span>'
 
 
 def reason_proba_html(proba: dict, *, top_n: int = 3) -> str:
@@ -216,10 +219,10 @@ def reason_proba_html(proba: dict, *, top_n: int = 3) -> str:
     ranked = sorted(proba.items(), key=lambda kv: kv[1], reverse=True)[:top_n]
     rows = []
     for tag, p in ranked:
-        label, icon, _kind = REASON_DISPLAY.get(tag, (tag, "", "navy"))
+        label, icon_name, _kind = REASON_DISPLAY.get(tag, (tag, "", "navy"))
         rows.append(
             '<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;margin-bottom:3px">'
-            f'<span style="width:92px;flex-shrink:0;color:var(--muted)">{icon} {label}</span>'
+            f'<span style="width:92px;flex-shrink:0;color:var(--muted)">{icon(icon_name, 10)} {label}</span>'
             '<span style="flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden">'
             f'<span style="display:block;height:100%;width:{p * 100:.0f}%;background:var(--navy);border-radius:3px"></span>'
             "</span>"
