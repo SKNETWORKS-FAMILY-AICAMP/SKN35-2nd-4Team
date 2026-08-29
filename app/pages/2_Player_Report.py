@@ -61,7 +61,11 @@ ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
-NEXT_STRENGTH_PATH = ROOT / "models" / "strength_mlp.pkl"
+NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.pkl"
+# strength_xgb(R² 0.560)가 strength_mlp(R² 0.472)보다 확실히 정확한데
+# 실제 서비스(다음 시즌 예측 추세선)는 계속 strength_mlp를 쓰고 있었다 —
+# 둘 다 LAG_FEATURES 기반 2D 입력이라 인터페이스가 동일해서 경로만 바꾸면 됨
+# (next_strength.py의 feature_names_in_ 체크로 호환성 확인 완료).
 DEPARTURE_MODEL_PATH = ROOT / "models" / "departure_lgbm.pkl"
 REASON_MODEL_PATH = ROOT / "models" / "reason_rf.pkl"
 PEOPLE_PATH = ROOT / "data" / "processed" / "People.csv"
@@ -310,7 +314,7 @@ with wrap():
             st.caption("연관 요인 모델을 불러올 수 없습니다.")
 
     # ── 전력 추세 그래프 (실측 + 가능하면 다음 시즌 예측) ──
-    section("전력 추세", "실선: 실측 시즌 · 노란 점선: D strength_mlp 다음 시즌 예측(확정 아님)", icon="chart")
+    section("전력 추세", "실선: 실측 시즌 · 노란 점선: 다음 시즌 예측(strength_xgb, 확정 아님)", icon="chart")
     history = players.loc[players.player_id.astype(str) == selected_id].sort_values("season")
     trend_seasons = history["season"].astype(int).tolist()
     trend_values = history["overall_score"].fillna(0).tolist()
@@ -410,7 +414,7 @@ with wrap():
                 candidates, projections
             )
             st.caption(
-                f"FA 시나리오는 D strength_mlp의 {season + 1}시즌 예측 전력을 반영합니다."
+                f"FA 시나리오는 D strength_xgb의 {season + 1}시즌 예측 전력을 반영합니다."
             )
         except (FileNotFoundError, OSError, ValueError) as exc:
             # 모델 또는 계약 데이터가 없으면 현재 시즌 값으로 조용히 대체하지 않는다.

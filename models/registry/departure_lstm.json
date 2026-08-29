@@ -12,35 +12,27 @@
     0.0,
     1.0
   ],
-  "params": {
-    "units": "48",
-    "dropout": "0.39895767492208356",
-    "lr": "0.0005111362209645834",
-    "weight_decay": "4.85629431623248e-05",
-    "batch_size": "32",
-    "epochs": "60",
-    "patience": "7"
-  },
+  "params": {},
   "metrics": {
-    "accuracy": 0.6466,
-    "precision": 0.5536,
-    "recall": 0.8267,
-    "f1": 0.6631,
-    "roc_auc": 0.7803,
-    "log_loss": 0.6228,
+    "accuracy": 0.738,
+    "precision": 0.6557,
+    "recall": 0.7943,
+    "f1": 0.7183,
+    "roc_auc": 0.8255,
+    "log_loss": 0.5256,
     "confusion_matrix": [
       [
-        373,
-        350
+        504,
+        219
       ],
       [
-        91,
-        434
+        108,
+        417
       ]
     ],
-    "positive_rate": 0.6282,
+    "positive_rate": 0.5096,
     "n_test": 1248
   },
-  "note": "PyTorch MaskedLSTM, SEQ_LEN=5, Optuna 튜닝, train+val로 최종학습",
-  "saved_at": "2026-08-28T19:43:06"
+  "note": "PyTorch MaskedLSTM, SEQ_LEN=5, 선수별 최근 시즌 흐름 재사용(D), train구간 정규화 적용",
+  "saved_at": "2026-08-29T15:12:10"
 }

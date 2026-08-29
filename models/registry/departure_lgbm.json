@@ -60,5 +60,5 @@
     "n_test": 1248
   },
   "note": "Optuna 튜닝, train+val로 최종학습 후 test 평가",
-  "saved_at": "2026-08-28T19:39:43"
+  "saved_at": "2026-08-29T15:11:48"
 }

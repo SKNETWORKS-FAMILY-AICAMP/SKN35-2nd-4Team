@@ -182,6 +182,35 @@ def build_sequences(
     )
 
 
+# ---------------------------------------------------------------------------
+# [2026-08-29 추가] 시퀀스 피처 정규화 — train 구간 통계만 사용 (val/test 누수 방지)
+#
+# SEQ_FEATURES를 보면 스케일이 완전히 다른 값들이 섞여 있다: overall_score/
+# off_score/pit_score(0~100), ops_z/era_z(대략 -3~3), g_ratio(0~1), age(대략
+# 20~40), had_injury(0/1). build_sequences()는 이걸 정규화 없이 그대로
+# torch.tensor()에 넣고 있었다 — StrengthXGB(LAG_FEATURES 경로)나 StrengthMLP
+# 는 파이프라인 안에 StandardScaler가 있는데 LSTM 경로만 빠져 있었다.
+# departure.py의 DepartureLSTM에서 동일한 원인으로 성능이 안 나오는 걸 B가
+# 발견/수정했고(dea7084 "[Fix] LSTM"), 이 파일의 "LSTM이 MLP 폴백을 못
+# 넘어서는 문제" 코멘트와 정확히 같은 원인이라 여기도 같은 패턴으로 고친다.
+# ---------------------------------------------------------------------------
+
+def fit_seq_scaler(df: pd.DataFrame, train_range: tuple[int, int], features: list[str] = SEQ_FEATURES) -> dict:
+    """train_range(연도) 구간에서만 평균/표준편차를 계산한다."""
+    lo, hi = train_range
+    train_rows = df[df.season.between(lo, hi)]
+    mean = train_rows[features].mean()
+    std = train_rows[features].std().replace(0, 1.0)  # 상수 컬럼(std=0) 방어 - 0으로 나누기 방지
+    return {"mean": mean, "std": std}
+
+
+def apply_seq_scaler(df: pd.DataFrame, scaler: dict, features: list[str] = SEQ_FEATURES) -> pd.DataFrame:
+    """스케일러를 적용한 복사본을 반환한다 (원본 df는 건드리지 않음)."""
+    d = df.copy()
+    d[features] = (d[features] - scaler["mean"]) / scaler["std"]
+    return d
+
+
 # ── ML: XGBoost ────────────────────────────────────────────────────
 # 과거 성적과 나이 등을 보고 다음 시즌 전력을 회귀 예측
 class StrengthXGB(BaseModel):
@@ -469,11 +498,15 @@ if __name__ == "__main__":
 
     # ---- DL: LSTM (시퀀스) ----
     print("\n[DL] StrengthLSTM 학습 (시퀀스)...")
-    X_seq, y_seq, meta_seq = build_sequences(features)
-    season = meta_seq["season"].to_numpy()
     tr_lo, tr_hi = contract.SPLIT["train"]
     va_lo, va_hi = contract.SPLIT["valid"]
     te_lo, te_hi = contract.SPLIT["test"]
+    # train 구간 통계로만 정규화 (val/test 누수 방지) — 안 하면 off_score(0~100)
+    # 같은 큰 스케일 피처에 그래디언트가 지배당해 학습이 잘 안 된다.
+    seq_scaler = fit_seq_scaler(features, (tr_lo, tr_hi))
+    features_scaled = apply_seq_scaler(features, seq_scaler)
+    X_seq, y_seq, meta_seq = build_sequences(features_scaled)
+    season = meta_seq["season"].to_numpy()
     tr_mask = (season >= tr_lo) & (season <= tr_hi)
     va_mask = (season >= va_lo) & (season <= va_hi)
     te_mask = (season >= te_lo) & (season <= te_hi)

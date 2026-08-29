@@ -10,21 +10,21 @@
   "features": [],
   "classes": [],
   "params": {
-    "units": "48",
-    "dropout": "0.33129015398636835",
-    "lr": "0.0009718319944817398",
-    "weight_decay": "3.69997243146381e-05",
-    "batch_size": "32",
+    "units": "64",
+    "dropout": "0.31205720315428515",
+    "lr": "0.0028708753481954683",
+    "weight_decay": "0.00020597335357437193",
+    "batch_size": "64",
     "epochs": "40",
     "patience": "5"
   },
   "metrics": {
-    "mae": 12.5141,
-    "rmse": 15.1353,
-    "r2": 0.4955,
+    "mae": 12.3364,
+    "rmse": 14.9181,
+    "r2": 0.5098,
     "baseline_mae": 18.2483,
     "n_test": 1186
   },
   "note": "PyTorch MaskedLSTM, SEQ_LEN=5, Optuna 튜닝, train+val로 최종학습",
-  "saved_at": "2026-08-28T20:37:50"
+  "saved_at": "2026-08-29T15:09:17"
 }

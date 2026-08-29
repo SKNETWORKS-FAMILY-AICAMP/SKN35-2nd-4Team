@@ -905,9 +905,12 @@ def trend_chart_svg(
     color: str = "var(--team-accent)",
 ) -> str:
     """시즌별 전력 추세 라인차트. future_season/future_value가 있으면 마지막
-    실측 지점에서 점선으로 이어지는 "예측" 구간을 덧붙인다(D의 strength_mlp
-    다음 시즌 예측 — 확정 결과가 아니라 모델 추정이므로 점선+다른 색으로
-    시각적으로 분리한다. 실측과 예측을 같은 실선으로 섞어 보여주지 않는다).
+    실측 지점에서 점선으로 이어지는 "예측" 구간을 덧붙인다(D의 다음 시즌 전력
+    예측 모델 — 확정 결과가 아니라 모델 추정이므로 점선+다른 색으로
+    시각적으로 분리한다. 실측과 예측을 같은 실선으로 섞어 보여주지 않는다.
+    어느 모델을 쓰는지는 next_strength.py 호출부(NEXT_STRENGTH_PATH)가 결정
+    하므로 여기에 모델명을 하드코딩하지 않는다 — 모델 교체 시 이 주석이
+    stale해지는 걸 방지).
     """
     if len(seasons) != len(values):
         raise ValueError("seasons와 values 길이가 같아야 합니다")
