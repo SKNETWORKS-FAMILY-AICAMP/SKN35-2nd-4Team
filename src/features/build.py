@@ -14,7 +14,7 @@ contract.py가 정의한 features_v1.parquet을 생성한다.
 6. contract.SCHEMA 기준으로 컬럼 정렬
 7. contract.validate() 통과 확인
 8. validate PASS일 때만 features_v1.parquet 저장
-9. Git commit 및 빌드 결과 통보
+9. 빌드 결과 통보
 
 중요
 ----
@@ -27,7 +27,6 @@ contract.py가 정의한 features_v1.parquet을 생성한다.
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
@@ -913,63 +912,7 @@ def normalize_dtypes(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# 7. Git
-# ---------------------------------------------------------------------------
-
-def git_commit() -> None:
-    """
-    validate PASS 이후에만 features_v1을 Git에 동결한다.
-
-    Git이 없는 환경에서는 commit을 하지 않고 안내만 출력한다.
-    """
-
-    relative_output = OUTPUT_PATH.relative_to(ROOT)
-
-    try:
-        subprocess.run(
-            ["git", "add", str(relative_output)],
-            cwd=ROOT,
-            check=True,
-        )
-
-        result = subprocess.run(
-            [
-                "git",
-                "commit",
-                "-m",
-                "build: freeze features_v1",
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        if result.returncode == 0:
-            print("\n[Git] features_v1 commit 완료")
-            print(result.stdout.strip())
-            return
-
-        # 변경사항이 없는 경우
-        status = subprocess.run(
-            ["git", "status", "--short"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-        )
-
-        if not status.stdout.strip():
-            print("\n[Git] commit할 변경사항이 없습니다.")
-        else:
-            print("\n[Git] commit 실패")
-            print(result.stdout.strip())
-            print(result.stderr.strip())
-
-    except FileNotFoundError:
-        print("\n[Git] git 명령을 찾을 수 없습니다. commit을 건너뜁니다.")
-
-
-# ---------------------------------------------------------------------------
-# 8. 통보
+# 7. 통보
 # ---------------------------------------------------------------------------
 
 def notify(df: pd.DataFrame) -> None:
@@ -989,7 +932,6 @@ def notify(df: pd.DataFrame) -> None:
     )
     print("contract.validate() : PASS")
     print("features_v1.parquet : 저장 완료")
-    print("Git 동결              : 완료")
     print("=" * 70)
 
 
@@ -1092,8 +1034,7 @@ def build() -> pd.DataFrame:
         print("!" * 70)
         print(f"{type(exc).__name__}: {exc}")
         print(
-            "\n검증 실패이므로 features_v1.parquet을 "
-            "저장하거나 Git commit하지 않습니다."
+            "\n검증 실패이므로 features_v1.parquet을 저장하지 않습니다."
         )
         raise
 
@@ -1101,12 +1042,21 @@ def build() -> pd.DataFrame:
 
     # ----------------------------------------------------------------
     # 검증 통과 후에만 저장
+    # 기존 features_v1.parquet이 있으면 먼저 지우고 새로 쓴다 - 스키마가
+    # 바뀐 재실행 시(예: 컬럼 삭제/타입 변경) 이전 버전 파일이 일부만
+    # 덮어써져서 옛날 컬럼이 조용히 섞여 남는 걸 방지한다. to_parquet()
+    # 자체도 덮어쓰기는 하지만, "항상 최신 상태로 다시 만든다"는 의도를
+    # 명시적으로 드러내기 위해 삭제 단계를 분리한다.
     # ----------------------------------------------------------------
 
     DATA_DIR.mkdir(
         parents=True,
         exist_ok=True,
     )
+
+    if OUTPUT_PATH.exists():
+        print(f"\n[재생성] 기존 features_v1.parquet 삭제: {OUTPUT_PATH}")
+        OUTPUT_PATH.unlink()
 
     final_df.to_parquet(
         OUTPUT_PATH,
@@ -1116,12 +1066,6 @@ def build() -> pd.DataFrame:
     print(
         f"  저장 완료 : {OUTPUT_PATH}"
     )
-
-    # ----------------------------------------------------------------
-    # Git 동결
-    # ----------------------------------------------------------------
-
-    git_commit()
 
     # ----------------------------------------------------------------
     # 통보
