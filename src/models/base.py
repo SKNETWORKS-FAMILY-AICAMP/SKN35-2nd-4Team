@@ -189,7 +189,9 @@ class BaseModel:
             "owner": self.owner,
             "is_regression": self.is_regression,
             "format": fmt,
-            "path": str(path.relative_to(ROOT)),
+            # 레지스트리는 Git으로 공유되고 Linux 배포 환경에서도 읽힌다.
+            # Windows에서 저장해도 JSON에는 POSIX 구분자를 사용한다.
+            "path": path.relative_to(ROOT).as_posix(),
             "n_features": len(self.feature_names),
             "features": self.feature_names,
             "classes": to_py(self.classes_),

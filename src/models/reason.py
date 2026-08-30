@@ -35,6 +35,8 @@ REASON_CLASSES = [
     "injury_associated",
     "performance_decline",
     "career_stage",
+    "early_career_move",
+    "stable_performance_move",
     "mixed",
     # [2026-08-30 추가] 기존에는 부상/성적하락/경력단계 세 신호가 하나도 안 켜지면
     # 전부 "unknown"으로 뭉뚱그렸는데, 그게 라벨의 48%(11,436건 중 5,500건)를
@@ -101,6 +103,11 @@ class ReasonThresholds:
     g_change: float = 0.7
     career_age: float = 34.0
     career_exp: float = 10.0
+    # 저연차와 성적 유지·상승은 기존 원인 신호가 하나도 없는 이탈자에게만
+    # 적용하는 보조 규칙이다. exp <= 1은 루키·2년 차 구간을 뜻하고,
+    # 전력 변화 0 이상은 전년 대비 유지·상승이 실제 관측된 경우만 뜻한다.
+    early_career_max_exp: float = 1.0
+    stable_score_delta: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -288,11 +295,30 @@ def assign_reason_labels(
         )
     )
 
+    # 기존 세 요인은 비교적 직접적인 관측 근거(IL, 성적·출전 하락,
+    # 리그 이탈과 베테랑 시기)를 가진다. 새 태그는 이 근거들과 겹치지 않는
+    # 잔여 집단에서만 적용하여 mixed 클래스가 인위적으로 불어나는 것을 막는다.
+    has_strong_reason = injury | performance | career
+    early_career = (
+        departed
+        & ~has_strong_reason
+        & out["exp"].le(thresholds.early_career_max_exp)
+    )
+    stable_performance = (
+        departed
+        & ~has_strong_reason
+        & ~early_career
+        & out["overall_score_delta"].notna()
+        & out["overall_score_delta"].ge(thresholds.stable_score_delta)
+    )
+
     flag_frame = pd.DataFrame(
         {
             "injury_associated": injury.fillna(False),
             "performance_decline": performance.fillna(False),
             "career_stage": career.fillna(False),
+            "early_career_move": early_career.fillna(False),
+            "stable_performance_move": stable_performance.fillna(False),
         },
         index=out.index,
     )
@@ -361,6 +387,8 @@ def _explanation_for(tags: tuple[str, ...], evidence_level: object) -> str | Non
         "injury_associated": "IL 등재 기록이 이탈 위험과 함께 관측됨",
         "performance_decline": "최근 성적 또는 출전 비중 하락이 관측됨",
         "career_stage": "연령·경력상 생애주기 요인이 리그 이탈과 함께 관측됨",
+        "early_career_move": "저연차 구간의 선수 이동과 유사한 특성이 관측됨",
+        "stable_performance_move": "전년 대비 전력이 유지·상승한 이동과 유사한 특성이 관측됨",
     }
     return "; ".join(messages[tag] for tag in tags if tag in messages)
 
@@ -647,7 +675,8 @@ if __name__ == "__main__":
         path = model.save(
             note=(
                 "실제 features_v1 및 "
-                "player_injury_stints.csv로 학습"
+                "player_injury_stints.csv로 학습 "
+                "(early_career_move/stable_performance_move 추가, 2026-08-30)"
             )
         )
 

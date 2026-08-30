@@ -29,7 +29,13 @@ import streamlit as st
 
 from ui.theme import icon
 from src.models.departure import DepartureLGBM
-from src.models.reason import ReasonRandomForest, ReasonThresholds, add_reason_features, fit_reason_thresholds
+from src.models.reason import (
+    ReasonRandomForest,
+    ReasonThresholds,
+    add_reason_features,
+    fit_reason_thresholds,
+    merge_injury_data,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -39,6 +45,10 @@ REASON_DISPLAY: dict[str, tuple[str, str, str]] = {
     "injury_associated": ("부상 연관", "bandage", "risk"),
     "performance_decline": ("성적 하락 연관", "trend-down", "warn"),
     "career_stage": ("베테랑 시기 연관", "clock", "violet"),
+    "early_career_move": ("저연차 이동 연관", "swap", "violet"),  # 2026-08-30: career_stage와
+    # 아이콘("clock")·색이 완전히 겹쳐 두 배지가 구분 안 되던 버그 수정. "swap"은
+    # theme.py에서 이미 "이동" 의미로 쓰이던 아이콘이라 의미상으로도 더 맞는다.
+    "stable_performance_move": ("전력 유지·상승 이동 연관", "trend-up", "gain"),
     "mixed": ("복합 요인 연관", "alert", "risk"),
     # [2026-08-30] unknown 이 라벨의 48%를 차지해 "판단 근거 부족"만 뜨는 문제로
     # reason.py 에서 두 클래스를 분리했다. 원인을 단정하지 않고 관측된 패턴을
@@ -92,20 +102,9 @@ def _merge_injury(df: pd.DataFrame) -> pd.DataFrame:
     injury = _load_real_injury_data(
         INJURY_STINTS_PATH.stat().st_mtime_ns if INJURY_STINTS_PATH.exists() else 0
     )
-    out = df.copy()
-    if injury is None:
-        if "had_injury" not in out.columns:
-            out["had_injury"] = 0.0
-        if "il_stint_count" not in out.columns:
-            out["il_stint_count"] = 0.0
-        return out
-
-    keep = [c for c in ["player_id", "season", "had_injury", "il_stint_count", "injury_risk_score"]
-            if c in injury.columns]
-    out = out.merge(injury[keep], on=["player_id", "season"], how="left")
-    out["had_injury"] = out["had_injury"].fillna(0.0)
-    out["il_stint_count"] = out["il_stint_count"].fillna(0.0)
-    return out
+    # 학습과 화면이 서로 다른 병합 규칙을 갖지 않도록 reason.py의 단일 구현을
+    # 사용한다. 중복 키 검증과 injury_record_matched 생성도 같은 경로로 처리된다.
+    return merge_injury_data(df, injury)
 
 
 @st.cache_resource(show_spinner=False)
@@ -164,13 +163,14 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
         player_id, reason_tag, reason_proba(dict[str,float] 클래스별 확률),
         + _EVIDENCE_COLS. 모델/데이터가 없으면 reason_tag=""인 빈 값들.
     """
+    target_id_list = [str(i) for i in target_ids]
     empty = pd.DataFrame({
-        "player_id": [str(i) for i in target_ids],
+        "player_id": target_id_list,
         "reason_tag": "",
-        "reason_proba": [{}] * len(target_ids),
+        "reason_proba": [{} for _ in target_id_list],
         **{c: np.nan for c in _EVIDENCE_COLS},
     })
-    if model is None or not len(target_ids):
+    if model is None or not target_id_list:
         return empty
 
     df = _merge_injury(all_seasons)
@@ -181,10 +181,12 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
         return empty
 
     latest = (
-        featured[featured["player_id"].astype(str).isin([str(i) for i in target_ids])]
-        .sort_values("season")
-        .groupby("player_id", as_index=False)
-        .last()
+        featured[featured["player_id"].astype(str).isin(target_id_list)]
+        .sort_values(["player_id", "season"], kind="stable")
+        # groupby().last()는 컬럼마다 마지막 non-null 값을 골라 2026 행에
+        # 과거 시즌 값을 섞는다. 행 전체가 가장 최신인 레코드만 선택한다.
+        .drop_duplicates("player_id", keep="last")
+        .reset_index(drop=True)
     )
     if latest.empty:
         return empty
@@ -246,44 +248,118 @@ def evidence_html(row: dict | pd.Series, thresholds: ReasonThresholds | None) ->
 
     def _get(key: str) -> float | None:
         value = row.get(key) if isinstance(row, (dict, pd.Series)) else None
-        return None if value is None or (isinstance(value, float) and np.isnan(value)) else float(value)
+        if value is None or pd.isna(value):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     age, exp = _get("age"), _get("exp")
     delta, g_chg = _get("overall_score_delta"), _get("g_chg")
     injury = _get("reason_injury_score")
 
-    lines = []
+    # (항목, 값, 비교 기준, 기준 해당 여부, 강조색, 아이콘)
+    lines: list[tuple[str, str, str, bool, str, str]] = []
     if age is not None:
         over = thresholds is not None and age >= thresholds.career_age
-        lines.append(("나이", f"{age:.0f}세", f"임계 {thresholds.career_age:.0f}세↑" if thresholds else "", over))
+        lines.append((
+            "나이",
+            f"{age:.0f}세",
+            f"베테랑 ≥{thresholds.career_age:.0f}세" if thresholds else "",
+            over,
+            "var(--violet)",
+            "clock",
+        ))
     if exp is not None:
-        over = thresholds is not None and exp >= thresholds.career_exp
-        lines.append(("경력", f"{exp:.0f}년", f"임계 {thresholds.career_exp:.0f}년↑" if thresholds else "", over))
+        early = thresholds is not None and exp <= thresholds.early_career_max_exp
+        veteran = thresholds is not None and exp >= thresholds.career_exp
+        if early:
+            exp_threshold = f"저연차 ≤{thresholds.early_career_max_exp:.0f}년"
+            exp_icon = "swap"
+        elif veteran:
+            exp_threshold = f"베테랑 ≥{thresholds.career_exp:.0f}년"
+            exp_icon = "clock"
+        elif thresholds:
+            exp_threshold = (
+                f"저연차 ≤{thresholds.early_career_max_exp:.0f}년 · "
+                f"베테랑 ≥{thresholds.career_exp:.0f}년"
+            )
+            exp_icon = "clock"
+        else:
+            exp_threshold = ""
+            exp_icon = "clock"
+        lines.append((
+            "경력",
+            f"{exp:.0f}년",
+            exp_threshold,
+            early or veteran,
+            "var(--violet)",
+            exp_icon,
+        ))
     if delta is not None:
-        over = thresholds is not None and delta <= thresholds.score_delta
-        lines.append(("전력 변화(전 시즌 대비)", f"{delta:+.1f}점", f"임계 {thresholds.score_delta:+.1f}↓" if thresholds else "", over))
+        decline = thresholds is not None and delta <= thresholds.score_delta
+        stable = thresholds is not None and delta >= thresholds.stable_score_delta
+        if decline:
+            delta_threshold = f"하락 ≤{thresholds.score_delta:+.1f}점"
+            delta_color, delta_icon = "var(--risk)", "trend-down"
+        elif stable:
+            delta_threshold = f"유지·상승 ≥{thresholds.stable_score_delta:+.1f}점"
+            delta_color, delta_icon = "var(--gain)", "trend-up"
+        elif thresholds:
+            delta_threshold = (
+                f"하락 ≤{thresholds.score_delta:+.1f} · "
+                f"유지·상승 ≥{thresholds.stable_score_delta:+.1f}"
+            )
+            delta_color, delta_icon = "var(--muted)", "trend-down"
+        else:
+            delta_threshold = ""
+            delta_color, delta_icon = "var(--muted)", "trend-down"
+        lines.append((
+            "전력 변화(전 시즌 대비)",
+            f"{delta:+.1f}점",
+            delta_threshold,
+            decline or stable,
+            delta_color,
+            delta_icon,
+        ))
     if g_chg is not None:
         over = thresholds is not None and g_chg <= thresholds.g_change
-        lines.append(("출전비중 변화", f"{g_chg:+.2f}", f"임계 {thresholds.g_change:+.2f}↓" if thresholds else "", over))
+        lines.append((
+            "출전비중 변화",
+            f"{g_chg:+.2f}",
+            f"하락 ≤{thresholds.g_change:+.2f}" if thresholds else "",
+            over,
+            "var(--risk)",
+            "trend-down",
+        ))
     if injury is not None:
         over = thresholds is not None and injury >= thresholds.injury_risk and injury > 0
-        lines.append(("부상 신호", f"{injury:.2f}", f"임계 {thresholds.injury_risk:.2f}↑" if thresholds else "", over))
+        lines.append((
+            "부상 신호",
+            f"{injury:.2f}",
+            f"연관 ≥{thresholds.injury_risk:.2f}" if thresholds else "",
+            over,
+            "var(--risk)",
+            "bandage",
+        ))
 
     if not lines:
         return ""
 
     rows = "".join(
         '<div style="display:flex;justify-content:space-between;gap:8px;font-size:11.5px;'
-        f'padding:3px 0;color:{"var(--risk)" if flag else "var(--muted)"}">'
-        f'<span>{"🔺 " if flag else ""}{label}</span>'
+        f'padding:3px 0;color:{color if flag else "var(--muted)"}">'
+        f'<span>{icon(icon_name, 9) if flag else ""} {label}</span>'
         f'<span style="font-weight:700;font-variant-numeric:tabular-nums">{val} <span style="font-weight:400;opacity:.6">({thr})</span></span>'
         "</div>"
-        for label, val, thr, flag in lines
+        for label, val, thr, flag, color, icon_name in lines
     )
     return (
         '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)">'
         f"{rows}"
-        '<div style="font-size:10px;color:var(--faint);margin-top:4px">🔺 = 훈련 구간(~2021) 기준 임계값을 넘은 항목</div>'
+        '<div style="font-size:10px;color:var(--faint);margin-top:4px">'
+        '아이콘 = 훈련 구간(~2021) 기준 해당 구간 · 최종 태그는 원인 우선순위 결합 결과</div>'
         "</div>"
     )
 
