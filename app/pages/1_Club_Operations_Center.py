@@ -263,15 +263,18 @@ with wrap():
     section("다이아몬드 라인업", f"{season}시즌 · 포지션별 주전(전력 1위) · 링이 붉을수록 이탈위험 높음", icon="team")
     lineup_rows: list[dict] = []
     if "primary_position" in team_players.columns:
+        # 예전에는 포지션당 1명만 남기고 잘라서(drop_duplicates) 외야수 8명 중
+        # 1명만 그려졌다. 이제 전력 내림차순 전체를 넘기고, 자리 배분(외야 3자리)은
+        # diamond_lineup_svg 가 한다.
         starters = (
             team_players.dropna(subset=["primary_position"])
             .sort_values("overall_score", ascending=False)
-            .drop_duplicates(subset=["primary_position"], keep="first")
         )
         for _, r in starters.iterrows():
             lineup_rows.append({
                 "position": r["primary_position"],
                 "name": r["이름"],
+                "photo": headshot_url(str(r["player_id"]), photo_lookup),
                 "ovr": float(r["overall_score"]) if pd.notna(r["overall_score"]) else 0.0,
                 "risk": float(r["departure_risk"]) if pd.notna(r["departure_risk"]) else 0.0,
             })

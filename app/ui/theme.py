@@ -1857,16 +1857,33 @@ def us_map_html() -> str:
 # 좌표는 viewBox(0 0 640 520) 기준 수비 위치 실제 배치를 따른다.
 # ══════════════════════════════════════════════════════════════════════
 
-# (x, y, 한글 라벨) — 홈플레이트가 아래 중앙, 외야가 위쪽
+# 실제 수비 위치 좌표 (viewBox 0 0 640 560). 홈플레이트 (320,424),
+# 2루 (320,212), 1루 (426,318), 3루 (214,318), 마운드 (320,318) 기준으로
+# 각 야수가 실제로 서는 자리에 배치한다.
+# 외야는 LF/CF/RF 세 자리다 — features_v1 의 primary_position 은 좌/중/우를
+# 구분하지 않고 전부 "OF" 라서, 예전에는 외야수 8명 중 1명만 그려지고
+# 나머지가 통째로 사라졌다(실측). 이제 OF 상위 3명을 세 자리에 나눠 세운다.
 _DIAMOND_SLOTS: dict[str, tuple[float, float, str]] = {
-    "OF": (320, 96, "외야수"),
-    "SS": (238, 236, "유격수"),
-    "2B": (402, 236, "2루수"),
-    "3B": (150, 300, "3루수"),
-    "1B": (490, 300, "1루수"),
-    "P":  (320, 300, "투수"),
-    "C":  (320, 430, "포수"),
+    # 이름표(원 아래 30px 높이 pill)까지 고려해 자리를 벌려놓았다 — 좁히면
+    # 유격수 이름표가 3루수 포지션 라벨을 덮는다(실측으로 조정한 값).
+    "LF": (146, 206, "좌익수"),
+    "CF": (320, 138, "중견수"),
+    "RF": (494, 206, "우익수"),
+    "SS": (238, 232, "유격수"),
+    "2B": (402, 232, "2루수"),
+    "3B": (148, 322, "3루수"),
+    "1B": (492, 322, "1루수"),
+    "P":  (320, 310, "투수"),
+    "C":  (320, 458, "포수"),
     "DH": (556, 436, "지명타자"),
+}
+
+# 데이터의 primary_position -> 그릴 슬롯 목록(우선순위 순).
+# OF 한 종류가 세 자리로 펼쳐지는 것이 핵심.
+_POSITION_SLOTS: dict[str, list[str]] = {
+    "OF": ["CF", "LF", "RF"],
+    "SS": ["SS"], "2B": ["2B"], "3B": ["3B"], "1B": ["1B"],
+    "P": ["P"], "C": ["C"], "DH": ["DH"],
 }
 
 
@@ -1890,80 +1907,101 @@ def _risk_tone(risk: float) -> str:
     return "var(--gain)"
 
 
-def diamond_lineup_svg(players: list[dict], *, max_per_slot: int = 1) -> str:
-    """포지션별 대표 선수를 그라운드 위에 배치한 SVG.
+def diamond_lineup_svg(players: list[dict]) -> str:
+    """포지션별 주전을 그라운드 위에 얼굴로 배치한 SVG.
 
-    players: [{"position","name","ovr","risk"}] — 이미 정렬된 리스트를 받는다
-             (호출부가 "포지션별로 누구를 대표로 세울지"를 정한다).
-    max_per_slot: 한 포지션에 최대 몇 명 (외야 3명 등 확장 대비).
+    players: [{"position","name","ovr","risk","photo"}] — 전력 내림차순 정렬된
+             전체 후보(포지션 중복 허용). 이 함수가 자리별로 배분한다.
 
-    데이터가 없는 포지션은 점선 빈 슬롯으로 남겨 "공백"을 그대로 보여준다
+    데이터가 없는 자리는 점선 빈 슬롯으로 남겨 "공백"을 그대로 보여준다
     — 가짜로 채우지 않는다.
     """
-    by_slot: dict[str, list[dict]] = {}
+    # 포지션별로 전력 순서대로 담아두고, 슬롯 우선순위대로 한 명씩 꺼내 세운다
+    pool: dict[str, list[dict]] = {}
     for p in players:
-        pos = p.get("position")
-        if pos in _DIAMOND_SLOTS:
-            by_slot.setdefault(pos, []).append(p)
+        pool.setdefault(str(p.get("position")), []).append(p)
+
+    assigned: dict[str, dict] = {}
+    for pos, slots in _POSITION_SLOTS.items():
+        queue = pool.get(pos, [])
+        for slot, person in zip(slots, queue):
+            assigned[slot] = person
 
     nodes: list[str] = []
-    for idx, (pos, (cx, cy, label)) in enumerate(_DIAMOND_SLOTS.items()):
-        picked = by_slot.get(pos, [])[:max_per_slot]
-        delay = 0.35 + idx * 0.07
+    for idx, (slot, (cx, cy, label)) in enumerate(_DIAMOND_SLOTS.items()):
+        person = assigned.get(slot)
+        delay = 0.35 + idx * 0.06
 
-        if not picked:
+        if person is None:
             nodes.append(
                 f'<g class="gm-dia-node gm-dia-empty" style="--d:{delay}s">'
-                f'<circle cx="{cx}" cy="{cy}" r="26" fill="rgba(255,255,255,.04)" '
+                f'<circle cx="{cx}" cy="{cy}" r="25" fill="rgba(255,255,255,.04)" '
                 'stroke="rgba(255,255,255,.22)" stroke-width="1.5" stroke-dasharray="4 4"/>'
                 f'<text x="{cx}" y="{cy + 4}" text-anchor="middle" font-size="11" '
-                f'font-weight="700" fill="rgba(255,255,255,.45)">{pos}</text>'
+                f'font-weight="800" fill="rgba(255,255,255,.45)">{slot}</text>'
                 f'<text x="{cx}" y="{cy + 44}" text-anchor="middle" font-size="10.5" '
                 f'fill="rgba(255,255,255,.35)">{label} 공백</text>'
                 "</g>"
             )
             continue
 
-        p = picked[0]
-        risk = float(p.get("risk") or 0.0)
-        ovr = float(p.get("ovr") or 0.0)
-        name = str(p.get("name") or "")
+        risk = float(person.get("risk") or 0.0)
+        ovr = float(person.get("ovr") or 0.0)
+        name = str(person.get("name") or "")
+        photo = person.get("photo")
         tone = _risk_tone(risk)
-        short = name if len(name) <= 13 else name[:12] + "…"
-        # 위험도가 높을수록 링이 굵고 빠르게 맥동한다
+        short = name if len(name) <= 12 else name[:11] + "…"
         pulse = "gm-dia-pulse-hot" if risk >= 0.70 else ("gm-dia-pulse-warm" if risk >= 0.45 else "")
 
-        # 라벨은 잔디·베이스라인 위에 겹쳐 놓이므로, 뒤에 어두운 pill 을 깔아
-        # 배경이 무엇이든 대비가 유지되게 한다(실측: 유격수/2루수 라벨이
-        # 내야 다이아몬드 흰 선과 겹쳐 읽기 어려웠음).
         risk_text = f"이탈 {risk * 100:.0f}%"
         pill_w = max(_approx_text_width(short, 11.0), _approx_text_width(risk_text, 9.5)) + 16
-        pill_h = 30.0
         pill_x = cx - pill_w / 2
-        pill_y = cy + 31
+        pill_y = cy + 32
+        clip_id = f"gm-dia-clip-{slot}"
+
+        # 얼굴이 있으면 원 안을 사진으로 채우고 OVR 은 우하단 배지로 뺀다.
+        # 없으면 예전처럼 원 가운데에 OVR 숫자를 크게 둔다.
+        if photo:
+            face = (
+                f'<clipPath id="{clip_id}"><circle cx="{cx}" cy="{cy}" r="24"/></clipPath>'
+                f'<circle cx="{cx}" cy="{cy}" r="24" fill="#0B1424"/>'
+                f'<image href="{photo}" x="{cx - 24}" y="{cy - 24}" width="48" height="48" '
+                f'clip-path="url(#{clip_id})" preserveAspectRatio="xMidYMid slice" '
+                "onerror=\"this.style.display='none'\"/>"
+                f'<circle cx="{cx}" cy="{cy}" r="24" fill="none" stroke="{tone}" stroke-width="3"/>'
+                f'<circle cx="{cx + 18}" cy="{cy + 17}" r="11.5" fill="rgba(6,11,23,.95)" '
+                f'stroke="{tone}" stroke-width="1.6"/>'
+                f'<text x="{cx + 18}" y="{cy + 21}" text-anchor="middle" font-size="11" '
+                f'font-weight="800" fill="#fff">{ovr:.0f}</text>'
+            )
+        else:
+            face = (
+                f'<circle cx="{cx}" cy="{cy}" r="24" fill="rgba(8,14,28,.88)" '
+                f'stroke="{tone}" stroke-width="3"/>'
+                f'<text x="{cx}" y="{cy + 6}" text-anchor="middle" font-size="17" '
+                f'font-weight="800" fill="#fff">{ovr:.0f}</text>'
+            )
 
         nodes.append(
             f'<g class="gm-dia-node {pulse}" style="--d:{delay}s;--tone:{tone}">'
-            f'<circle class="gm-dia-halo" cx="{cx}" cy="{cy}" r="30" fill="none" '
+            f'<circle class="gm-dia-halo" cx="{cx}" cy="{cy}" r="29" fill="none" '
             f'stroke="{tone}" stroke-width="2" opacity=".55"/>'
-            f'<circle cx="{cx}" cy="{cy}" r="25" fill="rgba(8,14,28,.86)" '
-            f'stroke="{tone}" stroke-width="2.5"/>'
-            f'<text x="{cx}" y="{cy - 2}" text-anchor="middle" font-size="15" '
-            f'font-weight="800" fill="#fff">{ovr:.0f}</text>'
-            f'<text x="{cx}" y="{cy + 11}" text-anchor="middle" font-size="8" '
-            f'font-weight="700" fill="rgba(255,255,255,.6)" letter-spacing=".5">{pos}</text>'
-            f'<rect x="{pill_x:.1f}" y="{pill_y:.1f}" width="{pill_w:.1f}" height="{pill_h:.1f}" '
-            'rx="9" fill="rgba(6,11,23,.82)" stroke="rgba(255,255,255,.14)" stroke-width="1"/>'
-            f'<text x="{cx}" y="{cy + 45}" text-anchor="middle" font-size="11" '
+            # 포지션 라벨은 원 위쪽에 — 얼굴을 가리지 않는다
+            f'<text x="{cx}" y="{cy - 30}" text-anchor="middle" font-size="9.5" '
+            f'font-weight="800" fill="rgba(255,255,255,.72)" letter-spacing=".6">{slot}</text>'
+            + face
+            + f'<rect x="{pill_x:.1f}" y="{pill_y:.1f}" width="{pill_w:.1f}" height="30" '
+            'rx="9" fill="rgba(6,11,23,.86)" stroke="rgba(255,255,255,.14)" stroke-width="1"/>'
+            f'<text x="{cx}" y="{pill_y + 13:.1f}" text-anchor="middle" font-size="11" '
             f'font-weight="700" fill="#fff">{short}</text>'
-            f'<text x="{cx}" y="{cy + 57}" text-anchor="middle" font-size="9.5" '
+            f'<text x="{cx}" y="{pill_y + 25:.1f}" text-anchor="middle" font-size="9.5" '
             f'font-weight="800" fill="{tone}">{risk_text}</text>'
             "</g>"
         )
 
     return (
         '<div class="gm-diamond-wrap">'
-        '<svg class="gm-diamond" viewBox="0 0 640 520" xmlns="http://www.w3.org/2000/svg" '
+        '<svg class="gm-diamond" viewBox="0 0 640 560" xmlns="http://www.w3.org/2000/svg" '
         'role="img" aria-label="포지션별 로스터 배치도">'
         "<defs>"
         '<radialGradient id="gm-turf" cx="50%" cy="76%" r="78%">'
@@ -1971,32 +2009,21 @@ def diamond_lineup_svg(players: list[dict], *, max_per_slot: int = 1) -> str:
         '<stop offset="100%" stop-color="#0B3B24"/></radialGradient>'
         '<linearGradient id="gm-dirt" x1="0" y1="0" x2="0" y2="1">'
         '<stop offset="0%" stop-color="#C08A55"/><stop offset="100%" stop-color="#9A6B3E"/></linearGradient>'
-        '<filter id="gm-dia-glow" x="-60%" y="-60%" width="220%" height="220%">'
-        '<feGaussianBlur stdDeviation="7" result="b"/>'
-        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
         "</defs>"
-        # 외야 잔디 (부채꼴)
         '<path d="M320 470 L36 246 A360 360 0 0 1 604 246 Z" fill="url(#gm-turf)"/>'
-        # 잔디 스트라이프 — 실제 구장 모잉 패턴
         '<path d="M320 470 L150 336 A250 250 0 0 1 236 268 Z" fill="rgba(255,255,255,.045)"/>'
         '<path d="M320 470 L320 232 A250 250 0 0 1 404 268 Z" fill="rgba(255,255,255,.045)"/>'
         '<path d="M320 470 L490 336 A250 250 0 0 0 404 268 Z" fill="rgba(0,0,0,.05)"/>'
-        # 내야 흙
         '<path d="M320 470 L168 318 A215 215 0 0 1 472 318 Z" fill="url(#gm-dirt)" opacity=".92"/>'
-        # 내야 잔디 다이아몬드
         '<path d="M320 424 L214 318 L320 212 L426 318 Z" fill="url(#gm-turf)"/>'
-        # 베이스라인
         '<path d="M320 424 L214 318 L320 212 L426 318 Z" fill="none" '
         'stroke="rgba(255,255,255,.85)" stroke-width="2.5"/>'
-        # 베이스 4개
         '<rect x="313" y="417" width="14" height="14" fill="#fff" transform="rotate(45 320 424)"/>'
         '<rect x="207" y="311" width="14" height="14" fill="#fff" transform="rotate(45 214 318)"/>'
         '<rect x="313" y="205" width="14" height="14" fill="#fff" transform="rotate(45 320 212)"/>'
         '<rect x="419" y="311" width="14" height="14" fill="#fff" transform="rotate(45 426 318)"/>'
-        # 마운드
         '<circle cx="320" cy="318" r="26" fill="url(#gm-dirt)"/>'
         '<rect x="315" y="314" width="10" height="5" rx="1" fill="#fff" opacity=".9"/>'
-        # 파울라인
         '<path d="M320 470 L60 210" stroke="rgba(255,255,255,.5)" stroke-width="2"/>'
         '<path d="M320 470 L580 210" stroke="rgba(255,255,255,.5)" stroke-width="2"/>'
         + "".join(nodes)
