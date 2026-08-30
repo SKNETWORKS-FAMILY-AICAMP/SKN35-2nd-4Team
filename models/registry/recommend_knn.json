@@ -16,13 +16,21 @@
   ],
   "n_features": 7,
   "metrics": {
-    "precision_at_3": 0.05,
+    "precision_at_1": 0.0,
     "evaluated_queries": 100,
     "skipped_queries": 0,
-    "evaluation_season": 2024
+    "evaluation_season": 2025,
+    "precision_at_3": 0.006666666666666666,
+    "precision_at_5": 0.008,
+    "mean_next_strength_gap": 15.525949359910085,
+    "within_5_points_rate": 0.19078947368421054,
+    "ndcg_at_5": 0.15184426300283194,
+    "position_or_role_match_rate": 1.0
   },
   "note": "동일 시즌·역할 후보 KNN 코사인 추천",
+  "params": {
+    "catalog_end_season": 2026
+  },
   "classes": [],
-  "params": {},
-  "saved_at": "2026-08-28T16:02:05"
+  "saved_at": "2026-08-30T18:43:58"
 }

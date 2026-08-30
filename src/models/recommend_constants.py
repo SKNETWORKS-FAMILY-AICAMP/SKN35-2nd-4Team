@@ -26,8 +26,8 @@ LAHMAN_TEAM_TO_UI = {
     "WAS": "WSN",
 }
 
-# age·exp는 서로 강하게 중복되고 고정 평가에서 추천 정확도를 낮춰 제외한다.
-# def_score는 현재 features_v1에 유효값이 없어 실제 거리 계산에 사용할 수 없다.
+# 추천 거리는 현재 시즌의 종합 전력과 출전 비중만 공통으로 사용한다.
+# 역할별 세부 전력·표준화 지표는 ROLE_FEATURES에서 추가한다.
 COMMON_FEATURES = ["overall_score", "g_ratio"]
 ROLE_FEATURES = {
     "B": ["off_score", "ops_z"],
