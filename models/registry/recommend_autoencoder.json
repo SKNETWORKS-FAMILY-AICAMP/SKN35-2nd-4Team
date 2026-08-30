@@ -16,14 +16,24 @@
   ],
   "n_features": 7,
   "metrics": {
-    "precision_at_3": 0.07333333333333332,
+    "precision_at_1": 0.0,
     "evaluated_queries": 100,
     "skipped_queries": 0,
-    "evaluation_season": 2024,
-    "reconstruction_loss": 0.07115189731121063
+    "evaluation_season": 2025,
+    "precision_at_3": 0.026666666666666665,
+    "precision_at_5": 0.036000000000000004,
+    "mean_next_strength_gap": 16.167598154154703,
+    "within_5_points_rate": 0.22595078299776286,
+    "ndcg_at_5": 0.17297335154770802,
+    "position_or_role_match_rate": 1.0,
+    "reconstruction_loss": 0.03661075234413147
   },
   "note": "Autoencoder 잠재 벡터 코사인 추천",
+  "params": {
+    "training_end_season": 2025,
+    "provisional_season_excluded": true,
+    "strength_weight": 0.0
+  },
   "classes": [],
-  "params": {},
-  "saved_at": "2026-08-28T16:02:05"
+  "saved_at": "2026-08-30T18:43:58"
 }

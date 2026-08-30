@@ -203,6 +203,46 @@ class ReplacementRecommender:
         return available
 
 
+class StrengthDistanceRecommender(ReplacementRecommender):
+    """동일 포지션 후보를 현재 종합 전력 차이가 작은 순서로 추천한다."""
+
+    def recommend(
+        self,
+        player_id: str,
+        season: int,
+        *,
+        n_recommendations: int = 3,
+    ) -> pd.DataFrame:
+        if n_recommendations < 1:
+            raise ValueError("n_recommendations는 1 이상이어야 합니다.")
+        catalog = self._catalog()
+        target_rows = catalog.loc[
+            catalog["player_id"].astype(str).eq(str(player_id))
+            & catalog["season"].eq(season)
+        ]
+        if len(target_rows) != 1:
+            raise ValueError(
+                f"player_id='{player_id}', season={season}인 선수를 정확히 1명 찾을 수 없습니다."
+            )
+        target = target_rows.iloc[0]
+        candidates, matched_on = self._filter_candidates(catalog, target)
+        if candidates.empty:
+            raise ValueError("동일 역할/포지션과 최소 출전 기준을 만족하는 후보가 없습니다.")
+
+        result = candidates.copy()
+        result["distance"] = (
+            pd.to_numeric(result["overall_score"], errors="coerce")
+            - float(target["overall_score"])
+        ).abs()
+        result = result.nsmallest(n_recommendations, "distance").copy()
+        result["similarity"] = 1.0 / (1.0 + result["distance"])
+        result["rank"] = np.arange(1, len(result) + 1)
+        result["matched_on"] = matched_on
+        result["recommender"] = "strength_distance"
+        result.attrs["filter_note"] = self.filter_note_
+        return result.reset_index(drop=True)
+
+
 class AutoencoderRecommender(ReplacementRecommender):
     """Autoencoder 잠재 벡터의 코사인 유사도로 대체 선수를 추천한다."""
 
@@ -215,6 +255,7 @@ class AutoencoderRecommender(ReplacementRecommender):
         learning_rate: float = 0.01,
         batch_size: int = 64,
         validation_fraction: float = 0.2,
+        strength_weight: float = 0.0,
         seed: int = 42,
         **config: Any,
     ) -> None:
@@ -229,6 +270,8 @@ class AutoencoderRecommender(ReplacementRecommender):
         # Train과 Validation이 모두 남도록 검증 비율은 0과 1 사이여야 한다.
         if not 0.0 < validation_fraction < 1.0:
             raise ValueError("validation_fraction은 0과 1 사이여야 합니다.")
+        if not 0.0 <= strength_weight <= 1.0:
+            raise ValueError("strength_weight는 0과 1 사이여야 합니다.")
 
         self.latent_dim = latent_dim
         self.hidden_dim = hidden_dim
@@ -236,6 +279,7 @@ class AutoencoderRecommender(ReplacementRecommender):
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.validation_fraction = validation_fraction
+        self.strength_weight = strength_weight
         self.seed = seed
         self.imputer_: SimpleImputer | None = None
         self.scaler_: StandardScaler | None = None
@@ -413,7 +457,23 @@ class AutoencoderRecommender(ReplacementRecommender):
             out=np.zeros(len(candidate_vectors), dtype=float),
             where=denominator > 0,
         )
-        order = np.argsort(-similarity, kind="stable")[: min(n_recommendations, len(candidates))]
+        # 잠재 유사도와 현재 종합 전력의 근접 순위를 혼합한다. 서로 단위가 다른
+        # 두 값을 직접 더하지 않고 백분위 순위로 바꿔 혼합 비율을 해석 가능하게 한다.
+        strength_gap = (
+            pd.to_numeric(candidates["overall_score"], errors="coerce")
+            - float(target["overall_score"])
+        ).abs()
+        latent_rank = pd.Series(similarity).rank(method="average", pct=True).to_numpy()
+        strength_rank = (-strength_gap.reset_index(drop=True)).rank(
+            method="average", pct=True
+        ).to_numpy()
+        hybrid_score = (
+            (1.0 - self.strength_weight) * latent_rank
+            + self.strength_weight * strength_rank
+        )
+        order = np.argsort(-hybrid_score, kind="stable")[
+            : min(n_recommendations, len(candidates))
+        ]
 
         result = candidates.iloc[order].copy()
         result["similarity"] = np.clip(similarity[order], -1.0, 1.0)
@@ -421,6 +481,7 @@ class AutoencoderRecommender(ReplacementRecommender):
         result["rank"] = np.arange(1, len(result) + 1)
         result["matched_on"] = matched_on
         result["recommender"] = "autoencoder"
+        result["hybrid_score"] = hybrid_score[order]
         result.attrs["filter_note"] = self.filter_note_
         result.attrs["reconstruction_loss"] = self.reconstruction_loss_
         return result.reset_index(drop=True)
@@ -442,6 +503,7 @@ class AutoencoderRecommender(ReplacementRecommender):
             epochs=1,
             batch_size=int(checkpoint.get("batch_size", 64)),
             validation_fraction=float(checkpoint.get("validation_fraction", 0.2)),
+            strength_weight=float(checkpoint.get("strength_weight", 0.0)),
         )
 
         # 추천 대상 카탈로그는 최신 features_v1을 사용하고 학습 가중치만 복원한다.
@@ -509,6 +571,10 @@ def _clean_feature_rows(players: pd.DataFrame) -> pd.DataFrame:
     # 필터링이 전부 빈 결과를 내던 버그가 있었다(실측 확인됨).
     if "team_last" in out.columns:
         out["team_last"] = out["team_last"].replace(LAHMAN_TEAM_TO_UI)
+
+    # 최신 features_v1의 primary_position을 추천기가 사용하는 계약명으로 연결한다.
+    if "primary_position" in out.columns and "position" not in out.columns:
+        out["position"] = out["primary_position"]
 
     # 문자열이나 inf가 들어와도 계산 계층에는 유한한 숫자만 전달한다.
     for column in ["overall_score", "g_ratio"]:
@@ -634,6 +700,7 @@ def recommend_replacements_autoencoder(
     epochs: int = 300,
     batch_size: int = 64,
     validation_fraction: float = 0.2,
+    strength_weight: float = 0.0,
 ) -> pd.DataFrame:
     """Autoencoder 학습부터 추천까지 한 번에 수행하는 편의 함수."""
     recommender = AutoencoderRecommender(
@@ -642,6 +709,7 @@ def recommend_replacements_autoencoder(
         epochs=epochs,
         batch_size=batch_size,
         validation_fraction=validation_fraction,
+        strength_weight=strength_weight,
     ).fit(players)
     return recommender.recommend(
         player_id,
@@ -694,6 +762,16 @@ def precision_at_k_next_strength(
             & current["g_ratio"].ge(recommender.config.min_g_ratio)
         ].copy()
 
+        # 추천기가 세부 포지션을 사용하면 정답 후보군에도 같은 조건을 적용한다.
+        if "position" in current.columns and pd.notna(target.get("position")):
+            position_pool = relevant_pool.loc[
+                relevant_pool["position"].eq(target["position"])
+            ]
+
+            # 동일 포지션 후보가 있을 때만 역할 후보군보다 구체적인 조건을 사용한다.
+            if not position_pool.empty:
+                relevant_pool = position_pool
+
         # 정답 후보가 K명보다 적은 질의는 Precision@K 비교가 불가능하다.
         if len(relevant_pool) < k:
             skipped += 1
@@ -719,6 +797,121 @@ def precision_at_k_next_strength(
     return {
         f"precision_at_{k}": float(np.mean(scores)),
         "evaluated_queries": len(scores),
+        "skipped_queries": skipped,
+        "evaluation_season": season,
+    }
+
+
+def evaluate_recommendation_quality(
+    players: pd.DataFrame,
+    recommender: ReplacementRecommender,
+    *,
+    season: int = 2025,
+    k: int = 5,
+    max_queries: int | None = 100,
+    strength_tolerance: float = 5.0,
+    baseline: str | None = None,
+    seed: int = 42,
+) -> dict[str, float | int | str]:
+    """다음 시즌 전력으로 추천 품질을 연속값 지표까지 평가한다.
+
+    ``baseline``은 ``None``(전달된 추천기), ``strength``(현재 전력 차이),
+    ``random`` 중 하나다. 후보 필터는 실제 추천기와 동일하게 적용한다.
+    """
+    if k < 1 or strength_tolerance <= 0:
+        raise ValueError("k와 strength_tolerance는 0보다 커야 합니다.")
+    if baseline not in {None, "strength", "random"}:
+        raise ValueError("baseline은 None, 'strength', 'random' 중 하나여야 합니다.")
+
+    current = players.loc[players["season"].eq(season)].copy()
+    next_scores = players.loc[
+        players["season"].eq(season + 1), ["player_id", "overall_score"]
+    ].rename(columns={"overall_score": "next_overall_score"})
+    current = current.merge(next_scores, on="player_id", how="inner")
+    queries = current.sort_values("overall_score", ascending=False)
+    if max_queries is not None:
+        queries = queries.head(max_queries)
+
+    rng = np.random.default_rng(seed)
+    gaps: list[float] = []
+    tolerance_hits: list[float] = []
+    ndcgs: list[float] = []
+    position_matches: list[float] = []
+    skipped = 0
+
+    for _, target in queries.iterrows():
+        pool = current.loc[
+            current["player_id"].ne(target["player_id"])
+            & current["team_last"].ne(target["team_last"])
+            & current["g_ratio"].ge(recommender.config.min_g_ratio)
+        ].copy()
+        matched_on = "role"
+        if "position" in current.columns and pd.notna(target.get("position")):
+            position_pool = pool.loc[pool["position"].eq(target["position"])]
+            if not position_pool.empty:
+                pool = position_pool
+                matched_on = "position"
+            else:
+                pool = pool.loc[pool["role"].eq(target["role"])]
+        else:
+            pool = pool.loc[pool["role"].eq(target["role"])]
+        if pool.empty:
+            skipped += 1
+            continue
+
+        pool["next_gap"] = (
+            pool["next_overall_score"] - target["next_overall_score"]
+        ).abs()
+        if baseline == "strength":
+            selected = pool.assign(
+                current_gap=(pool["overall_score"] - target["overall_score"]).abs()
+            ).nsmallest(k, "current_gap")
+        elif baseline == "random":
+            take = min(k, len(pool))
+            selected = pool.iloc[rng.choice(len(pool), size=take, replace=False)]
+        else:
+            try:
+                predicted = recommender.recommend(
+                    str(target["player_id"]), season, n_recommendations=k
+                )
+            except ValueError:
+                skipped += 1
+                continue
+            selected = predicted[["player_id"]].merge(
+                pool, on="player_id", how="inner", suffixes=("", "_actual")
+            )
+        if selected.empty:
+            skipped += 1
+            continue
+
+        selected_gaps = selected["next_gap"].to_numpy(dtype=float)
+        relevance = 1.0 / (1.0 + selected_gaps)
+        discounts = 1.0 / np.log2(np.arange(2, len(selected_gaps) + 2))
+        ideal_gaps = pool.nsmallest(len(selected_gaps), "next_gap")["next_gap"].to_numpy()
+        ideal_relevance = 1.0 / (1.0 + ideal_gaps)
+        ideal_dcg = float(np.sum(ideal_relevance * discounts))
+
+        gaps.extend(selected_gaps.tolist())
+        tolerance_hits.extend((selected_gaps <= strength_tolerance).astype(float).tolist())
+        ndcgs.append(float(np.sum(relevance * discounts)) / ideal_dcg if ideal_dcg else 0.0)
+        if matched_on == "position":
+            position_matches.extend(
+                selected["position"].eq(target["position"]).astype(float).tolist()
+            )
+        else:
+            position_matches.extend(
+                selected["role"].eq(target["role"]).astype(float).tolist()
+            )
+
+    if not gaps:
+        raise ValueError("평가 가능한 추천 결과가 없습니다.")
+    return {
+        "method": baseline or recommender.__class__.__name__,
+        "mean_next_strength_gap": float(np.mean(gaps)),
+        f"within_{strength_tolerance:g}_points_rate": float(np.mean(tolerance_hits)),
+        f"ndcg_at_{k}": float(np.mean(ndcgs)),
+        "position_or_role_match_rate": float(np.mean(position_matches)),
+        "evaluated_queries": len(ndcgs),
         "skipped_queries": skipped,
         "evaluation_season": season,
     }
@@ -753,6 +946,7 @@ def save_recommendation_models(
             "hidden_dim": autoencoder.hidden_dim,
             "batch_size": autoencoder.batch_size,
             "validation_fraction": autoencoder.validation_fraction,
+            "strength_weight": autoencoder.strength_weight,
             "imputer_statistics": autoencoder.imputer_.statistics_,
             "scaler_mean": autoencoder.scaler_.mean_,
             "scaler_scale": autoencoder.scaler_.scale_,
@@ -777,19 +971,31 @@ def save_recommendation_models(
             "features": knn_features, "n_features": len(knn_features),
             "metrics": knn_metrics,
             "note": "동일 시즌·역할 후보 KNN 코사인 추천",
+            "params": {
+                "catalog_end_season": int(knn.catalog_["season"].max()),
+            },
         },
         {
             "name": "recommend_autoencoder", "task": "recommend", "kind": "dl", "owner": "E",
             "format": "torch", "path": "models/recommend_autoencoder.pt",
             "features": autoencoder.feature_names_, "n_features": len(autoencoder.feature_names_),
             "metrics": {**autoencoder_metrics, "reconstruction_loss": autoencoder.reconstruction_loss_},
-            "note": "Autoencoder 잠재 벡터 코사인 추천",
+            "note": (
+                "Autoencoder 잠재 벡터 코사인 추천"
+                if autoencoder.strength_weight == 0
+                else "Autoencoder 잠재 유사도 + 현재 전력거리 하이브리드 추천"
+            ),
+            "params": {
+                "training_end_season": int(autoencoder.catalog_["season"].max()),
+                "provisional_season_excluded": True,
+                "strength_weight": autoencoder.strength_weight,
+            },
         },
     ]
     for entry in entries:
         entry.update(
             classes=[],
-            params={},
+            params=entry.get("params", {}),
             saved_at=datetime.now().isoformat(timespec="seconds"),
         )
         path = REGISTRY_DIR / f"{entry['name']}.json"
@@ -801,10 +1007,12 @@ __all__ = [
     "RecommendationConfig",
     "AutoencoderRecommender",
     "ReplacementRecommender",
+    "StrengthDistanceRecommender",
     "adapt_features_v1",
     "load_knn_artifact",
     "recommend_replacements",
     "recommend_replacements_autoencoder",
     "precision_at_k_next_strength",
+    "evaluate_recommendation_quality",
     "save_recommendation_models",
 ]
