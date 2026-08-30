@@ -45,16 +45,11 @@ REASON_DISPLAY: dict[str, tuple[str, str, str]] = {
     "injury_associated": ("부상 연관", "bandage", "risk"),
     "performance_decline": ("성적 하락 연관", "trend-down", "warn"),
     "career_stage": ("베테랑 시기 연관", "clock", "violet"),
-    "early_career_move": ("저연차 이동 연관", "swap", "violet"),  # 2026-08-30: career_stage와
-    # 아이콘("clock")·색이 완전히 겹쳐 두 배지가 구분 안 되던 버그 수정. "swap"은
-    # theme.py에서 이미 "이동" 의미로 쓰이던 아이콘이라 의미상으로도 더 맞는다.
-    "stable_performance_move": ("전력 유지·상승 이동 연관", "trend-up", "gain"),
-    "mixed": ("복합 요인 연관", "alert", "risk"),
-    # [2026-08-30] unknown 이 라벨의 48%를 차지해 "판단 근거 부족"만 뜨는 문제로
-    # reason.py 에서 두 클래스를 분리했다. 원인을 단정하지 않고 관측된 패턴을
-    # 이름 붙인 것이라 라벨도 "~중 이동"으로 끝맺는다.
     "early_career_move": ("저연차 이동 연관", "swap", "violet"),
-    "stable_performance_move": ("성적 유지 중 이동", "trend-up", "gain"),
+    "stable_performance_move": ("전력 유지·상승 이동 연관", "trend-up", "gain"),
+    "moderate_performance_decline": ("완만한 전력 하락 연관", "trend-down", "warn"),
+    "limited_history": ("비교 이력 부족", "question", "navy"),
+    "mixed": ("복합 요인 연관", "alert", "risk"),
     "unknown": ("판단 근거 부족", "question", "navy"),
 }
 
@@ -199,6 +194,32 @@ def predict_reason_tags(model: ReasonRandomForest, all_seasons: pd.DataFrame, ta
         return empty
 
     proba_dicts = [dict(zip(model.classes_, row)) for row in proba]
+
+    # limited_history는 이탈 원인이 아니라 직전 비교 데이터의 가용 상태다.
+    # 모델 클래스에 넣으면 최신 검증구간의 정답 표본이 0이라 성능을 왜곡하므로,
+    # 현재 행의 결측 패턴을 직접 확인해 표시한다. 강한 부상 신호와 저연차는
+    # 실제 원인 신호가 있으므로 비교 이력 부족보다 우선한다.
+    try:
+        thresholds = fit_reason_thresholds(featured)
+        no_history = (
+            latest["overall_score_delta"].isna()
+            & latest["g_chg"].isna()
+        )
+        experienced = pd.to_numeric(latest["exp"], errors="coerce").gt(
+            thresholds.early_career_max_exp
+        )
+        injury_score = pd.to_numeric(
+            latest["reason_injury_score"], errors="coerce"
+        ).fillna(0.0)
+        strong_injury = injury_score.ge(thresholds.injury_risk)
+        limited_mask = (no_history & experienced & ~strong_injury).to_numpy()
+        tags = np.asarray(tags, dtype=object)
+        tags[limited_mask] = "limited_history"
+        for idx in np.flatnonzero(limited_mask):
+            proba_dicts[idx] = {"limited_history": 1.0}
+    except (KeyError, ValueError):
+        pass
+
     out = pd.DataFrame({
         "player_id": latest["player_id"].astype(str).values,
         "reason_tag": tags,
@@ -476,6 +497,18 @@ def reason_explain_html(tag: str, row, thresholds: ReasonThresholds | None,
             "모델이 <b>성적 유지 중 이동</b>으로 봤습니다. " + rule_note
             + " 성적이 떨어지지도, 부상 신호가 있지도 않은 상태의 이동이라"
             " 구단 사정(트레이드·로스터 조정 등)일 가능성을 함께 보셔야 합니다."
+        )
+    elif tag == "moderate_performance_decline":
+        head = (
+            "모델이 <b>완만한 전력 하락 연관</b>으로 봤습니다. " + rule_note
+            + " 강한 하락 임계값에는 못 미치지만 전 시즌보다 전력이 낮아진"
+            " 과거 이동 사례와 유사하다는 뜻입니다."
+        )
+    elif tag == "limited_history":
+        head = (
+            "직전 비교 시즌이 없어 <b>비교 이력 부족</b>으로 표시했습니다. "
+            "위험이 없거나 원인을 모른다는 뜻이 아니라, 전력 변화량을 계산할"
+            " 기준 시즌이 없다는 데이터 상태입니다."
         )
     else:
         label = REASON_DISPLAY.get(tag, (tag, "", ""))[0]
