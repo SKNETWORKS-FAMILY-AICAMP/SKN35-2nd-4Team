@@ -32,6 +32,7 @@ from src.service.simulation import (  # noqa: E402
     evaluate_replacements,
     simulate,
 )
+from ui.winrate import predict_win_rate_from_strength, win_rate_caption  # noqa: E402
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.risk import (  # noqa: E402
     evidence_html,
@@ -41,6 +42,7 @@ from ui.risk import (  # noqa: E402
     predict_departure_risk,
     predict_reason_tags,
     reason_badge_html,
+    reason_explain_html,
     reason_proba_html,
 )
 from ui.theme import (  # noqa: E402
@@ -153,7 +155,10 @@ def _num(row: pd.Series, col: str, default: float = 0.0) -> float:
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
-    return float(np.clip(0.35 + strength.overall * 0.003, 0.25, 0.75))
+    # 계수는 ui/winrate.py 에 실데이터(510개 팀·시즌)로 적합해 두었다.
+    # 예전엔 이 자리에 검증 안 된 상수(0.35 + overall*0.003)가 두 페이지에
+    # 복붙돼 있었고, 실제 33.4%p 승률 차이를 3.9%p 로 압축하고 있었다.
+    return predict_win_rate_from_strength(strength.overall)
 
 
 def make_rank_predictor(season_players: pd.DataFrame):
@@ -314,6 +319,7 @@ with wrap():
                 f'<div class="gm-kpi-l" style="margin-bottom:8px">📋 모델 추정 연관 요인</div>'
                 f'{badge_html}'
                 f'<div style="margin-top:10px">{reason_proba_html(reason_row["reason_proba"])}</div>'
+                f'{reason_explain_html(reason_tag, reason_row, reason_thresholds)}'
                 f'{evidence_html(reason_row, reason_thresholds)}'
                 f'<div style="margin-top:8px;font-size:11px;color:var(--muted)">'
                 f'이탈이 확정된 사실이 아니라, 현재 피처 프로필이 과거 이탈 사례 중 '

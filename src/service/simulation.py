@@ -103,6 +103,39 @@ def _weighted_score(players: pd.DataFrame, column: str) -> float | None:
     return float(np.average(players.loc[valid, column], weights=players.loc[valid, "g_ratio"]))
 
 
+# ── 대체 수준(replacement level) ─────────────────────────────────────
+# [2026-08-30 추가] 예전에는 이탈 선수를 로스터에서 그냥 빼기만 했다. 그러면
+# 팀 전력이 "남은 선수들의 가중평균"으로 다시 계산되면서, 그 선수가 소화하던
+# 출전 시간을 남은 선수 평균이 공짜로 메운다고 가정하는 셈이 된다. 그래서
+#   - 핵심 선수가 빠져도 승률이 거의 안 내려가고(46명 평균이라 지분이 작음)
+#   - 평균 이하 선수가 빠지면 오히려 팀이 좋아지는
+# 비현실적인 결과가 나왔다(실측: 최고 선수 이탈 -0.63%p, 약체 이탈 +0.33%p).
+#
+# 실제로는 빈 자리를 마이너/웨이버에서 데려온 대체 수준 선수가 메운다.
+# 그 수준은 세이버메트릭스 관례상 "대체 수준 선수로만 채운 팀의 승률 .294"로
+# 정의된다. 우리 승률 매핑(app/ui/winrate.py 의 실데이터 적합식
+# win_rate = 0.1786 + 0.006704 * strength)을 역산하면 그 승률에 해당하는
+# 전력 점수가 나온다: (0.294 - 0.1786) / 0.006704 = 17.2
+REPLACEMENT_LEVEL_SCORE = 17.2
+
+_SCORE_COLUMNS = ("overall_score", "off_score", "pit_score", "def_score")
+
+
+def _replacement_filler(departing: pd.Series, template: pd.DataFrame) -> pd.DataFrame:
+    """이탈한 선수의 출전 시간을 대체 수준 선수가 그대로 메운다고 본 가상 행.
+
+    출전 비중(g_ratio)은 떠난 선수 것을 그대로 물려받고, 점수만 대체 수준으로
+    낮춘다 — "그 자리는 비지 않고 누군가 뛴다"는 현실을 반영하는 것이 목적이다.
+    """
+    row = {col: np.nan for col in template.columns}
+    row["player_id"] = f"__replacement__{departing['player_id']}"
+    row["g_ratio"] = departing["g_ratio"]
+    for col in _SCORE_COLUMNS:
+        if col in template.columns and pd.notna(departing.get(col)):
+            row[col] = REPLACEMENT_LEVEL_SCORE
+    return pd.DataFrame([row])
+
+
 def _calculate_validated_strength(players: pd.DataFrame) -> TeamStrength:
     """이미 정규화·검증된 선수 목록의 전력을 계산한다."""
     return TeamStrength(
@@ -158,7 +191,15 @@ def _prepare_departure(
         raise ValueError("이탈 후 팀에 남는 선수가 없어 시뮬레이션할 수 없습니다.")
 
     current_strength = _calculate_validated_strength(players)
-    departure_strength = _calculate_validated_strength(remaining)
+    # 빈 자리를 대체 수준 선수가 메운 상태로 이탈 후 전력을 계산한다.
+    # remaining 자체는 손대지 않는다 — 실제 대체 선수를 영입하는 경로가
+    # 그 자리에 진짜 선수를 넣어야 하기 때문(가상 채움과 중복되면 안 됨).
+    departure_roster = pd.concat(
+        [remaining, _replacement_filler(selected.iloc[0], remaining)],
+        ignore_index=True,
+        sort=False,
+    )
+    departure_strength = _calculate_validated_strength(departure_roster)
     current_win_rate = _as_probability(
         predict_win_rate(current_strength), "현재 예상 승률"
     )

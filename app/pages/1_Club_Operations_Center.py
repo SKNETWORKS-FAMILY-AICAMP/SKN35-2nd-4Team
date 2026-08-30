@@ -17,6 +17,7 @@ if _ROOT not in sys.path:
 
 from src.models.recommend import adapt_features_v1  # noqa: E402
 from src.service.simulation import TeamStrength, calculate_team_strength, simulate  # noqa: E402
+from ui.winrate import predict_win_rate_from_strength, win_rate_caption  # noqa: E402
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.risk import (  # noqa: E402
     REASON_DISPLAY,
@@ -27,6 +28,7 @@ from ui.risk import (  # noqa: E402
     predict_departure_risk,
     predict_reason_tags,
     reason_badge_html,
+    reason_explain_html,
     reason_proba_html,
 )
 from ui.theme import (  # noqa: E402
@@ -79,7 +81,10 @@ def load_name_lookup() -> dict[str, str]:
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
-    return float(np.clip(0.35 + strength.overall * 0.003, 0.25, 0.75))
+    # 계수는 ui/winrate.py 에 실데이터(510개 팀·시즌)로 적합해 두었다.
+    # 예전엔 이 자리에 검증 안 된 상수(0.35 + overall*0.003)가 두 페이지에
+    # 복붙돼 있었고, 실제 33.4%p 승률 차이를 3.9%p 로 압축하고 있었다.
+    return predict_win_rate_from_strength(strength.overall)
 
 
 def make_rank_predictor(season_players: pd.DataFrame):
@@ -215,10 +220,12 @@ with wrap():
             unit="위",
             decimals=0,
             higher_is_better=False,  # 순위는 숫자가 작을수록 좋다
+            delta_words=("하락", "상승"),
+            delta_unit="계단",
         ),
         unsafe_allow_html=True,
     )
-    st.caption("승률·순위 함수는 simulation.py에 주입되어 실제 예측 함수로 교체할 수 있습니다.")
+    st.caption(win_rate_caption())
 
     top_risk = ranked.dropna(subset=["departure_risk"]).nlargest(3, "departure_risk")
     if not top_risk.empty and sort_label.endswith("이탈위험순"):
@@ -252,6 +259,7 @@ with wrap():
                     f'{risk_v:.0%}</div>'
                     f'{badge_html}'
                     f'<div style="text-align:left">{reason_proba_html(r.get("reason_proba") or {}, top_n=2)}</div>'
+                    f'{reason_explain_html(r.get("reason_tag", ""), evidence, reason_thresholds, compact=True)}'
                     f'{evidence_html(evidence, reason_thresholds)}'
                     f'</div>',
                     unsafe_allow_html=True,

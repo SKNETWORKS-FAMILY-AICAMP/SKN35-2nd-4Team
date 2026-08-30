@@ -26,9 +26,11 @@
   ],
   "classes": [
     "career_stage",
+    "early_career_move",
     "injury_associated",
     "mixed",
     "performance_decline",
+    "stable_performance_move",
     "unknown"
   ],
   "params": {
@@ -43,72 +45,106 @@
     "random_state": "42"
   },
   "metrics": {
-    "accuracy": 0.8723,
-    "macro_f1": 0.8228,
-    "weighted_f1": 0.8717,
+    "accuracy": 0.8255,
+    "macro_f1": 0.7863,
+    "weighted_f1": 0.8271,
     "f1_per_class": {
-      "career_stage": 0.5926,
-      "injury_associated": 0.8913,
-      "mixed": 0.8255,
-      "performance_decline": 0.8719,
-      "unknown": 0.9326
+      "career_stage": 0.5333,
+      "early_career_move": 0.9478,
+      "injury_associated": 0.7143,
+      "mixed": 0.7519,
+      "performance_decline": 0.8458,
+      "stable_performance_move": 0.8615,
+      "unknown": 0.8495
     },
     "support_per_class": {
       "career_stage": 42,
-      "injury_associated": 45,
-      "mixed": 146,
-      "performance_decline": 207,
-      "unknown": 288
+      "early_career_move": 122,
+      "injury_associated": 20,
+      "mixed": 129,
+      "performance_decline": 224,
+      "stable_performance_move": 93,
+      "unknown": 98
     },
     "labels": [
       "career_stage",
+      "early_career_move",
       "injury_associated",
       "mixed",
       "performance_decline",
+      "stable_performance_move",
       "unknown"
     ],
     "confusion_matrix": [
       [
         24,
         0,
-        2,
         0,
-        16
+        1,
+        0,
+        14,
+        3
       ],
       [
         0,
-        41,
+        118,
+        1,
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        15,
         4,
         0,
+        0,
         0
       ],
       [
+        1,
         0,
         6,
-        123,
-        17,
-        0
+        100,
+        20,
+        0,
+        2
       ],
       [
+        1,
+        8,
+        0,
+        32,
+        181,
+        1,
+        1
+      ],
+      [
+        8,
+        0,
+        0,
+        0,
+        0,
+        84,
+        1
+      ],
+      [
+        14,
+        0,
+        0,
+        0,
+        3,
         2,
-        0,
-        23,
-        177,
-        5
-      ],
-      [
-        13,
-        0,
-        0,
-        5,
-        270
+        79
       ]
     ],
-    "log_loss": 0.3047,
+    "log_loss": 0.3623,
     "n_test": 728,
-    "valid_macro_f1": 0.8044,
+    "valid_macro_f1": 0.8235,
     "n_valid": 1546
   },
   "note": "실제 features_v1 및 player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-28T18:19:48"
+  "saved_at": "2026-08-30T17:05:59"
 }

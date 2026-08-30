@@ -36,6 +36,17 @@ REASON_CLASSES = [
     "performance_decline",
     "career_stage",
     "mixed",
+    # [2026-08-30 추가] 기존에는 부상/성적하락/경력단계 세 신호가 하나도 안 켜지면
+    # 전부 "unknown"으로 뭉뚱그렸는데, 그게 라벨의 48%(11,436건 중 5,500건)를
+    # 차지해 최대 클래스였다. 이탈확률 90%인 선수가 화면에 "판단 근거 부족"으로만
+    # 뜨면 의사결정 도구로 쓸 수 없다는 지적(팀 논의)에 따라, unknown 안을
+    # 실제 데이터 특성으로 갈랐다. 분석 결과 unknown 집단은 나머지와 뚜렷이 달랐다:
+    #   나이 28세(vs 30) · 경력 2년(vs 5) · 전력변화 +4.3(vs -12.4) · 부상 0.00(vs 0.31)
+    #   경력 1년 이하가 40.3%(vs 14.2%)
+    # 즉 "젊고 저연차이며 성적은 오히려 오르는 중인데 팀을 떠난" 사람들이다.
+    # 아래 두 태그는 원인을 단정하는 것이 아니라 그 관측 패턴을 이름 붙인 것이다.
+    "early_career_move",       # 저연차 로스터 이동 (신인·유망주 이동이 잦은 구간)
+    "stable_performance_move",  # 성적 유지·상승 중 이동 (하락도 부상도 아님)
     "unknown",
 ]
 
@@ -100,6 +111,9 @@ class ReasonConfig:
     injury_quantile: float = 0.75
     decline_quantile: float = 0.25
     career_quantile: float = 0.75
+    # 이 경력(년) 이하를 "저연차"로 본다. unknown 집단의 40.3%가 여기 해당하고,
+    # MLB는 40인 로스터/옵션 규정 때문에 저연차 선수의 팀 이동이 실제로 잦다.
+    early_career_exp: float = 1.0
 
     def __post_init__(self) -> None:
         for name in ("injury_quantile", "decline_quantile", "career_quantile"):
@@ -235,6 +249,7 @@ def fit_reason_thresholds(
 def assign_reason_labels(
     player_season: pd.DataFrame,
     thresholds: ReasonThresholds,
+    config: ReasonConfig | None = None,
 ) -> pd.DataFrame:
     """이탈자에게 원인 보조 태그와 근거 수준을 부여한다.
 
@@ -243,6 +258,7 @@ def assign_reason_labels(
     잔류자와 라벨 검열 행의 primary_reason은 결측이다.
     """
 
+    cfg_early_career_exp = (config or ReasonConfig()).early_career_exp
     required = BASE_REQUIRED_COLUMNS + [
         "reason_injury_score",
         "injury_score_source",
@@ -300,7 +316,17 @@ def assign_reason_labels(
         elif len(active) == 1:
             primary.append(active[0])
         else:
-            primary.append("unknown")
+            # 세 신호가 하나도 안 켜진 경우 = 예전의 "unknown".
+            # 그대로 두면 라벨의 절반이 설명 없는 덩어리가 되므로, 관측 가능한
+            # 특성으로 한 번 더 가른다. 어느 쪽에도 안 걸리면 정직하게 unknown.
+            row_exp = out.loc[idx, "exp"]
+            row_delta = out.loc[idx, "overall_score_delta"]
+            if pd.notna(row_exp) and row_exp <= cfg_early_career_exp:
+                primary.append("early_career_move")
+            elif pd.notna(row_delta) and row_delta >= 0:
+                primary.append("stable_performance_move")
+            else:
+                primary.append("unknown")
 
         if injury.loc[idx] and out.loc[idx, "injury_score_source"] == "b_feature":
             evidence.append("estimated")
@@ -351,7 +377,7 @@ def build_reason_dataset(
     merged = merge_injury_data(player_season, injury)
     featured = add_reason_features(merged)
     fitted_thresholds = thresholds or fit_reason_thresholds(featured, config)
-    labeled = assign_reason_labels(featured, fitted_thresholds)
+    labeled = assign_reason_labels(featured, fitted_thresholds, config)
     return labeled, fitted_thresholds
 
 

@@ -108,6 +108,55 @@ div[data-testid="stVerticalBlockBorderWrapper"] { gap:0; }
   .stApp::before,.stApp::after{animation:none}
 }
 
+/* ── 3D 파티클 레이어 ──────────────────────────────────────────────
+   perspective 를 컨테이너에 걸고 각 입자를 translate3d 의 Z 축으로 밀어
+   진짜 원근을 만든다. 뒤(음수 Z)에 있는 입자는 브라우저가 알아서 작게
+   그려주고, 여기에 blur/opacity 를 더해 공기원근까지 흉내낸다.
+   pointer-events:none 이라 클릭을 절대 가로채지 않는다. */
+.gm-particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+  perspective:760px;perspective-origin:50% 42%;transform-style:preserve-3d}
+.gm-particle{position:absolute;left:var(--x);bottom:-6vh;
+  width:var(--s);height:var(--s);border-radius:50%;opacity:0;
+  background:radial-gradient(circle at 34% 32%,
+    rgba(255,255,255,.98), rgba(168,208,255,.55) 52%, rgba(120,170,255,0) 74%);
+  filter:blur(var(--blur));
+  animation:gm-particle-rise var(--dur) linear var(--d) infinite}
+@keyframes gm-particle-rise{
+  0%{opacity:0;transform:translate3d(0,0,var(--z)) scale(.55)}
+  10%{opacity:var(--op)}
+  85%{opacity:var(--op)}
+  100%{opacity:0;transform:translate3d(var(--dx),-112vh,var(--z)) scale(1.25)}}
+
+/* 보케 — 초점이 나간 큰 광원. 아주 느리게 부유하며 깊이를 한 겹 더 만든다 */
+.gm-bokeh{position:absolute;left:var(--x);top:var(--y);
+  width:var(--s);height:var(--s);border-radius:50%;
+  background:radial-gradient(circle,
+    color-mix(in srgb, var(--team-accent) 70%, #8FC0FF) 0%, transparent 68%);
+  opacity:var(--op);filter:blur(26px);
+  animation:gm-bokeh-drift var(--dur) ease-in-out var(--d) infinite}
+@keyframes gm-bokeh-drift{
+  0%,100%{transform:translate3d(0,0,-260px) scale(1)}
+  50%{transform:translate3d(38px,-46px,-160px) scale(1.16)}}
+
+/* 전경 레이어 — 콘텐츠(z-index:1) 위에 뜬다. 클릭은 절대 막지 않는다. */
+.gm-particles-front{position:fixed;inset:0;pointer-events:none;z-index:3;overflow:hidden;
+  perspective:520px}
+.gm-particle-front{position:absolute;left:var(--x);bottom:-12vh;
+  width:var(--s);height:var(--s);border-radius:50%;opacity:0;
+  background:radial-gradient(circle at 36% 34%,
+    rgba(255,255,255,.9), rgba(150,195,255,.4) 55%, transparent 72%);
+  filter:blur(7px);
+  animation:gm-particle-front var(--dur) linear var(--d) infinite}
+@keyframes gm-particle-front{
+  0%{opacity:0;transform:translate3d(0,0,90px) scale(.7)}
+  14%{opacity:var(--op)}
+  80%{opacity:var(--op)}
+  100%{opacity:0;transform:translate3d(var(--dx),-125vh,180px) scale(1.5)}}
+
+@media (prefers-reduced-motion: reduce){
+  .gm-particles,.gm-particles-front{display:none}
+}
+
 /* ── 큰 숫자 등장 연출 ──────────────────────────────────────────────
    주의: 이 CSS 문자열 안에는 꺾쇠괄호를 절대 넣지 말 것(주석 안이라도!).
    st.html() 의 HTML 새니타이저는 CSS 주석을 구분하지 않아서, 꺾쇠가 하나라도
@@ -696,6 +745,24 @@ div[data-testid="stButton"] button:hover::after{animation:gm-shine .7s ease forw
   .gm-roster-row,.gm-roster-fill{animation:none}
 }
 
+/* ══ 신호군 설명 ("복합 요인"이 왜 복합인지) ══ */
+.gm-sig-box{margin-top:8px;padding:9px 11px;border-radius:11px;
+  background:rgba(255,255,255,.045);border:1px solid var(--line);text-align:left}
+.gm-sig-head{font-size:11.5px;color:var(--muted);line-height:1.55;margin-bottom:7px}
+.gm-sig-head b{color:var(--ink)}
+.gm-sig{display:flex;align-items:flex-start;gap:7px;font-size:11px;padding:3px 0;
+  color:var(--faint)}
+.gm-sig-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;
+  background:rgba(255,255,255,.18);box-shadow:none;transition:background .2s}
+.gm-sig-label{flex-shrink:0;font-weight:800;width:52px}
+.gm-sig-detail{flex:1;font-variant-numeric:tabular-nums;line-height:1.45;word-break:keep-all}
+/* 켜진 신호군만 색과 글로우로 도드라지게 — 훑으면 몇 개가 켜졌는지 바로 보인다 */
+.gm-sig.on{color:var(--ink)}
+.gm-sig.on .gm-sig-dot{background:var(--risk);box-shadow:0 0 8px var(--risk)}
+.gm-sig.on .gm-sig-label{color:var(--risk)}
+.gm-sig-note{margin-top:7px;padding-top:6px;border-top:1px solid var(--line);
+  font-size:10px;color:var(--faint);line-height:1.6}
+
 /* ══ 이탈위험 TOP3 카드 — 선수 얼굴이 주인공 ══ */
 .gm-risk-card{position:relative;overflow:visible;padding-top:38px}
 .gm-risk-face{position:absolute;top:-24px;left:50%;transform:translateX(-50%);
@@ -1039,11 +1106,89 @@ PAGES = [
 ]
 
 
+# ══════════════════════════════════════════════════════════════════════
+# 3D 파티클 레이어 — 밤 경기장 공기 중에 떠다니는 빛 입자
+#
+# Streamlit 은 st.html 로 넣은 <script> 를 실행하지 않으므로 JS 파티클 엔진을
+# 쓸 수 없다. 대신 CSS perspective + translate3d 로 진짜 원근을 준다:
+# z 가 뒤로 갈수록(음수) 작고 흐릿하고 어둡게, 앞으로 올수록 크고 선명하게
+# 보이도록 blur/opacity/size 를 z 와 함께 계산해 둔다 — 레이어가 서로 다른
+# 속도로 흐르면서 시차(parallax)가 생긴다.
+# 좌표·속도는 난수를 쓰되 seed 를 고정한다 — 리런마다 파티클이 튀면
+# 화면이 산만해지기 때문.
+# ══════════════════════════════════════════════════════════════════════
+
+_PARTICLE_COUNT = 26
+_BOKEH_COUNT = 7
+_FRONT_COUNT = 9
+
+
+def _particle_layer_html() -> str:
+    import random
+
+    rng = random.Random(20260830)  # 고정 seed — 리런해도 같은 배치
+    parts = []
+
+    for _ in range(_PARTICLE_COUNT):
+        z = rng.uniform(-340, 130)          # 깊이
+        depth = (z + 340) / 470             # 0(멀다) ~ 1(가깝다)
+        size = 2.0 + depth * 4.4            # 가까울수록 크게
+        blur = (1 - depth) * 2.6            # 멀수록 흐리게
+        op = 0.18 + depth * 0.5             # 가까울수록 진하게
+        parts.append(
+            '<span class="gm-particle" style="'
+            f"--x:{rng.uniform(0, 100):.1f}%;"
+            f"--s:{size:.1f}px;"
+            f"--z:{z:.0f}px;"
+            f"--blur:{blur:.2f}px;"
+            f"--op:{op:.2f};"
+            f"--dx:{rng.uniform(-70, 70):.0f}px;"
+            # 가까운 입자가 빨리 지나가야 시차가 산다
+            f"--dur:{rng.uniform(26, 54) - depth * 10:.1f}s;"
+            f"--d:-{rng.uniform(0, 40):.1f}s"
+            '"></span>'
+        )
+
+    for _ in range(_BOKEH_COUNT):
+        parts.append(
+            '<span class="gm-bokeh" style="'
+            f"--x:{rng.uniform(-5, 100):.1f}%;"
+            f"--y:{rng.uniform(5, 95):.1f}%;"
+            f"--s:{rng.uniform(90, 230):.0f}px;"
+            f"--op:{rng.uniform(.05, .13):.3f};"
+            f"--dur:{rng.uniform(30, 60):.1f}s;"
+            f"--d:-{rng.uniform(0, 30):.1f}s"
+            '"></span>'
+        )
+
+    # 전경(near-field) — 콘텐츠보다 앞에 떠서 카메라 바로 앞 먼지처럼 보인다.
+    # 뒤 레이어만 있으면 카드에 다 가려서 깊이가 안 느껴진다. 앞뒤로 감싸야
+    # 콘텐츠가 "공간 속에 놓인" 것처럼 읽힌다. 가독성을 해치지 않도록
+    # 개수는 적게, 흐림은 세게, 불투명도는 아주 낮게 잡는다.
+    front = []
+    for _ in range(_FRONT_COUNT):
+        front.append(
+            '<span class="gm-particle-front" style="'
+            f"--x:{rng.uniform(0, 100):.1f}%;"
+            f"--s:{rng.uniform(9, 26):.0f}px;"
+            f"--op:{rng.uniform(.05, .12):.3f};"
+            f"--dx:{rng.uniform(-120, 120):.0f}px;"
+            f"--dur:{rng.uniform(15, 26):.1f}s;"
+            f"--d:-{rng.uniform(0, 22):.1f}s"
+            '"></span>'
+        )
+
+    return (
+        f'<div class="gm-particles" aria-hidden="true">{"".join(parts)}</div>'
+        f'<div class="gm-particles-front" aria-hidden="true">{"".join(front)}</div>'
+    )
+
+
 def inject_css() -> None:
     # st.markdown 은 큰 <style> 블록을 마크다운 파서가 중간에 텍스트로 흘려버리는
     # 경우가 있다. st.html() 은 마크다운 파싱을 거치지 않고 그대로 주입한다.
     team_code = st.session_state.get("team_code")
-    st.html(FONT_LINK + CSS + _team_theme_css(team_code))
+    st.html(FONT_LINK + CSS + _team_theme_css(team_code) + _particle_layer_html())
 
 
 def init_state() -> None:
@@ -2329,15 +2474,26 @@ def roster_list_html(rows: list[dict]) -> str:
 
 def impact_panel_html(before: float, after: float, *, label_before: str,
                       label_after: str, unit: str = "%", decimals: int = 2,
-                      higher_is_better: bool = True) -> str:
-    """이탈 전/후 값을 좌우로 놓고 가운데에 변화량을 띄우는 임팩트 패널."""
+                      higher_is_better: bool = True,
+                      delta_words: tuple[str, str] | None = None,
+                      delta_unit: str | None = None) -> str:
+    """이탈 전/후 값을 좌우로 놓고 가운데에 변화량을 띄우는 임팩트 패널.
+
+    delta_words: (나빠졌을 때, 좋아졌을 때) 표현. 순위처럼 "%p"가 말이 안 되는
+        단위에 쓴다 — 없으면 기존처럼 부호와 함께 "%p"를 붙인다.
+    """
     delta = after - before
     if abs(delta) < 10 ** (-decimals) / 2:
         cls, sign = "flat", "변화 없음"
     else:
         good = (delta > 0) if higher_is_better else (delta < 0)
         cls = "up" if good else "down"
-        sign = f"{delta:+.{decimals}f}{unit}p"
+        if delta_words is not None:
+            # 순위: "+1위p" 처럼 %p 규칙을 그대로 붙이면 말이 안 된다.
+            word = delta_words[1] if good else delta_words[0]
+            sign = f"{abs(delta):.{decimals}f}{delta_unit or unit} {word}"
+        else:
+            sign = f"{delta:+.{decimals}f}{unit}p"
     return (
         '<div class="gm-impact">'
         f'<div class="gm-impact-side"><div class="gm-impact-l">{label_before}</div>'

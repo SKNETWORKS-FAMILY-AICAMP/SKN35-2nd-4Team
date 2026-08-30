@@ -26,6 +26,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -110,14 +111,29 @@ class TransactionsFetcher:
         return all_tx
 
 
-def fetch_all_transactions(start_year: int, end_year: int) -> pd.DataFrame:
+def fetch_all_transactions(start_year: int, end_year: int,
+                           cache_dir: Path | None = None) -> pd.DataFrame:
+    """MLB 거래 기록 수집. 연도별로 캐시해 재실행 비용을 없앤다.
+
+    18개 시즌치를 매번 API 에서 다시 받으면 수 분이 걸리고 MLB 서버에도
+    부담이라, 연도 단위로 캐시한다. 진행 중인 시즌(END_YEAR)은 계속 갱신되므로
+    캐시하지 않는다 — 오래된 스냅샷을 확정 데이터처럼 쓰면 안 된다.
+    """
     fetcher = TransactionsFetcher(session=requests.Session())
-    rows = []
+    frames: list[pd.DataFrame] = []
     for year in range(start_year, end_year + 1):
+        cache_path = (cache_dir / f"transactions-{year}.csv") if cache_dir else None
+        is_current = year >= END_YEAR  # 진행 중 시즌은 캐시 금지
+        if cache_path and cache_path.exists() and not is_current:
+            frames.append(pd.read_csv(cache_path))
+            print(f"[transactions] {year} 캐시 사용")
+            continue
+
         print(f"[transactions] {year} 수집 중...")
+        year_rows = []
         for tx in fetcher.fetch_year(year):
             person = tx.get("person") or {}
-            rows.append(
+            year_rows.append(
                 {
                     "mlbam_id": person.get("id"),
                     "season": year,
@@ -126,7 +142,13 @@ def fetch_all_transactions(start_year: int, end_year: int) -> pd.DataFrame:
                     "description": tx.get("description", ""),
                 }
             )
-    return pd.DataFrame(rows)
+        year_df = pd.DataFrame(year_rows)
+        if cache_path and not is_current and not year_df.empty:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            year_df.to_csv(cache_path, index=False)
+        frames.append(year_df)
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 # ── 3) 부상 관련 거래만 필터 ───────────────────────────────────────
@@ -156,6 +178,9 @@ def filter_injury_transactions(tx: pd.DataFrame) -> pd.DataFrame:
 #     실측으로 발생했다 - 명백히 다른 사건인데 잘못 이어붙인 것이므로
 #     tolerance로 매칭 자체를 막는다(억지로 값을 만들지 않고 결측 처리).
 MAX_RECOVERY_DAYS = 400  # 토미존 서저리 등 최장기 재활도 넉넉히 포함하는 상한
+FULL_SEASON_DAYS = 180   # 부상 심각도 스케일 기준 — 한 시즌 통째 결장 = 1.0
+SEASON_END_MONTH, SEASON_END_DAY = 10, 1  # 복귀 미확인 스틴트의 결장 종료 추정 시점
+SEASON_SPAN_DAYS = 214  # 3/1~10/1 — 한 시즌에 결장 가능한 최대 일수
 
 
 def match_recovery_dates(injury_tx: pd.DataFrame, id_map: pd.DataFrame) -> pd.DataFrame:
@@ -177,6 +202,20 @@ def match_recovery_dates(injury_tx: pd.DataFrame, id_map: pd.DataFrame) -> pd.Da
         tolerance=pd.Timedelta(days=MAX_RECOVERY_DAYS),
     )
     matched["recovery_days"] = (matched["return_date"] - matched["date"]).dt.days
+
+    # 복귀 거래가 안 잡힌 스틴트 = 그 시즌 안에 복귀가 관측되지 않음.
+    # 시즌 종료일(대략 10/1)까지 계속 결장한 것으로 보고 일수를 추정한다.
+    # 임의 상수(예전의 0.7 하한)와 달리 등재 시점에 따라 값이 달라져서
+    # 분포가 한 점에 뭉치지 않는다. 관측된 회복과 섞이지 않게 별도 컬럼.
+    season_end = pd.to_datetime(
+        matched["season"].astype(int).astype(str) + f"-{SEASON_END_MONTH:02d}-{SEASON_END_DAY:02d}"
+    )
+    est = (season_end - matched["date"]).dt.days
+    matched["estimated_days"] = (
+        est.where(matched["recovery_days"].isna())
+        .clip(lower=0, upper=MAX_RECOVERY_DAYS)
+        .fillna(0)
+    )
     return matched
 
 
@@ -192,20 +231,54 @@ def aggregate_to_player_season(injury_tx: pd.DataFrame, id_map: pd.DataFrame) ->
             injury_note_sample=("description", "first"),  # 참고용, 확정 사실 아님을 명시할 것
             total_recovery_days=("recovery_days", lambda s: s.fillna(0).sum()),
             unresolved_stints=("recovery_days", lambda s: s.isna().sum()),
+            # sum 이 아니라 max: 미복귀 스틴트가 여러 개면 각각 "등재일~시즌종료"를
+            # 더하게 되어 같은 잔여기간을 중복으로 센다(실측: Verlander 2026 이
+            # 추정 324일 = 한 시즌보다 길게 나왔다). 가장 이른 미복귀 등재일부터
+            # 시즌 끝까지가 곧 최대 추정 결장이므로 max 가 맞다.
+            _est_days=("estimated_days", "max"),
         )
         .reset_index()
     )
+    estimated_days = agg.pop("_est_days")
     agg["had_injury"] = 1  # 이 표에 있는 행은 전부 IL 등재가 확인된 선수·시즌
 
+    # ── 부상 심각도 점수 ────────────────────────────────────────────
     # reason.py가 이미 기대하고 있던 컬럼명(MODEL_FEATURE_CANDIDATES,
     # add_reason_features의 "injury_risk_score" 분기) 그대로 채운다 -
     # reason.py 쪽은 전혀 안 고쳐도 이 컬럼이 생기는 순간 자동으로 쓰인다.
-    # 60일(장기 IL 기준) 대비 실제 결장일수 비율로 0~1 스케일.
-    agg["injury_risk_score"] = (agg["total_recovery_days"] / 60).clip(upper=1.0)
-    # 복귀 거래가 안 잡힌 스틴트(시즌 안에 복귀 못 봄 - 심각했을 가능성)가
-    # 있으면, 관측된 회복일수만으로 과소평가되지 않게 최소 심각도를 보정한다.
-    unresolved = agg["unresolved_stints"] > 0
-    agg.loc[unresolved, "injury_risk_score"] = agg.loc[unresolved, "injury_risk_score"].clip(lower=0.7)
+    #
+    # [2026-08-30 수정] 이전 계산식은 (결장일수/60).clip(upper=1) 에
+    # "복귀 미확인이면 0.7로 바닥 보정"이었는데, 0~1 척도에 값이 두 군데로
+    # 뭉치는 문제가 있었다(실측: 양수 17,679건 중 0.70에 25.1%, 1.00에 29.5%
+    # — 합쳐서 54.6%가 딱 두 값). 그 결과
+    #   (1) reason.py가 상위 25% 지점으로 잡는 임계값이 천장 1.00에 붙어버려
+    #       "천장에 닿았는가"만 묻는 사실상 이진 판정이 됐고,
+    #   (2) 60일 이상 결장(부상자의 37.7%)이 전부 1.00으로 뭉개져 60일과
+    #       400일 결장이 구분되지 않았으며,
+    #   (3) 0.70은 측정된 심각도가 아니라 임의의 하한인데 화면에는 실측치처럼
+    #       보였다.
+    # 두 가지를 바꾼다:
+    #   A. 복귀 기록이 없는 스틴트는 "시즌 종료까지 결장한 것"으로 보고 IL
+    #      등재일부터 시즌 종료일까지를 추정 결장일수로 쓴다 — 날짜에 따라
+    #      값이 달라지므로 한 점에 뭉치지 않고, 임의 상수보다 근거가 있다.
+    #   B. 선형 60일 상한 대신 한 시즌(180일) 기준 제곱근 스케일을 쓴다.
+    #      제곱근이라 짧은 IL 사이의 차이는 살아있고, 장기 결장도 천장에
+    #      닿기 전까지 계속 구분된다.
+    # 추정으로 채운 일수는 injury_days_estimated 로 따로 남겨 화면에서
+    # "측정값"과 "추정값"을 구분할 수 있게 한다.
+    agg["injury_days_estimated"] = estimated_days
+    # 한 시즌에 결장할 수 있는 최대치로 자른다. match_recovery_dates 의 알려진
+    # 한계(같은 복귀 거래가 여러 등재에 중복 매칭될 수 있음) 때문에 합계가
+    # 비현실적으로 커질 수 있다 — 실측에서 한 선수·시즌 유효일수가 1,792일까지
+    # 나왔다. 점수는 어차피 FULL_SEASON_DAYS 에서 포화하지만, 저장되는 일수
+    # 자체가 말이 안 되면 나중에 그 컬럼을 쓰는 쪽이 오해한다.
+    effective_days = (
+        agg["total_recovery_days"] + agg["injury_days_estimated"]
+    ).clip(upper=SEASON_SPAN_DAYS)
+    agg["injury_effective_days"] = effective_days
+    agg["injury_risk_score"] = np.sqrt(
+        (effective_days / FULL_SEASON_DAYS).clip(lower=0.0, upper=1.0)
+    )
 
     return agg.rename(columns={"playerID": "player_id"})
 
@@ -215,7 +288,7 @@ def run(lahman_dir: Path, cache_dir: Path, out_path: Path) -> pd.DataFrame:
     id_map = build_player_id_map(lahman_dir / "People.csv", cache_dir)
     print(f"ID 매칭: {len(id_map):,}명")
 
-    tx = fetch_all_transactions(START_YEAR, END_YEAR)
+    tx = fetch_all_transactions(START_YEAR, END_YEAR, cache_dir=cache_dir)
     print(f"전체 거래: {len(tx):,}건")
 
     injury_tx = filter_injury_transactions(tx)
