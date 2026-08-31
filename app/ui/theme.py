@@ -2604,3 +2604,92 @@ def icon(name: str, size: float = 14, *, stroke_width: float = 1.9,
         f'stroke-linecap="round" stroke-linejoin="round" '
         f'style="{style}" aria-hidden="true">{path}</svg>'
     )
+
+
+def team_vivid_color(team_code: str | None, fallback: str = "#4E8FD6") -> str:
+    """두 팀 컬러 중 '가장 팀을 알아보게 하는' 색을 고른다.
+
+    boost_for_dark(primary) 만 쓰면 MLB 구단 상당수가 주색이 남색이라 화면에서
+    전부 비슷한 파랑이 된다 — 디트로이트(남색+주황) vs 미네소타(남색+빨강)를
+    나란히 놓으면 구분이 안 된다(실측).
+
+    지표로 HLS 의 채도(S)를 쓰면 안 된다: 아주 어두운 남색(#002B5C)도 S=1.00 이
+    나와서 "가장 선명한 색"으로 뽑힌다(실측). 대신 크로마(max-min)를 쓴다 —
+    색이 실제로 얼마나 알록달록한지를 밝기와 무관하게 재기 때문에
+    남색(크로마 92) 대신 빨강(194)·주황(228)이 제대로 선택된다.
+    무채색(검정·회색 유니폼)만 있는 팀은 고를 게 없으므로 기본 액센트로 둔다.
+    """
+    best, best_chroma = None, -1.0
+    for hex_color in TEAM_COLORS.get(team_code or "", ()):
+        try:
+            r, g, b = _hex_to_rgb(hex_color)
+        except (ValueError, TypeError):
+            continue
+        chroma = max(r, g, b) - min(r, g, b)
+        if chroma > best_chroma:
+            best, best_chroma = hex_color, chroma
+    if best is None or best_chroma < 30:  # 사실상 무채색
+        return boost_for_dark(fallback)
+    return boost_for_dark(best)
+
+
+def readable_text_on(hex_color: str) -> str:
+    """그 배경색 위에서 읽히는 글자색(흰색 또는 거의 검정)을 고른다.
+
+    팀 컬러를 꽉 채워 칠하면 밝은 팀(예: 탬파베이 하늘색 #8FBCE6)에서는 흰
+    글씨가 안 보이고, 어두운 팀에서는 검은 글씨가 안 보인다. 상대휘도로
+    갈라서 항상 대비가 확보되게 한다.
+    """
+    try:
+        r, g, b = _hex_to_rgb(hex_color)
+    except (ValueError, TypeError):
+        return "#FFFFFF"
+    lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+    return "#0A1222" if lum > 0.62 else "#FFFFFF"
+
+
+def pick_button_css(key_prefix: str, index: int, team_code: str) -> str:
+    """승부예측 선택 버튼 하나를 '그 구단 패널'처럼 보이게 하는 CSS.
+
+    네이버 스포츠 승부예측처럼 (1) 팀 컬러로 꽉 채우고 (2) 구단 로고를 넣고
+    (3) 글자를 크고 굵게 간다. Streamlit 버튼 라벨에는 HTML/이미지를 넣을 수
+    없어서 로고는 CSS background-image 로 얹는다.
+
+    주의: theme.py 의 `div[data-testid="stButton"] button` 규칙이 !important 라
+    셀렉터에 stButton 을 같이 써서 특이도를 이겨야 한다(실측).
+    """
+    c = team_vivid_color(team_code)
+    fg = readable_text_on(c)
+    logo = team_logo_url(team_code)
+    sel = f'.st-key-{key_prefix}_{index} div[data-testid="stButton"] button'
+
+    # background 단축 속성을 !important 로 먼저 쓰면, 뒤에 오는 background-image
+    # (우선순위 낮음)가 덮이지 못해 로고가 안 나온다(실측). 그래서 로고·흰 원판·
+    # 팀 컬러를 한 선언에 레이어로 합친다 — 앞쪽 레이어가 위에 그려진다.
+    if logo:
+        layers = (
+            f"url('{logo}') no-repeat 11px 50% / 38px 38px,"
+            "radial-gradient(circle 21px at 30px 50%,"
+            " rgba(255,255,255,.96) 0 21px, transparent 21px),"
+            f"linear-gradient(135deg,{c},{c}D9)"
+        )
+        box_rules = ("padding-left:60px !important;padding-right:14px !important;"
+                     "text-align:left !important;justify-content:flex-start !important;")
+    else:
+        layers = f"linear-gradient(135deg,{c},{c}D9)"
+        box_rules = ""
+
+    return (
+        f"{sel}{{"
+        f"background:{layers} !important;"
+        f"color:{fg} !important;border:2px solid {c} !important;"
+        "min-height:70px;border-radius:16px !important;"
+        "font-size:15.5px !important;font-weight:800 !important;letter-spacing:-.2px;"
+        f"box-shadow:0 6px 18px rgba(0,0,0,.4);{box_rules}}}"
+        # Streamlit 은 라벨을 button 안 p 태그에 넣는다 — 색을 따로 못 박으면
+        # 전역 규칙(색상 var(--ink))에 덮여서 배경과 대비가 깨진다.
+        f"{sel} p{{color:{fg} !important;font-size:15.5px !important;font-weight:800 !important}}"
+        f"{sel}:hover{{filter:brightness(1.12);transform:translateY(-3px);"
+        f"box-shadow:0 14px 30px rgba(0,0,0,.5),0 0 26px {c}99 !important}}"
+        f"{sel}:hover p{{color:{fg} !important}}"
+    )

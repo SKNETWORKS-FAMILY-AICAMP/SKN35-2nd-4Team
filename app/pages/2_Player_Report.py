@@ -433,6 +433,11 @@ with wrap():
             FEATURES_PATH.stat().st_mtime_ns, AUTOENCODER_PATH.stat().st_mtime_ns
         )
         candidate_pool.append(autoencoder.recommend(selected_id, season, n_recommendations=POOL_SIZE))
+    except ImportError:
+        # torch 미설치 환경(경량 배포)에서는 Autoencoder 추천을 건너뛴다.
+        # KNN 만으로도 후보 풀이 채워지므로 화면은 정상 동작한다 — torch 는
+        # CUDA 의존까지 끌고 와서 Streamlit Cloud 메모리를 크게 먹는다.
+        recommender_errors.append("Autoencoder: torch 미설치 환경이라 건너뜀(KNN 추천만 사용)")
     except (ValueError, RuntimeError) as exc:
         recommender_errors.append(f"Autoencoder: {exc}")
 
