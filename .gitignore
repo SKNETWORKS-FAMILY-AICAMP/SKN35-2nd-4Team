@@ -8,3 +8,8 @@ __pycache__/
 
 # 시크릿 — 실제 값은 절대 커밋하지 않는다
 .streamlit/secrets.toml
+
+# Streamlit Cloud 가 uv.lock 을 requirements.txt 보다 우선해서
+# pyproject 의 무거운 의존성(mediapipe/ultralytics/opencv/CUDA)을 전부
+# 설치해버린다 — 배포 대상 리포에서는 제외한다(로컬 uv 는 파일이 있으면 그대로 씀).
+uv.lock

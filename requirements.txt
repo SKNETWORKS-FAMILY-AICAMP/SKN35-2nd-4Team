@@ -10,10 +10,16 @@
 # 추리는 방법(의존성 추가/제거 후 다시 돌려볼 것):
 #   app/**.py 에서 시작해 src.*, ui.* 임포트를 따라가며 외부 패키지만 수집
 #
-# torch 는 CPU 휠을 쓴다 — 기본 인덱스의 CUDA 빌드는 2GB가 넘어 배포 한도를
-# 넘긴다. 앱에서 torch 가 필요한 곳은 recommend_autoencoder.pt 하나뿐이다.
---extra-index-url https://download.pytorch.org/whl/cpu
-
+# torch 는 일부러 뺐다.
+#   - 앱에서 torch 가 필요한 곳은 recommend_autoencoder.pt(대체선수 추천 보조)
+#     하나뿐인데, PyPI 의 torch 는 CUDA 빌드라 nvidia-* / triton / cuda-toolkit
+#     까지 딸려와 설치본이 1GB 를 훌쩍 넘긴다(실측: 첫 배포에서 161개 패키지).
+#   - Player_Report 는 torch 가 없으면 Autoencoder 추천을 건너뛰고 KNN 만으로
+#     후보를 채운다(ImportError 를 잡아 처리). 화면은 정상 동작한다.
+# 다시 넣으려면 CPU 휠을 명시적으로 고정할 것 — --extra-index-url 만으로는
+# uv 가 PyPI 의 CUDA 빌드를 고를 수 있다:
+#   --extra-index-url https://download.pytorch.org/whl/cpu
+#   torch==2.8.0+cpu
 streamlit>=1.62.0
 pandas>=2.2
 numpy>=1.26
@@ -21,7 +27,6 @@ pyarrow>=15.0          # features_v1.parquet 읽기
 scikit-learn>=1.5      # reason_rf, recommend_knn
 lightgbm>=4.3          # departure_lgbm
 xgboost>=2.0           # strength_xgb
-torch>=2.2             # recommend_autoencoder (CPU 휠)
 joblib>=1.4            # 모델 pickle 로드
 
 # Supabase(Postgres) — 화면이 로컬 parquet 대신 DB를 읽도록 전환할 때 필요.
