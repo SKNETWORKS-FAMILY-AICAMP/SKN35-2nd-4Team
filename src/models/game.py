@@ -439,7 +439,14 @@ def load_2026_games(path=GAMES_2026_PATH):
         raw.loc[is_final, "Home Score"] > raw.loc[is_final, "Away Score"]
     ).astype(float)
 
-    df = raw[["season", "game_date", "home_team", "away_team", "y_home_win", "Status"]].copy()
+    # [2026-08-31 추가] 시작 시각(EDT)을 함께 넘긴다.
+    # game_date 는 미국 기준 날짜라, 한국에서 보면 "오늘 경기"가 하루 어긋난다
+    # (KST 8/31 11시 = EDT 8/30 22시). 화면에서 한국시간으로 환산해 보여주려면
+    # 날짜만으로는 부족하고 시작 시각이 필요하다.
+    time_col = "Start Time (EDT)" if "Start Time (EDT)" in raw.columns else None
+    raw["start_time_edt"] = raw[time_col] if time_col else None
+    df = raw[["season", "game_date", "home_team", "away_team", "y_home_win",
+              "Status", "start_time_edt"]].copy()
     featured = build_time_aware_features(df)
     return featured
 
@@ -778,7 +785,7 @@ def main():
             remaining["ensemble_home_win_proba"] >= 0.5, remaining["home_team"], remaining["away_team"]
         )
 
-        out_cols = ["game_date", "home_team", "away_team",
+        out_cols = ["game_date", "start_time_edt", "home_team", "away_team",
                     "logreg_home_win_proba", "rf_home_win_proba", "xgb_home_win_proba", "dl_home_win_proba",
                     "ensemble_home_win_proba", "predicted_winner"]
         out = remaining[out_cols].sort_values("game_date")

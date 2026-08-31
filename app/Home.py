@@ -8,6 +8,7 @@
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -62,6 +63,30 @@ TEAM_SEASON_PATH = ROOT / "data" / "final" / "team_season.csv"
 # 2글자(TB)/3글자(TBA) 라만 코드가 섞여 나온다(직접 확인함). 여기서만 보충한다.
 _EXTRA_TEAM_CODE_FIX = {"TBA": "TBR"}
 
+# MLB 편성 기준 시간대(미국 동부). 정규시즌은 3~10월이라 사실상 EDT(UTC-4)다.
+# zoneinfo 로 정확히 처리하는 게 이상적이지만, 시즌 중 DST 전환이 없어
+# 고정 오프셋으로 충분하다 — 배포 환경(UTC)에서도 동일하게 동작한다.
+ET_UTC_OFFSET_HOURS = -4
+KST_UTC_OFFSET_HOURS = 9
+
+
+def _kst_label(game_date: str, start_time_edt) -> str:
+    """미국 날짜+시각 → 한국 관중이 읽는 표기.
+
+    한국에서 보면 미국 저녁 경기가 다음날 아침이라, 미국 날짜만 보여주면
+    "오늘 경기인데 왜 내일이지?" 하고 헷갈린다. 두 날짜를 같이 보여준다.
+    시작 시각이 없으면(과거 데이터 등) 미국 날짜만 돌려준다.
+    """
+    if not isinstance(start_time_edt, str) or not start_time_edt.strip():
+        return f"{game_date} (미국)"
+    try:
+        edt = datetime.strptime(f"{game_date} {start_time_edt.strip()}", "%Y-%m-%d %I:%M %p")
+    except ValueError:
+        return f"{game_date} (미국)"
+    edt = edt.replace(tzinfo=timezone(timedelta(hours=ET_UTC_OFFSET_HOURS)))
+    kst = edt.astimezone(timezone(timedelta(hours=KST_UTC_OFFSET_HOURS)))
+    return f"{game_date} (미국) · 한국 {kst:%m/%d %H:%M}"
+
 
 def _logo_img(team_code: str) -> str:
     """구단 로고 img 태그. 매핑이 없거나 로드 실패면 조용히 사라진다."""
@@ -91,12 +116,18 @@ with st.container(key="hero"):
             )
         else:
             games = pd.read_csv(PREDICTIONS_PATH)
-            today = pd.Timestamp.now().strftime("%Y-%m-%d")
+            # MLB 일정의 game_date 는 미국 기준 날짜다. pd.Timestamp.now() 로
+            # 잡으면 한국 시간(KST)이 들어가서 하루 어긋난다 — KST 8/31 오전은
+            # 미국 동부로는 아직 8/30 이라, 한국 날짜로 조회하면 "내일 경기"가
+            # 오늘 경기로 뜬다(실측 확인). MLB 편성 기준인 미국 동부시로 맞춘다.
+            et_now = datetime.now(timezone(timedelta(hours=ET_UTC_OFFSET_HOURS)))
+            today = et_now.strftime("%Y-%m-%d")
             todays_games = games[games.game_date == today]
             if todays_games.empty:
-                next_date = games.game_date.min()
+                future = games[games.game_date >= today]["game_date"]
+                next_date = future.min() if not future.empty else games.game_date.min()
                 todays_games = games[games.game_date == next_date]
-                st.caption(f"오늘 예정된 경기가 없어 다음 경기일({next_date})을 표시합니다.")
+                st.caption(f"미국 기준 오늘({today}) 예정 경기가 없어 다음 경기일({next_date})을 표시합니다.")
 
             picks: dict[str, str] = st.session_state.setdefault("game_picks", {})
 
@@ -111,7 +142,7 @@ with st.container(key="hero"):
                 rows.append({
                     "key": key,
                     "i": i,
-                    "date": row.game_date,
+                    "date": _kst_label(row.game_date, getattr(row, "start_time_edt", None)),
                     "home_name": TEAM_NAMES.get(home_code, row.home_team),
                     "away_name": TEAM_NAMES.get(away_code, row.away_team),
                     "ai_winner": TEAM_NAMES.get(winner_code, row.predicted_winner),
