@@ -19,7 +19,7 @@
 # 다시 넣으려면 CPU 휠을 명시적으로 고정할 것 — --extra-index-url 만으로는
 # uv 가 PyPI 의 CUDA 빌드를 고를 수 있다:
 #   --extra-index-url https://download.pytorch.org/whl/cpu
-#   torch==2.8.0+cpu
+torch==2.8.0+cpu
 streamlit>=1.62.0
 pandas>=2.2
 numpy>=1.26
@@ -28,6 +28,7 @@ scikit-learn>=1.5      # reason_rf, recommend_knn
 lightgbm>=4.3          # departure_lgbm
 xgboost>=2.0           # strength_xgb
 joblib>=1.4            # 모델 pickle 로드
+
 
 # Supabase(Postgres) — 화면이 로컬 parquet 대신 DB를 읽도록 전환할 때 필요.
 # 지금은 app/ 이 storage 계층을 쓰지 않지만, 전환 시 주석만 풀면 되도록 남긴다.
