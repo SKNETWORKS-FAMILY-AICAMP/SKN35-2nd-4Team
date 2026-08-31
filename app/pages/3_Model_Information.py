@@ -54,7 +54,10 @@ with wrap():
         "departure": ("B", ["departure_lgbm", "departure_mlp", "departure_lstm (보너스: 시퀀스)"]),
         "reason": ("C", ["reason_rf", "reason_mlp"]),
         "strength": ("D", ["strength_xgb", "strength_lstm (또는 strength_mlp 폴백)"]),
-        "recommend": ("E", ["recommend_knn", "recommend_autoencoder"]),
+        "recommend": (
+            "E",
+            ["recommend_knn", "recommend_autoencoder", "recommend_policy_ranker"],
+        ),
     }
 
     entries = list_models()
