@@ -35,6 +35,8 @@ from ui.theme import (  # noqa: E402
     prediction_scoreboard_html,
     boost_for_dark,
     team_logo_url,
+    team_vivid_color,
+    pick_button_css,
     section,
     us_map_html,
 )
@@ -140,6 +142,15 @@ with st.container(key="hero"):
                     continue
                 streak = streak + 1 if picks[r["key"]] == r["ai_winner"] else 0
 
+            # 선택 버튼을 "그 구단 패널"처럼 — 팀 컬러로 꽉 채우고 로고를 넣는다.
+            # 경기마다 색이 달라 규칙을 한 번에 만들어 주입한다(버튼마다 style
+            # 태그를 쪼개면 DOM 이 지저분해진다).
+            _pick_css = []
+            for r in rows:
+                _pick_css.append(pick_button_css("pka", r["i"], r["away_code"]))
+                _pick_css.append(pick_button_css("pkh", r["i"], r["home_code"]))
+            st.html("<style>" + "".join(_pick_css) + "</style>")
+
             st.markdown(
                 prediction_scoreboard_html(len(picked_rows), len(rows), agreed, streak),
                 unsafe_allow_html=True,
@@ -171,13 +182,21 @@ with st.container(key="hero"):
                         unsafe_allow_html=True,
                     )
                     if not picked:
+                        # 파란 버튼 두 개로는 어느 쪽이 어느 팀인지 안 읽힌다 —
+                        # 네이버 스포츠 승부예측처럼 각 버튼을 그 팀 컬러로 칠한다.
+                        # st.button 라벨에는 HTML/이미지를 넣을 수 없어서, 컨테이너
+                        # 키(.st-key-*)로 CSS를 걸어 색만 입힌다(로고는 위 카드에 있음).
                         c1, c2 = st.columns(2)
-                        if c1.button(f"원정  {r['away_name']}", key=f"pk_a_{r['i']}", use_container_width=True):
-                            picks[r["key"]] = r["away_name"]
-                            st.rerun()
-                        if c2.button(f"홈  {r['home_name']}", key=f"pk_h_{r['i']}", use_container_width=True):
-                            picks[r["key"]] = r["home_name"]
-                            st.rerun()
+                        with c1, st.container(key=f"pka_{r['i']}"):
+                            if st.button(f"원정  {r['away_name']}",
+                                         key=f"pk_a_{r['i']}", use_container_width=True):
+                                picks[r["key"]] = r["away_name"]
+                                st.rerun()
+                        with c2, st.container(key=f"pkh_{r['i']}"):
+                            if st.button(f"홈  {r['home_name']}",
+                                         key=f"pk_h_{r['i']}", use_container_width=True):
+                                picks[r["key"]] = r["home_name"]
+                                st.rerun()
                     else:
                         st.markdown(
                             prediction_reveal_html(
