@@ -33,6 +33,13 @@ from src.service.simulation import (  # noqa: E402
     evaluate_replacements,
     simulate,
 )
+from src.models.recommend_policy_ranker import RecommendationPolicyRanker  # noqa: E402
+from src.service.recommendation_scoring import (  # noqa: E402
+    blend_policy_model_score,
+    replacement_need_score,
+    score_recommendations,
+    select_recommendation_slots,
+)
 from ui.winrate import predict_win_rate_from_strength, win_rate_caption  # noqa: E402
 from ui.datasource import load_features as load_features_df, source_caption  # noqa: E402
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
@@ -68,6 +75,7 @@ FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
 NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.ubj"
+POLICY_RANKER_PATH = ROOT / "models" / "recommend_policy_ranker.txt"
 # strength_xgb(R² 0.560)가 strength_mlp(R² 0.472)보다 확실히 정확한데
 # 실제 서비스(다음 시즌 예측 추세선)는 계속 strength_mlp를 쓰고 있었다 —
 # 둘 다 LAG_FEATURES 기반 2D 입력이라 인터페이스가 동일해서 경로만 바꾸면 됨
@@ -140,6 +148,12 @@ def load_saved_autoencoder(data_version: int, model_version: int) -> Autoencoder
     return AutoencoderRecommender.load_artifact(AUTOENCODER_PATH, _adapted_catalog())
 
 
+@st.cache_resource(show_spinner=False)
+def load_policy_ranker(model_version: int) -> RecommendationPolicyRanker:
+    del model_version
+    return RecommendationPolicyRanker.load(POLICY_RANKER_PATH)
+
+
 @st.cache_data(show_spinner=False)
 def load_next_strength_projections(
     data_version: int,
@@ -158,6 +172,48 @@ def _num(row: pd.Series, col: str, default: float = 0.0) -> float:
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return default
     return float(value)
+
+
+def recommend_by_projected_strength(
+    catalog: pd.DataFrame,
+    player_id: str,
+    season: int,
+    *,
+    n_recommendations: int = 20,
+) -> pd.DataFrame:
+    """D 예상 전력 차이가 작은 동일 포지션·타 팀 후보를 반환한다."""
+    target_rows = catalog.loc[
+        catalog["player_id"].astype(str).eq(str(player_id))
+        & catalog["season"].eq(season)
+    ]
+    if len(target_rows) != 1:
+        raise ValueError("D 전력 후보 생성 대상을 정확히 한 명 찾을 수 없습니다.")
+    target = target_rows.iloc[0]
+    candidates = catalog.loc[
+        catalog["season"].eq(season)
+        & catalog["player_id"].astype(str).ne(str(player_id))
+        & catalog["team_last"].ne(target["team_last"])
+        & catalog["g_ratio"].ge(0.10)
+    ].copy()
+    position = target.get("position", target.get("primary_position"))
+    position_col = "position" if "position" in candidates else "primary_position"
+    if pd.notna(position):
+        candidates = candidates.loc[candidates[position_col].eq(position)].copy()
+        matched_on = "position"
+    else:
+        candidates = candidates.loc[candidates["role"].eq(target["role"])].copy()
+        matched_on = "role"
+    candidates["projected_strength_gap"] = (
+        pd.to_numeric(candidates["predicted_next_overall_score"], errors="coerce")
+        - float(target["predicted_next_overall_score"])
+    ).abs()
+    result = candidates.nsmallest(n_recommendations, "projected_strength_gap").copy()
+    result["similarity"] = 1.0 / (1.0 + result["projected_strength_gap"])
+    result["distance"] = result["projected_strength_gap"]
+    result["rank"] = np.arange(1, len(result) + 1)
+    result["matched_on"] = matched_on
+    result["recommender"] = "d_projection"
+    return result.reset_index(drop=True)
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
@@ -263,6 +319,10 @@ with wrap():
     reason_df = predict_reason_tags(reason_model, players, [selected_id])
     reason_row = reason_df.iloc[0] if not reason_df.empty else None
     reason_tag = reason_row["reason_tag"] if reason_row is not None else ""
+    replacement_need = replacement_need_score(
+        float(departure_risk) if pd.notna(departure_risk) else 0.0,
+        reason_row["reason_proba"] if reason_row is not None else {},
+    )
 
     chips = [
         f"나이 {_num(selected_row, 'age'):.0f}세",
@@ -271,6 +331,7 @@ with wrap():
     ]
     if pd.notna(sel_position):
         chips.append(POSITION_LABEL.get(sel_position, sel_position))
+    chips.append(f"교체 필요도 {replacement_need:.0%}")
 
     # 리그 전체(같은 시즌, 전 구단) 대비 순위 — overall_score는 시즌별 min-max
     # 정규화라서 그 시즌 최저 선수는 항상 정확히 0.00이 나오는 구조적 특성이 있다.
@@ -401,26 +462,40 @@ with wrap():
     # 추천 모델(KNN 코사인 vs Autoencoder)은 GM이 신경 쓸 일이 아니다 — 둘 다
     # 돌려서 후보 풀을 합치고, 겹치면 유사도 높은 쪽만 남긴다. "어떤 알고리즘"이
     # 아니라 "누가 좋은 후보인가"만 화면에 남도록 내부 구현으로 감춘다.
-    POOL_SIZE = 8
+    KNN_POOL_SIZE = 20
+    AUTOENCODER_POOL_SIZE = 40
+    D_PROJECTION_POOL_SIZE = 20
     candidate_pool: list[pd.DataFrame] = []
     recommender_errors: list[str] = []
     try:
         knn = load_saved_knn(FEATURES_PATH.stat().st_mtime_ns, KNN_PATH.stat().st_mtime_ns)
-        candidate_pool.append(knn.recommend(selected_id, season, n_recommendations=POOL_SIZE))
+        candidate_pool.append(
+            knn.recommend(selected_id, season, n_recommendations=KNN_POOL_SIZE)
+        )
     except (ValueError, RuntimeError) as exc:
         recommender_errors.append(f"KNN: {exc}")
     try:
         autoencoder = load_saved_autoencoder(
             FEATURES_PATH.stat().st_mtime_ns, AUTOENCODER_PATH.stat().st_mtime_ns
         )
-        candidate_pool.append(autoencoder.recommend(selected_id, season, n_recommendations=POOL_SIZE))
-    except ImportError:
-        # torch 미설치 환경(경량 배포)에서는 Autoencoder 추천을 건너뛴다.
-        # KNN 만으로도 후보 풀이 채워지므로 화면은 정상 동작한다 — torch 는
-        # CUDA 의존까지 끌고 와서 Streamlit Cloud 메모리를 크게 먹는다.
-        recommender_errors.append("Autoencoder: torch 미설치 환경이라 건너뜀(KNN 추천만 사용)")
+        candidate_pool.append(
+            autoencoder.recommend(
+                selected_id, season, n_recommendations=AUTOENCODER_POOL_SIZE
+            )
+        )
     except (ValueError, RuntimeError) as exc:
         recommender_errors.append(f"Autoencoder: {exc}")
+    try:
+        candidate_pool.append(
+            recommend_by_projected_strength(
+                players,
+                selected_id,
+                season,
+                n_recommendations=D_PROJECTION_POOL_SIZE,
+            )
+        )
+    except (ValueError, RuntimeError) as exc:
+        recommender_errors.append(f"D projection: {exc}")
 
     if not candidate_pool:
         st.warning(" / ".join(recommender_errors) or "추천 후보를 찾을 수 없습니다.")
@@ -431,6 +506,13 @@ with wrap():
 
     combined = pd.concat(candidate_pool, ignore_index=True)
     combined = combined.sort_values("similarity", ascending=False).drop_duplicates("player_id", keep="first")
+
+    # 포지션을 아는 선수는 동일 포지션 후보만 다음 단계로 통과시킨다.
+    if pd.notna(sel_position) and "position" in combined.columns:
+        combined = combined.loc[combined["position"].eq(sel_position)].copy()
+        if combined.empty:
+            st.warning("동일 포지션의 영입 후보가 없습니다.")
+            st.stop()
 
     # 여기서는 5명으로 자르지 않는다 - evaluate_replacements 이후 이탈위험 기준으로
     # 다시 추려야 하므로, 그 전까지는 풀을 넉넉히 유지한다.
@@ -494,19 +576,51 @@ with wrap():
             f"후보 {len(candidates)}명 중 {len(evaluation_errors)}명은 결측 또는 범위 오류로 제외했습니다."
         )
 
-    # 우선순위: 이탈위험(높은 후보 우선 - 실제로 시장에 나올 가능성이 큰
-    # 선수) > 전력 유사도(similarity) > 같은 포지션(matched_on == "position",
-    # 이미 recommend.py의 후보 필터 단계에서 우선 반영됨) — 2026-08-28 팀 결정.
     evaluated["departure_risk"] = predict_departure_risk(departure_model, evaluated)
-    evaluated = evaluated.sort_values(
-        ["departure_risk", "similarity"], ascending=[False, False], na_position="last"
-    ).head(5).reset_index(drop=True)
-    evaluated["recommendation_rank"] = np.arange(1, len(evaluated) + 1)
+    candidate_reasons = predict_reason_tags(
+        reason_model, players, evaluated["player_id"].astype(str)
+    )
+    reason_probability_map = dict(
+        zip(
+            candidate_reasons["player_id"].astype(str),
+            candidate_reasons["reason_proba"],
+            strict=True,
+        )
+    )
+    reason_injury_score_map = dict(
+        zip(
+            candidate_reasons["player_id"].astype(str),
+            candidate_reasons["reason_injury_score"],
+            strict=True,
+        )
+    )
+    evaluated = score_recommendations(
+        evaluated,
+        season_players,
+        reason_probability_map,
+        reason_injury_scores=reason_injury_score_map,
+        target_reason_probabilities=(
+            reason_row["reason_proba"] if reason_row is not None else {}
+        ),
+    )
+    try:
+        policy_ranker = load_policy_ranker(POLICY_RANKER_PATH.stat().st_mtime_ns)
+        policy_scores = policy_ranker.predict(selected_row, evaluated)
+        evaluated = blend_policy_model_score(
+            evaluated, policy_scores, model_weight=0.50
+        )
+    except (FileNotFoundError, OSError, RuntimeError, ValueError):
+        # 정책 모델이 없어도 해석 가능한 규칙 점수는 계속 제공한다.
+        evaluated["rule_recommend_score"] = evaluated["final_recommend_score"]
+        evaluated["policy_model_score"] = np.nan
+    evaluated = select_recommendation_slots(evaluated)
+    if len(evaluated) < 5:
+        st.caption(f"동일 포지션 후보가 {len(evaluated)}명뿐입니다.")
 
     # ── 영입 후보 카드 (FIFA UT 스타일 선택 UI) ──
     section(
         "영입 후보",
-        "이탈위험 높은(=시장에 나올 가능성 큰) 순 · 카드를 클릭하듯 골라보세요",
+        "포지션·전력·성장성·영입 가능성·건강·승률 회복·비용 효율 종합 순",
         icon="swap",
     )
 
@@ -535,14 +649,40 @@ with wrap():
                 stat_rows.append(("적합", _num(row, "similarity") * 100))
             if pd.notna(row.get("departure_risk")):
                 stat_rows.append(("이탈률", _num(row, "departure_risk") * 100))
+            stat_rows.append(("예상전력", _num(row, "predicted_next_overall_score")))
+            stat_rows.append(("성장성", _num(row, "growth_potential") * 100))
+            stat_rows.append(("가성비", _num(row, "cost_efficiency") * 100))
+            stat_rows.append(("종합점수", _num(row, "final_recommend_score") * 100))
+            if pd.notna(row.get("policy_model_score")):
+                stat_rows.append(("정책모델", _num(row, "policy_model_score") * 100))
 
             with col:
                 match_badges = []
+                tier_label = str(row.get("recommend_tier_label", ""))
+                if tier_label:
+                    tier_kind = "gain" if tier_label == "최적 영입 후보" else (
+                        "warn" if tier_label.startswith("참고용") else "navy"
+                    )
+                    match_badges.append(badge(tier_label, tier_kind))
                 if row.get("matched_on") == "position":
                     pos = row.get("position") or row.get("primary_position")
                     match_badges.append(badge(f"같은 포지션 ({POSITION_LABEL.get(pos, pos)})", "gain"))
                 if pd.notna(row.get("departure_risk")) and row["departure_risk"] >= 0.5:
                     match_badges.append(badge("영입 가능성 높음", "warn"))
+                match_badges.append(
+                    badge(
+                        f"팀 가치 {int(row.get('team_player_rank', 16))}위 · 비용 {_num(row, 'acquisition_cost_weight'):.2f}",
+                        "navy",
+                    )
+                )
+                match_badges.append(
+                    badge(
+                        f"영입 가능 {_num(row, 'market_availability'):.0%} · 위험 {_num(row, 'harm_risk'):.0%}",
+                        "gain" if _num(row, "market_availability") >= _num(row, "harm_risk") else "warn",
+                    )
+                )
+                if _num(row, "harm_risk") >= 0.3:
+                    match_badges.append(badge("영입 위험 주의", "risk"))
                 if match_badges:
                     st.markdown(
                         f'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">{"".join(match_badges)}</div>',
