@@ -14,7 +14,14 @@ from src.models.strength_ts import LAG_FEATURES, add_lag_features
 
 def load_next_strength_model(path: str | Path) -> Any:
     """학습된 D 전력 모델을 불러오고 입력 계약을 확인한다."""
-    model = joblib.load(path)
+    path = Path(path)
+    if path.suffix.lower() in {".json", ".ubj"}:
+        from xgboost import XGBRegressor
+
+        model = XGBRegressor()
+        model.load_model(path)
+    else:
+        model = joblib.load(path)
     feature_names = list(getattr(model, "feature_names_in_", []))
 
     # 현재 D 계약에 없는 피처를 요구하는 다른 모델 파일은 연결하지 않는다.

@@ -4,8 +4,8 @@
   "kind": "ml",
   "owner": "D",
   "is_regression": true,
-  "format": "pickle",
-  "path": "models/strength_xgb.pkl",
+  "format": "xgboost",
+  "path": "models/strength_xgb.ubj",
   "n_features": 20,
   "features": [
     "overall_score",
@@ -42,12 +42,12 @@
     "random_state": "42"
   },
   "metrics": {
-    "mae": 11.5987,
-    "rmse": 14.1285,
-    "r2": 0.5604,
+    "mae": 11.6322,
+    "rmse": 14.1617,
+    "r2": 0.5583,
     "baseline_mae": 18.2483,
     "n_test": 1186
   },
-  "note": "lag 피처 XGBoost, Optuna 튜닝, train+val로 최종학습",
-  "saved_at": "2026-08-29T15:05:29"
+  "note": "lag 피처 XGBoost, Optuna 튜닝 파라미터로 train+val 재학습, UBJ 포맷",
+  "saved_at": "2026-08-31T09:13:38"
 }

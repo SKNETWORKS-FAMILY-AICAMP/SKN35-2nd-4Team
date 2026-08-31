@@ -65,7 +65,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
-NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.pkl"
+NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.ubj"
 # strength_xgb(R² 0.560)가 strength_mlp(R² 0.472)보다 확실히 정확한데
 # 실제 서비스(다음 시즌 예측 추세선)는 계속 strength_mlp를 쓰고 있었다 —
 # 둘 다 LAG_FEATURES 기반 2D 입력이라 인터페이스가 동일해서 경로만 바꾸면 됨
