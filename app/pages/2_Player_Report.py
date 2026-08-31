@@ -66,7 +66,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
-NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.pkl"
+NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.ubj"
 # strength_xgb(R² 0.560)가 strength_mlp(R² 0.472)보다 확실히 정확한데
 # 실제 서비스(다음 시즌 예측 추세선)는 계속 strength_mlp를 쓰고 있었다 —
 # 둘 다 LAG_FEATURES 기반 2D 입력이라 인터페이스가 동일해서 경로만 바꾸면 됨
@@ -250,6 +250,8 @@ with wrap():
         radar_axes.append(("타격", _num(selected_row, "off_score")))
     if sel_role in ("P", "TWO"):
         radar_axes.append(("투구", _num(selected_row, "pit_score")))
+    if pd.notna(selected_row.get("def_score")):
+        radar_axes.append(("수비", _num(selected_row, "def_score")))
     radar_axes.append(("출전율", _num(selected_row, "g_ratio") * 100))
     radar_axes.append(("경험", min(_num(selected_row, "exp") / 15 * 100, 100)))
 
@@ -297,6 +299,23 @@ with wrap():
         ),
         unsafe_allow_html=True,
     )
+    if ovr_val == 0.0 and pd.notna(
+        selected_row.get("off_score")
+        if sel_role in ("B", "TWO")
+        else selected_row.get("pit_score")
+    ):
+        role_score_name = "공격" if sel_role in ("B", "TWO") else "투구"
+        defense_note = (
+            f" 수비 전력은 {_num(selected_row, 'def_score'):.1f}점으로 별도 표시됩니다."
+            if pd.notna(selected_row.get("def_score"))
+            else ""
+        )
+        st.info(
+            f"전력 0.0은 결측치가 아니라 {season}시즌 비교 집단에서 "
+            f"{role_score_name} 전력 최저값이라는 뜻입니다.{defense_note} "
+            "현재 종합 전력은 역할별 공격/투구 점수를 사용하며 수비 점수를 "
+            "합산하지 않습니다."
+        )
 
     risk_c1, risk_c2 = st.columns([1, 2])
     with risk_c1:

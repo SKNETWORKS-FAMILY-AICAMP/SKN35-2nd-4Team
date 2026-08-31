@@ -29,9 +29,9 @@
     "early_career_move",
     "injury_associated",
     "mixed",
+    "moderate_performance_decline",
     "performance_decline",
-    "stable_performance_move",
-    "unknown"
+    "stable_performance_move"
   ],
   "params": {
     "n_estimators": "300",
@@ -43,34 +43,34 @@
   },
   "metrics": {
     "accuracy": 0.8819,
-    "macro_f1": 0.8599,
-    "weighted_f1": 0.8843,
+    "macro_f1": 0.8608,
+    "weighted_f1": 0.884,
     "f1_per_class": {
-      "career_stage": 0.6304,
+      "career_stage": 0.6374,
       "early_career_move": 0.9959,
       "injury_associated": 0.8696,
-      "mixed": 0.806,
-      "performance_decline": 0.8935,
-      "stable_performance_move": 0.8984,
-      "unknown": 0.9255
+      "mixed": 0.8015,
+      "moderate_performance_decline": 0.9312,
+      "performance_decline": 0.8915,
+      "stable_performance_move": 0.8984
     },
     "support_per_class": {
       "career_stage": 42,
       "early_career_move": 122,
       "injury_associated": 20,
       "mixed": 129,
+      "moderate_performance_decline": 98,
       "performance_decline": 224,
-      "stable_performance_move": 93,
-      "unknown": 98
+      "stable_performance_move": 93
     },
     "labels": [
       "career_stage",
       "early_career_move",
       "injury_associated",
       "mixed",
+      "moderate_performance_decline",
       "performance_decline",
-      "stable_performance_move",
-      "unknown"
+      "stable_performance_move"
     ],
     "confusion_matrix": [
       [
@@ -78,9 +78,9 @@
         0,
         0,
         0,
+        3,
         0,
-        10,
-        3
+        10
       ],
       [
         1,
@@ -104,8 +104,17 @@
         0,
         0,
         6,
-        108,
-        15,
+        107,
+        0,
+        16,
+        0
+      ],
+      [
+        10,
+        0,
+        0,
+        0,
+        88,
         0,
         0
       ],
@@ -114,8 +123,8 @@
         0,
         0,
         31,
-        193,
         0,
+        193,
         0
       ],
       [
@@ -124,24 +133,15 @@
         0,
         0,
         0,
-        84,
-        0
-      ],
-      [
-        11,
         0,
-        0,
-        0,
-        0,
-        0,
-        87
+        84
       ]
     ],
-    "log_loss": 0.3591,
+    "log_loss": 0.3601,
     "n_test": 728,
-    "valid_macro_f1": 0.8753,
+    "valid_macro_f1": 0.8742,
     "n_valid": 1546
   },
-  "note": "실제 features_v1 및 player_injury_stints.csv로 학습",
-  "saved_at": "2026-08-30T17:05:58"
+  "note": "실제 features_v1 및 player_injury_stints.csv/MLB 트랜잭션으로 학습 (Rev.6 잔여 unknown 재라벨링, 2026-08-30)",
+  "saved_at": "2026-08-30T22:42:06"
 }

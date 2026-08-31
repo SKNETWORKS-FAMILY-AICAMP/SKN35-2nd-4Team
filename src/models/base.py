@@ -61,6 +61,11 @@ def _is_torch(model) -> bool:
     return any(c.__module__.split(".")[0] == "torch" for c in type(model).__mro__)
 
 
+def _is_xgboost(model) -> bool:
+    """XGBoost sklearn 래퍼인지 지연 임포트 없이 판정한다."""
+    return any(c.__module__.split(".")[0] == "xgboost" for c in type(model).__mro__)
+
+
 class BaseModel:
     """모든 모델의 부모.
 
@@ -162,14 +167,21 @@ class BaseModel:
 
         # kind 가 아니라 실제 객체 타입으로 판단한다.
         # DL 이어도 sklearn MLP 같은 폴백 모델은 pickle 로 저장해야 한다.
-        if _is_keras(self.model):
+        if _is_xgboost(self.model):
+            fmt = "xgboost"
+        elif _is_keras(self.model):
             fmt = "keras"
         elif _is_torch(self.model):
             fmt = "torch"
         else:
             fmt = "pickle"
 
-        if fmt == "keras":
+        if fmt == "xgboost":
+            # XGBoost 객체 전체를 pickle로 저장하면 버전/플랫폼이 달라질 때
+            # 내부 Booster 역직렬화가 깨질 수 있다. 공식 UBJ 포맷을 사용한다.
+            path = MODEL_DIR / f"{self.name}.ubj"
+            self.model.save_model(path)
+        elif fmt == "keras":
             path = MODEL_DIR / f"{self.name}.keras"
             self.model.save(path)
         elif fmt == "torch":
@@ -223,7 +235,13 @@ class BaseModel:
 
         path = ROOT / meta["path"]
         fmt = meta.get("format", "keras" if meta["kind"] == "dl" else "pickle")
-        if fmt == "keras":
+        if fmt == "xgboost":
+            from xgboost import XGBClassifier, XGBRegressor
+
+            model_cls = XGBRegressor if obj.is_regression else XGBClassifier
+            obj.model = model_cls()
+            obj.model.load_model(path)
+        elif fmt == "keras":
             from tensorflow import keras
 
             obj.model = keras.models.load_model(path)

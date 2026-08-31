@@ -194,6 +194,26 @@ with wrap():
     )
     st.session_state.selected_player_id = selected_id
 
+    selected_data = team_players.loc[
+        team_players["player_id"].astype(str).eq(selected_id)
+    ].iloc[0]
+    selected_score = pd.to_numeric(
+        pd.Series([selected_data.get("overall_score")]), errors="coerce"
+    ).iloc[0]
+    if pd.notna(selected_score) and float(selected_score) == 0.0:
+        defense = pd.to_numeric(
+            pd.Series([selected_data.get("def_score")]), errors="coerce"
+        ).iloc[0]
+        defense_text = (
+            f" · 수비 전력 {float(defense):.1f}점(별도)"
+            if pd.notna(defense)
+            else ""
+        )
+        st.caption(
+            f"전력 0.0 = {season}시즌 역할별 공격/투구 전력의 비교 집단 최저값"
+            f"이며 결측치가 아닙니다{defense_text}."
+        )
+
     result = simulate(
         team_players,
         selected_id,
