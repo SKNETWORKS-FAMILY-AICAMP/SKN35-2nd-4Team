@@ -22,6 +22,7 @@ if _ROOT not in sys.path:
 # team_season.csv/게임 예측 파일은 라만 원본 팀코드(NYA/LAN/CHN 등)를 쓴다 —
 # recommend.py가 이미 만들어둔 매핑을 그대로 재사용해 UI 코드로 맞춘다.
 from src.models.recommend import LAHMAN_TEAM_TO_UI  # noqa: E402
+from ui.datasource import load_team_season as load_team_season_df, source_caption  # noqa: E402
 from ui.theme import (  # noqa: E402
     DIVISIONS,
     TEAM_COLORS,
@@ -222,7 +223,7 @@ with st.container(key="hero"):
                         st.session_state.standings_revealed = True
                         st.rerun()
             else:
-                team_season = pd.read_csv(TEAM_SEASON_PATH)
+                team_season = load_team_season_df()
                 if team_season.pred_rank.notna().any():
                     latest_year = team_season.loc[team_season.pred_rank.notna(), "year"].max()
                     ranked = team_season[team_season.year == latest_year].sort_values("pred_rank")

@@ -55,7 +55,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import optuna
 from lightgbm import LGBMClassifier, early_stopping, log_evaluation
 from sklearn.metrics import accuracy_score, roc_auc_score, f1_score
 
@@ -187,7 +186,12 @@ class DepartureLGBM(BaseModel):
     def fit_with_validation(self, X_train, y_train, X_val, y_val):
         """Optuna로 검증셋 AUC를 최대화하는 하이퍼파라미터를 찾은 뒤 최종 학습한다."""
 
-        def objective(trial: optuna.Trial) -> float:
+        # optuna 는 학습에만 쓰인다. 최상단에서 import 하면 저장된 모델을
+        # 불러다 predict 만 하는 배포 환경(Streamlit)까지 optuna 를 설치해야
+        # 해서, strength_ts.py / game.py 와 같이 함수 안에서 늦게 가져온다.
+        import optuna
+
+        def objective(trial: "optuna.Trial") -> float:
             param = {
                 "objective": "binary",
                 "metric": "auc",
