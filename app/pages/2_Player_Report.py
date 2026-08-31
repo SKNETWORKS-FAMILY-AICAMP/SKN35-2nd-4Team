@@ -75,7 +75,7 @@ FEATURES_PATH = ROOT / "data" / "final" / "features_v1.parquet"
 KNN_PATH = ROOT / "models" / "recommend_knn.pkl"
 AUTOENCODER_PATH = ROOT / "models" / "recommend_autoencoder.pt"
 NEXT_STRENGTH_PATH = ROOT / "models" / "strength_xgb.ubj"
-POLICY_RANKER_PATH = ROOT / "models" / "recommend_policy_ranker.ubj"
+POLICY_RANKER_PATH = ROOT / "models" / "recommend_policy_ranker.txt"
 # strength_xgb(R² 0.560)가 strength_mlp(R² 0.472)보다 확실히 정확한데
 # 실제 서비스(다음 시즌 예측 추세선)는 계속 strength_mlp를 쓰고 있었다 —
 # 둘 다 LAG_FEATURES 기반 2D 입력이라 인터페이스가 동일해서 경로만 바꾸면 됨
@@ -172,6 +172,48 @@ def _num(row: pd.Series, col: str, default: float = 0.0) -> float:
     if value is None or (isinstance(value, float) and np.isnan(value)):
         return default
     return float(value)
+
+
+def recommend_by_projected_strength(
+    catalog: pd.DataFrame,
+    player_id: str,
+    season: int,
+    *,
+    n_recommendations: int = 20,
+) -> pd.DataFrame:
+    """D 예상 전력 차이가 작은 동일 포지션·타 팀 후보를 반환한다."""
+    target_rows = catalog.loc[
+        catalog["player_id"].astype(str).eq(str(player_id))
+        & catalog["season"].eq(season)
+    ]
+    if len(target_rows) != 1:
+        raise ValueError("D 전력 후보 생성 대상을 정확히 한 명 찾을 수 없습니다.")
+    target = target_rows.iloc[0]
+    candidates = catalog.loc[
+        catalog["season"].eq(season)
+        & catalog["player_id"].astype(str).ne(str(player_id))
+        & catalog["team_last"].ne(target["team_last"])
+        & catalog["g_ratio"].ge(0.10)
+    ].copy()
+    position = target.get("position", target.get("primary_position"))
+    position_col = "position" if "position" in candidates else "primary_position"
+    if pd.notna(position):
+        candidates = candidates.loc[candidates[position_col].eq(position)].copy()
+        matched_on = "position"
+    else:
+        candidates = candidates.loc[candidates["role"].eq(target["role"])].copy()
+        matched_on = "role"
+    candidates["projected_strength_gap"] = (
+        pd.to_numeric(candidates["predicted_next_overall_score"], errors="coerce")
+        - float(target["predicted_next_overall_score"])
+    ).abs()
+    result = candidates.nsmallest(n_recommendations, "projected_strength_gap").copy()
+    result["similarity"] = 1.0 / (1.0 + result["projected_strength_gap"])
+    result["distance"] = result["projected_strength_gap"]
+    result["rank"] = np.arange(1, len(result) + 1)
+    result["matched_on"] = matched_on
+    result["recommender"] = "d_projection"
+    return result.reset_index(drop=True)
 
 
 def predict_win_rate(strength: TeamStrength) -> float:
@@ -420,21 +462,40 @@ with wrap():
     # 추천 모델(KNN 코사인 vs Autoencoder)은 GM이 신경 쓸 일이 아니다 — 둘 다
     # 돌려서 후보 풀을 합치고, 겹치면 유사도 높은 쪽만 남긴다. "어떤 알고리즘"이
     # 아니라 "누가 좋은 후보인가"만 화면에 남도록 내부 구현으로 감춘다.
-    POOL_SIZE = 8
+    KNN_POOL_SIZE = 20
+    AUTOENCODER_POOL_SIZE = 40
+    D_PROJECTION_POOL_SIZE = 20
     candidate_pool: list[pd.DataFrame] = []
     recommender_errors: list[str] = []
     try:
         knn = load_saved_knn(FEATURES_PATH.stat().st_mtime_ns, KNN_PATH.stat().st_mtime_ns)
-        candidate_pool.append(knn.recommend(selected_id, season, n_recommendations=POOL_SIZE))
+        candidate_pool.append(
+            knn.recommend(selected_id, season, n_recommendations=KNN_POOL_SIZE)
+        )
     except (ValueError, RuntimeError) as exc:
         recommender_errors.append(f"KNN: {exc}")
     try:
         autoencoder = load_saved_autoencoder(
             FEATURES_PATH.stat().st_mtime_ns, AUTOENCODER_PATH.stat().st_mtime_ns
         )
-        candidate_pool.append(autoencoder.recommend(selected_id, season, n_recommendations=POOL_SIZE))
+        candidate_pool.append(
+            autoencoder.recommend(
+                selected_id, season, n_recommendations=AUTOENCODER_POOL_SIZE
+            )
+        )
     except (ValueError, RuntimeError) as exc:
         recommender_errors.append(f"Autoencoder: {exc}")
+    try:
+        candidate_pool.append(
+            recommend_by_projected_strength(
+                players,
+                selected_id,
+                season,
+                n_recommendations=D_PROJECTION_POOL_SIZE,
+            )
+        )
+    except (ValueError, RuntimeError) as exc:
+        recommender_errors.append(f"D projection: {exc}")
 
     if not candidate_pool:
         st.warning(" / ".join(recommender_errors) or "추천 후보를 찾을 수 없습니다.")
@@ -546,7 +607,7 @@ with wrap():
         policy_ranker = load_policy_ranker(POLICY_RANKER_PATH.stat().st_mtime_ns)
         policy_scores = policy_ranker.predict(selected_row, evaluated)
         evaluated = blend_policy_model_score(
-            evaluated, policy_scores, model_weight=0.05
+            evaluated, policy_scores, model_weight=0.50
         )
     except (FileNotFoundError, OSError, RuntimeError, ValueError):
         # 정책 모델이 없어도 해석 가능한 규칙 점수는 계속 제공한다.
