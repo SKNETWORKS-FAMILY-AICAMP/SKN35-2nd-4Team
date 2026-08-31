@@ -65,3 +65,42 @@ def fetch_player_name_lookup() -> dict[str, str]:
         df = pd.read_sql(query, conn)
     names = (df["name_first"].fillna("") + " " + df["name_last"].fillna("")).str.strip()
     return dict(zip(df["player_id"], names))
+
+
+# ── [2026-08-31 추가] 화면이 직접 읽던 두 산출물 ──────────────────────
+# app/ 은 지금까지 features_v1.parquet / player_injury_stints.csv 를 파일로
+# 읽었다. 배포 후 DB에서 끌어오려면 이 두 함수가 필요하다.
+# 반환 컬럼·dtype 을 파일을 읽었을 때와 같게 맞춰서, 호출부(adapt_features_v1,
+# _merge_injury 등)를 그대로 재사용할 수 있게 한다.
+
+def fetch_features_v1(season: int | None = None) -> pd.DataFrame:
+    """features_v1 전체 또는 특정 시즌.
+
+    contract.SCHEMA 와 컬럼이 1:1로 대응한다. 화면은 보통 전체를 읽는다 —
+    전 시즌 이력이 있어야 overall_score_delta 같은 파생값을 만들 수 있기 때문
+    (predict_reason_tags 가 다시즌을 요구한다).
+    """
+    query = 'SELECT * FROM "features_v1"'
+    params: tuple = ()
+    if season is not None:
+        query += ' WHERE "season" = %s'
+        params = (season,)
+    with connection() as conn:
+        df = pd.read_sql(query, conn, params=params or None)
+
+    # contract.validate() 가 기대하는 dtype 으로 되돌린다. Postgres 왕복에서
+    # int 컬럼에 NULL 이 하나라도 있으면 float 으로 올라오기 때문.
+    from src.features import contract
+
+    for col, dtype in contract.SCHEMA.items():
+        if col not in df.columns:
+            continue
+        if dtype == "int64" and df[col].notna().all():
+            df[col] = df[col].astype("int64")
+    return df
+
+
+def fetch_injury_stints() -> pd.DataFrame:
+    """player_injury_stints 전체. reason.py 의 부상 피처 병합에 쓰인다."""
+    with connection() as conn:
+        return pd.read_sql('SELECT * FROM "player_injury_stints"', conn)

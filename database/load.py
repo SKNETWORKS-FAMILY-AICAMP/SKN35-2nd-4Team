@@ -57,6 +57,13 @@ AL/NL 구분이나 세부 포지션이 필요하면, 이 변환을 적용하기 
 
 import os
 import sys
+
+# database/ 에서 직접 실행해도 src.* 를 찾을 수 있게 리포 루트를 넣는다
+# (app/pages/*.py, src/models/game.py 와 동일한 가드).
+_ROOT_FOR_IMPORT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT_FOR_IMPORT not in sys.path:
+    sys.path.insert(0, _ROOT_FOR_IMPORT)
+import sys
 import argparse
 import warnings
 warnings.filterwarnings("ignore")
@@ -181,6 +188,38 @@ def transform_player_season(df):
                "y_departed", "y_path", "y_fa_release", "y_returned", "y_next_score"]]
 
 
+def transform_features_v1(df):
+    """features_v1 — contract.SCHEMA 컬럼만 그 순서대로.
+
+    build.py 가 validate() 를 통과시킨 산출물이라 값 변환은 하지 않는다.
+    다른 테이블과 달리 원본이 parquet 이라 config 에 reader="parquet" 를 준다.
+    """
+    from src.features import contract
+
+    cols = [c for c in contract.SCHEMA if c in df.columns]
+    missing = [c for c in contract.SCHEMA if c not in df.columns]
+    if missing:
+        raise ValueError(f"features_v1 에 계약 컬럼이 없습니다: {missing}")
+    return df[cols]
+
+
+def transform_player_injury_stints(df):
+    """mlb_injury_pipeline.py 산출물.
+
+    injury_days_estimated(추정으로 채운 결장일수)는 total_recovery_days(실측)와
+    반드시 분리해서 적재한다 — 추정을 실측처럼 쓰면 안 되기 때문.
+    파이프라인을 예전 버전으로 돌린 CSV 에는 새 컬럼이 없을 수 있어 방어한다.
+    """
+    df = df.copy()
+    for col in ("injury_days_estimated", "injury_effective_days"):
+        if col not in df.columns:
+            df[col] = None
+    return df[["player_id", "season", "il_stint_count", "first_il_date",
+               "injury_note_sample", "total_recovery_days", "unresolved_stints",
+               "had_injury", "injury_days_estimated", "injury_effective_days",
+               "injury_risk_score"]]
+
+
 # ----------------------------------------------------------------------
 # 2. 테이블 적재 순서 & 설정 (FK 의존관계 순서 반드시 지켜야 함)
 # ----------------------------------------------------------------------
@@ -207,6 +246,12 @@ TABLE_CONFIGS = [
      "transform": transform_games},
     {"name": "player_season",  "csv": "player_season.csv",  "pk": ["player_id", "season"],
      "transform": transform_player_season},
+    # [2026-08-31 추가] 화면이 실제로 읽는 두 산출물.
+    # features_v1 은 player_season 파생물이라 반드시 그 뒤에 적재한다.
+    {"name": "features_v1",    "csv": "features_v1.parquet", "pk": ["player_id", "season"],
+     "transform": transform_features_v1, "reader": "parquet"},
+    {"name": "player_injury_stints", "csv": "player_injury_stints.csv",
+     "pk": ["player_id", "season"], "transform": transform_player_injury_stints},
 ]
 
 
@@ -234,7 +279,9 @@ def load_table(conn, config, dry_run=False, truncate=False):
         print(f"  [건너뜀] {name}: {csv_path} 파일이 없습니다.")
         return 0
 
-    df = pd.read_csv(csv_path)
+    # 대부분 CSV 지만 features_v1 은 parquet 이다(계약 산출물의 원본 형식).
+    df = (pd.read_parquet(csv_path) if config.get("reader") == "parquet"
+          else pd.read_csv(csv_path))
     df = config["transform"](df)
     columns = list(df.columns)
     records = _to_records(df, columns)

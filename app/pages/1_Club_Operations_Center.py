@@ -18,6 +18,7 @@ if _ROOT not in sys.path:
 from src.models.recommend import adapt_features_v1  # noqa: E402
 from src.service.simulation import TeamStrength, calculate_team_strength, simulate  # noqa: E402
 from ui.winrate import predict_win_rate_from_strength, win_rate_caption  # noqa: E402
+from ui.datasource import load_features as load_features_df, source_caption  # noqa: E402
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.risk import (  # noqa: E402
     REASON_DISPLAY,
@@ -59,7 +60,8 @@ ROLE_LABEL = {"B": "타자", "P": "투수", "TWO": "투타겸업"}
 
 @st.cache_data(show_spinner=False)
 def load_players() -> pd.DataFrame:
-    return adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+    # Supabase 우선, 실패 시 리포 내 parquet 폴백 (ui/datasource.py)
+    return adapt_features_v1(load_features_df())
 
 
 @st.cache_data(show_spinner=False)
@@ -246,6 +248,10 @@ with wrap():
         unsafe_allow_html=True,
     )
     st.caption(win_rate_caption())
+    # DB 폴백이 조용히 일어나면 안 된다 — 출처를 항상 표시한다
+    _src = source_caption()
+    if _src:
+        st.caption(_src)
 
     top_risk = ranked.dropna(subset=["departure_risk"]).nlargest(3, "departure_risk")
     if not top_risk.empty and sort_label.endswith("이탈위험순"):

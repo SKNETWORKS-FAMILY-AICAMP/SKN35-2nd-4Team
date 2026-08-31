@@ -34,6 +34,7 @@ from src.service.simulation import (  # noqa: E402
     simulate,
 )
 from ui.winrate import predict_win_rate_from_strength, win_rate_caption  # noqa: E402
+from ui.datasource import load_features as load_features_df, source_caption  # noqa: E402
 from ui.photos import headshot_url, load_mlbam_lookup  # noqa: E402
 from ui.risk import (  # noqa: E402
     evidence_html,
@@ -96,6 +97,7 @@ def _adapted_catalog() -> pd.DataFrame:
     model = load_next_strength_model(NEXT_STRENGTH_PATH)
     projected = predict_all_next_season_strength(df, model)
     df = df.merge(projected, on=["player_id", "season"], how="left")
+    # Supabase 우선, 실패 시 리포 내 parquet 폴백 (ui/datasource.py)
     if "primary_position" in df.columns:
         df["position"] = df["primary_position"]
     return df
@@ -145,7 +147,7 @@ def load_next_strength_projections(
 ) -> pd.DataFrame:
     """최신 features_v1을 D의 XGBoost에 연결해 t+1 전력을 계산한다."""
     del data_version, model_version
-    players = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+    players = adapt_features_v1(load_features_df())
     model = load_next_strength_model(NEXT_STRENGTH_PATH)
     return predict_next_season_strength(players, model)
 

@@ -451,3 +451,73 @@ CREATE POLICY "public read" ON "allstar" FOR SELECT USING (true);
 CREATE POLICY "public read" ON "player_season" FOR SELECT USING (true);
 CREATE POLICY "public read" ON "team_season" FOR SELECT USING (true);
 CREATE POLICY "public read" ON "games" FOR SELECT USING (true);
+
+
+-- ══════════════════════════════════════════════════════════════════
+-- [2026-08-31 추가] 화면이 실제로 읽는 두 테이블
+--
+-- 앱(app/)은 지금까지 리포에 들어있는 data/final/features_v1.parquet 과
+-- player_injury_stints.csv 를 직접 읽었다. Streamlit Cloud 배포 후 DB에서
+-- 끌어오려면 이 둘이 테이블로 있어야 한다.
+--
+-- features_v1 은 player_season 에서 파생되는 "계약(contract) 산출물"이다.
+-- src/features/contract.py 의 SCHEMA 와 컬럼·타입이 1:1로 대응해야 하며,
+-- build.py 가 validate() 를 통과시킨 결과만 적재한다.
+-- ══════════════════════════════════════════════════════════════════
+
+CREATE TABLE "features_v1" (
+	"player_id"		varchar(20)	NOT NULL,
+	"season"		int		NOT NULL,
+	"team_last"		varchar(20)	NULL,
+	"franch_id"		varchar(20)	NULL,
+	"league"		varchar(10)	NULL,
+	"role"			varchar(10)	NULL,
+	"primary_position"	varchar(10)	NULL,
+	"age"			float		NULL,
+	"exp"			int		NULL,
+	"n_stint"		int		NULL,
+	"g_ratio"		float		NULL,
+	"g_ratio_prev"		float		NULL,
+	"g_chg"			float		NULL,
+	"off_score"		float		NULL,
+	"pit_score"		float		NULL,
+	"def_score"		float		NULL,
+	"overall_score"		float		NULL,
+	"ops_z"			float		NULL,
+	"ops_z_prev"		float		NULL,
+	"era_z"			float		NULL,
+	"whip_z"		float		NULL,
+	"team_wr"		float		NULL,
+	"y_departed"		float		NULL,
+	"y_path"		varchar(30)	NULL,
+	"y_fa_release"		varchar(30)	NULL,
+	"y_returned"		float		NULL,
+	"y_core_departed"	float		NULL,
+	"y_next_score"		float		NULL,
+	CONSTRAINT "PK_features_v1" PRIMARY KEY ("player_id", "season")
+);
+
+-- 시즌 필터가 가장 잦은 조회 패턴이다(화면은 최신 시즌만 본다)
+CREATE INDEX "IX_features_v1_season" ON "features_v1" ("season");
+
+-- mlb_injury_pipeline.py 산출물. injury_days_estimated 는 "추정으로 채운
+-- 결장일수"라 실측(total_recovery_days)과 반드시 구분해서 보관한다.
+CREATE TABLE "player_injury_stints" (
+	"player_id"		varchar(20)	NOT NULL,
+	"season"		int		NOT NULL,
+	"il_stint_count"	int		NULL,
+	"first_il_date"		date		NULL,
+	"injury_note_sample"	text		NULL,
+	"total_recovery_days"	float		NULL,
+	"unresolved_stints"	int		NULL,
+	"had_injury"		int		NULL,
+	"injury_days_estimated"	float		NULL,
+	"injury_effective_days"	float		NULL,
+	"injury_risk_score"	float		NULL,
+	CONSTRAINT "PK_player_injury_stints" PRIMARY KEY ("player_id", "season")
+);
+
+ALTER TABLE "features_v1" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "player_injury_stints" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public read" ON "features_v1" FOR SELECT USING (true);
+CREATE POLICY "public read" ON "player_injury_stints" FOR SELECT USING (true);

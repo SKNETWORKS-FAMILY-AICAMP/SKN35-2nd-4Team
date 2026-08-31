@@ -80,10 +80,11 @@ def _load_real_injury_data(data_version: int) -> pd.DataFrame | None:
     """mlb_injury_pipeline.py가 만든 실제 IL 데이터(2026-08-28부터 복귀일 매칭 포함,
     injury_risk_score 포함). 파일이 없으면 None - 호출부가 0-fill로 대체한다."""
     del data_version
-    if not INJURY_STINTS_PATH.exists():
-        return None
+    # Supabase 우선, 실패 시 리포 내 CSV 폴백 (ui/datasource.py)
+    from ui.datasource import load_injury
+
     try:
-        return pd.read_csv(INJURY_STINTS_PATH)
+        return load_injury()
     except (OSError, ValueError):
         return None
 
