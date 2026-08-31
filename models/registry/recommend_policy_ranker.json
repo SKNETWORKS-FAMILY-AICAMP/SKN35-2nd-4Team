@@ -3,23 +3,31 @@
   "task": "recommend",
   "kind": "ml",
   "owner": "E",
-  "format": "xgboost",
-  "path": "models/recommend_policy_ranker.ubj",
-  "n_features": 42,
+  "format": "lightgbm",
+  "path": "models/recommend_policy_ranker.txt",
+  "n_features": 43,
   "features": ["candidate", "target", "signed_diff", "absolute_diff", "team_player_rank", "cost_efficiency"],
   "classes": [],
   "params": {
     "training_end_season": 2023,
-    "objective": "rank:ndcg",
-    "runtime_blend_weight": 0.05
+    "objective": "lambdarank",
+    "runtime_blend_weight": 0.50,
+    "queries_per_season": 100,
+    "candidate_pool_size": 80,
+    "n_estimators_upper_bound": 2000,
+    "best_iteration": 9,
+    "early_stopping_rounds": 100
   },
   "metrics": {
-    "precision_at_3": 0.07333333333333333,
+    "precision_at_3": 0.1,
     "baseline_d_projection_precision_at_3": 0.07666666666666666,
-    "ndcg_at_5": 0.2358298453848877,
+    "previous_xgboost_precision_at_3": 0.07333333333333333,
+    "autoencoder_precision_at_3": 0.08,
+    "ndcg_at_5": 0.33667987578002756,
+    "multi_retriever_truth_recall_at_pool": 0.49666666666666665,
     "evaluated_queries": 100,
     "evaluation_season": 2024
   },
-  "note": "과거 다음 시즌 적합도·실제 이동·비용 효율 지도학습. 검증 한계로 규칙 점수에 5%만 결합",
+  "note": "Autoencoder 40 + KNN 20 + D 전력차 20 다중 검색과 검색 신뢰도 피처를 사용하고 원인·비용 규칙과 50:50 결합하는 LightGBM LambdaRank",
   "saved_at": "2026-08-31T10:15:00"
 }

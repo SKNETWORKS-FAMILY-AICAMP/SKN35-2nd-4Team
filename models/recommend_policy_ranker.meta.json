@@ -41,8 +41,13 @@
     "diff_whip_z",
     "abs_diff_whip_z",
     "candidate_team_player_rank",
-    "candidate_cost_efficiency"
+    "candidate_cost_efficiency",
+    "candidate_retrieval_similarity"
   ],
   "training_end_season": 2023,
-  "seed": 42
+  "seed": 42,
+  "model_type": "lightgbm_lambdarank",
+  "best_iteration": 9,
+  "candidate_pool_size": 80,
+  "retrieval_strategy": "autoencoder+knn+d_projection"
 }
