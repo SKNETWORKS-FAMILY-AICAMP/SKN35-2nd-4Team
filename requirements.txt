@@ -1,36 +1,168 @@
-# Streamlit Cloud 배포용 런타임 의존성.
-#
-# pyproject.toml 에는 분석·크롤링·CV 실습 패키지(mediapipe, ultralytics, opencv,
-# selenium, pyautogui 등)가 함께 들어 있는데, 배포되는 앱은 그중 하나도 쓰지
-# 않는다. 그대로 설치하면 빌드가 수 GB로 불어나고(설치본 기준 torch 501MB,
-# cv2 138MB, mediapipe 99MB) pyautogui 처럼 디스플레이가 필요한 패키지는
-# 헤드리스 환경에서 실패한다. 그래서 app/ 진입점에서 실제로 도달하는 모듈만
-# 추려서 따로 관리한다.
-#
-# 추리는 방법(의존성 추가/제거 후 다시 돌려볼 것):
-#   app/**.py 에서 시작해 src.*, ui.* 임포트를 따라가며 외부 패키지만 수집
-#
-# torch 는 일부러 뺐다.
-#   - 앱에서 torch 가 필요한 곳은 recommend_autoencoder.pt(대체선수 추천 보조)
-#     하나뿐인데, PyPI 의 torch 는 CUDA 빌드라 nvidia-* / triton / cuda-toolkit
-#     까지 딸려와 설치본이 1GB 를 훌쩍 넘긴다(실측: 첫 배포에서 161개 패키지).
-#   - Player_Report 는 torch 가 없으면 Autoencoder 추천을 건너뛰고 KNN 만으로
-#     후보를 채운다(ImportError 를 잡아 처리). 화면은 정상 동작한다.
-# 다시 넣으려면 CPU 휠을 명시적으로 고정할 것 — --extra-index-url 만으로는
-# uv 가 PyPI 의 CUDA 빌드를 고를 수 있다:
-#   --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.8.0+cpu
-streamlit>=1.62.0
-pandas>=2.2
-numpy>=1.26
-pyarrow>=15.0          # features_v1.parquet 읽기
-scikit-learn>=1.5      # reason_rf, recommend_knn
-lightgbm>=4.3          # departure_lgbm
-xgboost>=2.0           # strength_xgb
-joblib>=1.4            # 모델 pickle 로드
-
-
-# Supabase(Postgres) — 화면이 로컬 parquet 대신 DB를 읽도록 전환할 때 필요.
-# 지금은 app/ 이 storage 계층을 쓰지 않지만, 전환 시 주석만 풀면 되도록 남긴다.
-# psycopg2-binary>=2.9
-# python-dotenv>=1.0
+absl-py==2.5.0
+albucore==0.0.24
+albumentations==2.0.8
+alembic==1.19.1
+altair==6.2.2
+annotated-types==0.8.0
+anyio==4.14.2
+attrs==26.1.0
+beautifulsoup4==4.15.0
+blinker==1.9.0
+branca==0.8.2
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.1
+click==8.4.2
+colorama==0.4.6
+colorlog==6.12.0
+contourpy==1.3.3
+cuda-bindings==13.3.1
+cuda-pathfinder==1.7.0
+cuda-toolkit==13.0.3.0
+cycler==0.12.1
+et-xmlfile==2.0.0
+fastjsonschema==2.22.2
+filelock==3.32.4
+flatbuffers==25.12.19
+folium==0.20.0
+fonttools==4.63.0
+fsspec==2026.7.0
+graphviz==0.21
+greenlet==3.5.5
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.28.1
+idna==3.19
+imageio==2.37.4
+imbalanced-learn==0.14.2
+itsdangerous==2.2.0
+jinja2==3.1.6
+joblib==1.5.3
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+jupyter-core==5.9.1
+kiwisolver==1.5.0
+lazy-loader==0.5
+lightgbm==4.7.0
+mako==1.4.1
+markupsafe==3.0.3
+matplotlib==3.11.1
+mediapipe==1.0.1
+mglearn==0.2.0
+missingno==0.5.2
+mlxtend==0.25.0
+mouseinfo==0.1.3
+mpmath==1.3.0
+narwhals==2.25.0
+nbformat==5.11.1
+nbstripout==0.9.1
+networkx==3.6.1
+numpy==2.5.2
+nvidia-cublas==13.1.1.3
+nvidia-cuda-cupti==13.0.85
+nvidia-cuda-nvrtc==13.0.88
+nvidia-cuda-runtime==13.0.96
+nvidia-cudnn-cu13==9.20.0.48
+nvidia-cufft==12.0.0.61
+nvidia-cufile==1.15.1.6
+nvidia-curand==10.4.0.35
+nvidia-cusolver==12.0.4.66
+nvidia-cusparse==12.6.3.3
+nvidia-cusparselt-cu13==0.8.1
+nvidia-ml-py==13.610.43
+nvidia-nccl-cu13==2.29.7
+nvidia-nvjitlink==13.3.33
+nvidia-nvshmem-cu13==3.4.5
+nvidia-nvtx==13.0.85
+opencv-contrib-python==5.0.0.93
+opencv-python==5.0.0.93
+opencv-python-headless==5.0.0.93
+openpyxl==3.1.5
+optuna==4.9.0
+outcome==1.3.0.post0
+packaging==26.3
+pandas==3.0.5
+pillow==12.3.0
+platformdirs==4.11.3
+plotly==6.9.0
+polars==1.44.1
+polars-runtime-32==1.44.1
+protobuf==7.36.0
+psutil==7.2.2
+psycopg2-binary==2.9.12
+pyarrow==25.0.1
+pyautogui==0.9.54
+pycparser==3.0
+pydantic==2.13.4
+pydantic-core==2.46.4
+pydeck==0.9.3
+pydotplus==2.0.2
+pygetwindow==0.0.9
+pymsgbox==2.0.1
+pyobjc-core==12.2.2
+pyobjc-framework-cocoa==12.2.2
+pyobjc-framework-quartz==12.2.2
+pyparsing==3.3.2
+pyperclip==1.11.0
+pyrect==0.2.0
+pyscreeze==1.0.1
+pysocks==1.7.1
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3
+python-multipart==0.0.32
+python3-xlib==0.15
+pytweening==1.2.0
+pytz==2026.3.post1
+pyyaml==6.0.3
+referencing==0.37.0
+requests==2.34.2
+rpds-py==2026.6.3
+rubicon-objc==0.5.6
+ruff==0.16.4
+scikit-image==0.26.0
+scikit-learn==1.9.0
+scipy==1.18.1
+seaborn==0.13.2
+selenium==4.47.0
+setuptools==84.0.0
+simsimd==6.5.16
+six==1.17.0
+sklearn-compat==0.1.6
+skn35-2nd-4team==0.1.0
+sniffio==1.3.1
+sortedcontainers==2.4.0
+sounddevice==0.5.6
+soupsieve==2.9.2
+sqlalchemy==2.0.52
+starlette==1.6.0
+streamlit==1.62.0
+stringzilla==5.1.2
+sympy==1.14.0
+threadpoolctl==3.6.0
+tifffile==2026.8.23
+toml==0.10.2
+torch==2.13.0
+torchsummary==1.5.1
+torchvision==0.28.0
+tqdm==4.70.0
+traitlets==5.16.1
+trio==0.34.0
+trio-websocket==0.12.2
+triton==3.7.1
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+tzdata==2026.3
+ultralytics==8.4.130
+ultralytics-platform==0.1.18
+ultralytics-thop==2.1.6
+urllib3==2.7.0
+uvicorn==0.52.4
+watchdog==6.0.0
+webdriver-manager==4.1.2
+websocket-client==1.9.0
+websockets==16.1.1
+wsproto==1.3.2
+xgboost==3.4.1
+xmltodict==1.0.4
+xyzservices==2026.3.0
