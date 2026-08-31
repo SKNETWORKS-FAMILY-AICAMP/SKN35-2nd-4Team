@@ -281,7 +281,9 @@ class RecommendationPolicyRanker:
             raise RuntimeError("fit()을 먼저 호출하세요.")
         path = Path(path)
         booster = getattr(self.model_, "booster_", self.model_)
-        booster.save_model(path)
+        # LightGBM 네이티브 파일 API는 Windows에서 한글·공백이 포함된 경로를
+        # 열지 못할 수 있다. Python이 경로를 처리하고 모델 문자열만 넘긴다.
+        path.write_text(booster.model_to_string(), encoding="utf-8")
         path.with_suffix(".meta.json").write_text(
             json.dumps(
                 {
@@ -307,7 +309,9 @@ class RecommendationPolicyRanker:
         path = Path(path)
         meta = json.loads(path.with_suffix(".meta.json").read_text(encoding="utf-8"))
         obj = cls(seed=int(meta["seed"]))
-        obj.model_ = Booster(model_file=str(path))
+        # model_file은 LightGBM의 네이티브 fopen을 사용해 Windows의 한글 경로에서
+        # 실패할 수 있으므로 Python으로 읽은 모델 문자열을 전달한다.
+        obj.model_ = Booster(model_str=path.read_text(encoding="utf-8"))
         obj.feature_names_ = list(meta["feature_names"])
         obj.training_end_season_ = int(meta["training_end_season"])
         obj.best_iteration_ = int(meta.get("best_iteration") or 0) or None
