@@ -28,7 +28,7 @@ LAHMAN_TEAM_TO_UI = {
 
 # 추천 거리는 현재 시즌의 종합 전력과 출전 비중만 공통으로 사용한다.
 # 역할별 세부 전력·표준화 지표는 ROLE_FEATURES에서 추가한다.
-COMMON_FEATURES = ["overall_score", "g_ratio"]
+COMMON_FEATURES = ["overall_score", "predicted_next_overall_score", "g_ratio"]
 ROLE_FEATURES = {
     "B": ["off_score", "ops_z"],
     "P": ["pit_score", "era_z", "whip_z"],

@@ -459,9 +459,15 @@ class AutoencoderRecommender(ReplacementRecommender):
         )
         # 잠재 유사도와 현재 종합 전력의 근접 순위를 혼합한다. 서로 단위가 다른
         # 두 값을 직접 더하지 않고 백분위 순위로 바꿔 혼합 비율을 해석 가능하게 한다.
+        strength_column = (
+            "predicted_next_overall_score"
+            if "predicted_next_overall_score" in candidates.columns
+            and pd.notna(target.get("predicted_next_overall_score"))
+            else "overall_score"
+        )
         strength_gap = (
-            pd.to_numeric(candidates["overall_score"], errors="coerce")
-            - float(target["overall_score"])
+            pd.to_numeric(candidates[strength_column], errors="coerce")
+            - float(target[strength_column])
         ).abs()
         latent_rank = pd.Series(similarity).rank(method="average", pct=True).to_numpy()
         strength_rank = (-strength_gap.reset_index(drop=True)).rank(
@@ -745,32 +751,13 @@ def precision_at_k_next_strength(
     if current.empty:
         raise ValueError(f"{season + 1}시즌 실제 전력이 없어 P@{k}를 계산할 수 없습니다.")
 
-    # 실행시간과 재현성을 위해 전력 상위 질의를 고정적으로 사용한다.
-    queries = current.sort_values("overall_score", ascending=False)
-
-    # 평가 상한이 지정된 경우에만 상위 질의 수를 제한한다.
-    if max_queries is not None:
-        queries = queries.head(max_queries)
+    queries = _balanced_evaluation_queries(current, max_queries)
 
     scores: list[float] = []
     skipped = 0
     for _, target in queries.iterrows():
-        relevant_pool = current.loc[
-            current["role"].eq(target["role"])
-            & current["team_last"].ne(target["team_last"])
-            & current["player_id"].ne(target["player_id"])
-            & current["g_ratio"].ge(recommender.config.min_g_ratio)
-        ].copy()
-
-        # 추천기가 세부 포지션을 사용하면 정답 후보군에도 같은 조건을 적용한다.
-        if "position" in current.columns and pd.notna(target.get("position")):
-            position_pool = relevant_pool.loc[
-                relevant_pool["position"].eq(target["position"])
-            ]
-
-            # 동일 포지션 후보가 있을 때만 역할 후보군보다 구체적인 조건을 사용한다.
-            if not position_pool.empty:
-                relevant_pool = position_pool
+        # 실제 추천과 동일한 팀·포지션·역할·출전량 필터를 정답에도 적용한다.
+        relevant_pool, _ = recommender._filter_candidates(current, target)
 
         # 정답 후보가 K명보다 적은 질의는 Precision@K 비교가 불가능하다.
         if len(relevant_pool) < k:
@@ -828,9 +815,7 @@ def evaluate_recommendation_quality(
         players["season"].eq(season + 1), ["player_id", "overall_score"]
     ].rename(columns={"overall_score": "next_overall_score"})
     current = current.merge(next_scores, on="player_id", how="inner")
-    queries = current.sort_values("overall_score", ascending=False)
-    if max_queries is not None:
-        queries = queries.head(max_queries)
+    queries = _balanced_evaluation_queries(current, max_queries)
 
     rng = np.random.default_rng(seed)
     gaps: list[float] = []
@@ -840,21 +825,7 @@ def evaluate_recommendation_quality(
     skipped = 0
 
     for _, target in queries.iterrows():
-        pool = current.loc[
-            current["player_id"].ne(target["player_id"])
-            & current["team_last"].ne(target["team_last"])
-            & current["g_ratio"].ge(recommender.config.min_g_ratio)
-        ].copy()
-        matched_on = "role"
-        if "position" in current.columns and pd.notna(target.get("position")):
-            position_pool = pool.loc[pool["position"].eq(target["position"])]
-            if not position_pool.empty:
-                pool = position_pool
-                matched_on = "position"
-            else:
-                pool = pool.loc[pool["role"].eq(target["role"])]
-        else:
-            pool = pool.loc[pool["role"].eq(target["role"])]
+        pool, matched_on = recommender._filter_candidates(current, target)
         if pool.empty:
             skipped += 1
             continue
@@ -915,6 +886,78 @@ def evaluate_recommendation_quality(
         "skipped_queries": skipped,
         "evaluation_season": season,
     }
+
+
+def tune_autoencoder_strength_weight(
+    players: pd.DataFrame,
+    recommender: AutoencoderRecommender,
+    *,
+    season: int = 2024,
+    weights: tuple[float, ...] = (0.0, 0.25, 0.5, 0.75, 1.0),
+    max_queries: int | None = 100,
+) -> tuple[float, pd.DataFrame]:
+    """P@3·NDCG@5·5점 이내 비율의 평균으로 혼합 가중치를 고른다."""
+    rows: list[dict[str, float]] = []
+    for weight in weights:
+        if not 0.0 <= weight <= 1.0:
+            raise ValueError("혼합 가중치는 0과 1 사이여야 합니다.")
+        recommender.strength_weight = weight
+        precision = precision_at_k_next_strength(
+            players, recommender, season=season, k=3, max_queries=max_queries
+        )["precision_at_3"]
+        quality = evaluate_recommendation_quality(
+            players, recommender, season=season, k=5, max_queries=max_queries
+        )
+        within = quality["within_5_points_rate"]
+        ndcg = quality["ndcg_at_5"]
+        rows.append(
+            {
+                "strength_weight": weight,
+                "precision_at_3": float(precision),
+                "ndcg_at_5": float(ndcg),
+                "within_5_points_rate": float(within),
+                "selection_score": float((precision + ndcg + within) / 3.0),
+            }
+        )
+
+    results = pd.DataFrame(rows).sort_values(
+        ["selection_score", "precision_at_3"], ascending=False
+    ).reset_index(drop=True)
+    best_weight = float(results.iloc[0]["strength_weight"])
+    recommender.strength_weight = best_weight
+    return best_weight, results
+
+
+def _balanced_evaluation_queries(
+    current: pd.DataFrame,
+    max_queries: int | None,
+) -> pd.DataFrame:
+    """역할별 질의를 번갈아 뽑아 특정 역할이 평가를 독점하지 않게 한다."""
+    ordered = current.sort_values(
+        ["overall_score", "player_id"], ascending=[False, True]
+    )
+    if max_queries is None or len(ordered) <= max_queries:
+        return ordered
+
+    groups = {
+        str(role): group.reset_index(drop=True)
+        for role, group in ordered.groupby("role", sort=True)
+    }
+    selected: list[pd.Series] = []
+    offset = 0
+    while len(selected) < max_queries:
+        added = False
+        for role in sorted(groups):
+            group = groups[role]
+            if offset < len(group):
+                selected.append(group.iloc[offset])
+                added = True
+                if len(selected) == max_queries:
+                    break
+        if not added:
+            break
+        offset += 1
+    return pd.DataFrame(selected).reset_index(drop=True)
 
 
 def save_recommendation_models(
@@ -983,7 +1026,7 @@ def save_recommendation_models(
             "note": (
                 "Autoencoder 잠재 벡터 코사인 추천"
                 if autoencoder.strength_weight == 0
-                else "Autoencoder 잠재 유사도 + 현재 전력거리 하이브리드 추천"
+                else "Autoencoder 잠재 유사도 + 다음 시즌 예측 전력거리 하이브리드 추천"
             ),
             "params": {
                 "training_end_season": int(autoencoder.catalog_["season"].max()),
@@ -1014,5 +1057,6 @@ __all__ = [
     "recommend_replacements_autoencoder",
     "precision_at_k_next_strength",
     "evaluate_recommendation_quality",
+    "tune_autoencoder_strength_weight",
     "save_recommendation_models",
 ]

@@ -7,6 +7,7 @@
   "path": "models/recommend_knn.pkl",
   "features": [
     "overall_score",
+    "predicted_next_overall_score",
     "g_ratio",
     "off_score",
     "ops_z",
@@ -14,23 +15,23 @@
     "era_z",
     "whip_z"
   ],
-  "n_features": 7,
+  "n_features": 8,
   "metrics": {
-    "precision_at_1": 0.0,
+    "precision_at_3": 0.08333333333333331,
     "evaluated_queries": 100,
     "skipped_queries": 0,
-    "evaluation_season": 2025,
-    "precision_at_3": 0.006666666666666666,
-    "precision_at_5": 0.008,
-    "mean_next_strength_gap": 15.525949359910085,
-    "within_5_points_rate": 0.19078947368421054,
-    "ndcg_at_5": 0.15184426300283194,
-    "position_or_role_match_rate": 1.0
+    "evaluation_season": 2024,
+    "method": "ReplacementRecommender",
+    "mean_next_strength_gap": 15.458310478989254,
+    "within_5_points_rate": 0.2208067940552017,
+    "ndcg_at_5": 0.27858779325428457,
+    "position_or_role_match_rate": 1.0,
+    "evaluation_protocol": "balanced_roles_complete_2024_to_2025"
   },
   "note": "동일 시즌·역할 후보 KNN 코사인 추천",
   "params": {
     "catalog_end_season": 2026
   },
   "classes": [],
-  "saved_at": "2026-08-30T18:43:58"
+  "saved_at": "2026-08-31T09:34:29"
 }

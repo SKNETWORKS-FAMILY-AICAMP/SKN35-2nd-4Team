@@ -80,6 +80,36 @@ def predict_next_season_strength(
     ].reset_index(drop=True)
 
 
+def predict_all_next_season_strength(
+    players: pd.DataFrame,
+    model: Any,
+) -> pd.DataFrame:
+    """각 선수-시즌 행에 대해 그 다음 시즌 전력을 예측한다."""
+    enriched = players.copy()
+    enriched["player_id"] = enriched["player_id"].astype(str)
+    if "had_injury" not in enriched.columns:
+        enriched["had_injury"] = 0.0
+    featured = add_lag_features(enriched)
+    for column in LAG_FEATURES:
+        if column not in featured.columns:
+            featured[column] = 0.0
+
+    model_features = list(getattr(model, "feature_names_in_", LAG_FEATURES))
+    predicted = np.asarray(
+        model.predict(featured[model_features].fillna(0.0)), dtype=float
+    )
+    if not np.isfinite(predicted).all():
+        raise ValueError("다음 시즌 전력 모델이 유한하지 않은 값을 반환했습니다.")
+
+    return pd.DataFrame(
+        {
+            "player_id": featured["player_id"].to_numpy(),
+            "season": featured["season"].to_numpy(),
+            "predicted_next_overall_score": np.clip(predicted, 0.0, 100.0),
+        }
+    )
+
+
 def apply_next_strength_projection(
     players: pd.DataFrame,
     projections: pd.DataFrame,
@@ -105,5 +135,6 @@ def apply_next_strength_projection(
 __all__ = [
     "apply_next_strength_projection",
     "load_next_strength_model",
+    "predict_all_next_season_strength",
     "predict_next_season_strength",
 ]

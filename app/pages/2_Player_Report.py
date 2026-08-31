@@ -24,6 +24,7 @@ from src.models.recommend import (  # noqa: E402
 from src.models.next_strength import (  # noqa: E402
     apply_next_strength_projection,
     load_next_strength_model,
+    predict_all_next_season_strength,
     predict_next_season_strength,
 )
 from src.service.simulation import (  # noqa: E402
@@ -92,6 +93,9 @@ def _adapted_catalog() -> pd.DataFrame:
     바로 켜진다.
     """
     df = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
+    model = load_next_strength_model(NEXT_STRENGTH_PATH)
+    projected = predict_all_next_season_strength(df, model)
+    df = df.merge(projected, on=["player_id", "season"], how="left")
     if "primary_position" in df.columns:
         df["position"] = df["primary_position"]
     return df
@@ -139,7 +143,7 @@ def load_next_strength_projections(
     data_version: int,
     model_version: int,
 ) -> pd.DataFrame:
-    """최신 features_v1을 D의 MLP에 연결해 t+1 전력을 계산한다."""
+    """최신 features_v1을 D의 XGBoost에 연결해 t+1 전력을 계산한다."""
     del data_version, model_version
     players = adapt_features_v1(pd.read_parquet(FEATURES_PATH))
     model = load_next_strength_model(NEXT_STRENGTH_PATH)
