@@ -1,0 +1,25 @@
+{
+  "name": "recommend_policy_ranker",
+  "task": "recommend",
+  "kind": "ml",
+  "owner": "E",
+  "format": "xgboost",
+  "path": "models/recommend_policy_ranker.ubj",
+  "n_features": 42,
+  "features": ["candidate", "target", "signed_diff", "absolute_diff", "team_player_rank", "cost_efficiency"],
+  "classes": [],
+  "params": {
+    "training_end_season": 2023,
+    "objective": "rank:ndcg",
+    "runtime_blend_weight": 0.05
+  },
+  "metrics": {
+    "precision_at_3": 0.07333333333333333,
+    "baseline_d_projection_precision_at_3": 0.07666666666666666,
+    "ndcg_at_5": 0.2358298453848877,
+    "evaluated_queries": 100,
+    "evaluation_season": 2024
+  },
+  "note": "과거 다음 시즌 적합도·실제 이동·비용 효율 지도학습. 검증 한계로 규칙 점수에 5%만 결합",
+  "saved_at": "2026-08-31T10:15:00"
+}
